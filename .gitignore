@@ -1,0 +1,8 @@
+node_modules/
+logs/
+*.log
+*.pid
+*.pid.lock
+*.lock
+.env
+.DS_Store

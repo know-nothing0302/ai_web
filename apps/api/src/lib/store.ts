@@ -1,0 +1,2203 @@
+import {
+  AnalyticsEvent,
+  AnalyticsEventName,
+  AnalyticsEventType,
+  Article,
+  ArticleChannel,
+  FeedbackEntry,
+  FeedbackType,
+  PageAgentConversation,
+  PageAgentConversationStatus,
+  PageAgentMessage,
+  PageAgentMessageRole,
+  PageAgentMessageType,
+  ArticleStatus,
+  PushDeliveryMode,
+  PushRecord,
+  PushRecordStatus,
+  Subscription,
+  TagSyncStatus,
+  TodayPushedArticle,
+  UserProfile,
+  UserProfileAnalysisJob,
+  UserProfileAnalysisJobStatus,
+  UserProfileAnalysisTriggerMode,
+  WecomAppConfig,
+  WecomTagMapping,
+} from "./types";
+import { query } from "./db";
+import { logger } from "./logger";
+
+interface ArticleRow {
+  id: string;
+  created_by_user_id: string | null;
+  title: string;
+  summary: string;
+  content: string;
+  source_content: string | null;
+  original_url: string | null;
+  channel_code: string | null;
+  channel_name?: string | null;
+  category: string;
+  tags: string[];
+  status: ArticleStatus;
+  author: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SubscriptionRow {
+  id: string;
+  user_id: string;
+  channel_codes: string[];
+  categories: string[];
+  frequency: "daily" | "weekly" | "instant";
+  qywx_user_id: string;
+  qywx_user_name: string | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ArticleChannelRow {
+  code: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface WecomAppConfigRow {
+  id: string;
+  app_code: string;
+  corp_id: string;
+  agent_id: number;
+  secret: string;
+  callback_token: string | null;
+  callback_aes_key: string | null;
+  internal_auth_token: string | null;
+  base_url: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface WecomTagMappingRow {
+  id: string;
+  channel_code: string;
+  frequency: "daily" | "weekly" | "instant";
+  tag_id: number;
+  tag_name: string;
+  enabled: boolean;
+  last_sync_status: TagSyncStatus;
+  last_sync_error: string | null;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PushRecordRow {
+  id: string;
+  article_id: string | null;
+  channel_code: string;
+  subscription_user_id: string | null;
+  qywx_user_id: string;
+  delivery_mode: PushDeliveryMode;
+  wecom_tag_id: number | null;
+  wecom_tag_name: string | null;
+  message_type: string;
+  title: string;
+  summary: string;
+  url: string;
+  status: PushRecordStatus;
+  retry_count: number;
+  wecom_errcode: number | null;
+  wecom_errmsg: string | null;
+  wecom_msgid: string | null;
+  response_code: string | null;
+  request_payload: Record<string, unknown> | null;
+  response_payload: Record<string, unknown> | null;
+  error_detail: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TodayPushedArticleRow extends ArticleRow {
+  push_record_id: string;
+  sent_at: string;
+}
+
+interface PageAgentConversationRow {
+  id: string;
+  user_id: string;
+  title: string | null;
+  page_type: string | null;
+  route: string | null;
+  page_title: string | null;
+  status: PageAgentConversationStatus;
+  last_message_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PageAgentMessageRow {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  role: PageAgentMessageRole;
+  message_type: PageAgentMessageType;
+  content: string;
+  sanitized_content: string | null;
+  page_type: string | null;
+  route: string | null;
+  page_title: string | null;
+  context_payload: Record<string, unknown> | null;
+  sources_payload: unknown[] | null;
+  model: string | null;
+  tokens_input: number | null;
+  tokens_output: number | null;
+  parent_message_id: string | null;
+  feedback_score: number | null;
+  feedback_tag: string | null;
+  created_at: string;
+}
+
+interface UserProfileRow {
+  id: string;
+  user_id: string;
+  profile_version: number;
+  preference_summary: string;
+  persona_prompt: string;
+  interest_topics: string[];
+  response_preferences: Record<string, unknown> | null;
+  evidence_stats: Record<string, unknown> | null;
+  last_analyzed_at: string | null;
+  last_source_window_start: string | null;
+  last_source_window_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface UserProfileAnalysisJobRow {
+  id: string;
+  trigger_mode: UserProfileAnalysisTriggerMode;
+  target_user_id: string | null;
+  status: UserProfileAnalysisJobStatus;
+  processed_count: number;
+  success_count: number;
+  failed_count: number;
+  error_message: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+}
+
+interface FeedbackEntryRow {
+  id: string;
+  user_id: string;
+  type: "bug" | "ux" | "content" | "other";
+  content: string;
+  contact: string | null;
+  page_route: string;
+  page_title: string;
+  source: string;
+  created_at: string;
+}
+
+interface AnalyticsEventRow {
+  id: string;
+  event_type: AnalyticsEventType;
+  event_name: AnalyticsEventName;
+  user_id: string | null;
+  session_id: string | null;
+  page_route: string | null;
+  page_title: string | null;
+  article_id: string | null;
+  channel_code: string | null;
+  source_module: string;
+  event_payload: Record<string, unknown> | null;
+  occurred_at: string;
+  created_at: string;
+}
+
+interface FeedbackListFilters {
+  type?: FeedbackType;
+  startAt?: string;
+  endAt?: string;
+  page: number;
+  pageSize: number;
+}
+
+interface FeedbackListResult {
+  items: FeedbackEntry[];
+  total: number;
+}
+
+const mapArticle = (row: ArticleRow): Article => ({
+  id: row.id,
+  createdByUserId: row.created_by_user_id ?? undefined,
+  title: row.title,
+  summary: row.summary,
+  content: row.content,
+  sourceContent: row.source_content ?? undefined,
+  originalUrl: row.original_url ?? undefined,
+  channelCode: row.channel_code ?? "daily-ai-summary",
+  channelName: row.channel_name ?? undefined,
+  category: row.channel_name ?? row.category,
+  tags: row.tags ?? [],
+  status: row.status,
+  author: row.author,
+  publishedAt: row.published_at ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapSubscription = (row: SubscriptionRow): Subscription => ({
+  id: row.id,
+  userId: row.user_id,
+  channelCodes: row.channel_codes ?? [],
+  categories: row.categories ?? [],
+  frequency: row.frequency,
+  qywxUserId: row.qywx_user_id,
+  qywxUserName: row.qywx_user_name ?? undefined,
+  enabled: row.enabled,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapArticleChannel = (row: ArticleChannelRow): ArticleChannel => ({
+  code: row.code,
+  name: row.name,
+  description: row.description ?? undefined,
+  sortOrder: row.sort_order,
+  enabled: row.enabled,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapWecomAppConfig = (row: WecomAppConfigRow): WecomAppConfig => ({
+  id: row.id,
+  appCode: row.app_code,
+  corpId: row.corp_id,
+  agentId: row.agent_id,
+  secret: row.secret,
+  callbackToken: row.callback_token ?? undefined,
+  callbackAesKey: row.callback_aes_key ?? undefined,
+  internalAuthToken: row.internal_auth_token ?? undefined,
+  baseUrl: row.base_url,
+  enabled: row.enabled,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapFeedbackEntry = (row: FeedbackEntryRow): FeedbackEntry => ({
+  id: row.id,
+  userId: row.user_id,
+  type: row.type,
+  content: row.content,
+  contact: row.contact ?? undefined,
+  pageRoute: row.page_route,
+  pageTitle: row.page_title,
+  source: row.source,
+  createdAt: row.created_at,
+});
+
+const mapAnalyticsEvent = (row: AnalyticsEventRow): AnalyticsEvent => ({
+  id: row.id,
+  eventType: row.event_type,
+  eventName: row.event_name,
+  userId: row.user_id ?? undefined,
+  sessionId: row.session_id ?? undefined,
+  pageRoute: row.page_route ?? undefined,
+  pageTitle: row.page_title ?? undefined,
+  articleId: row.article_id ?? undefined,
+  channelCode: row.channel_code ?? undefined,
+  sourceModule: row.source_module,
+  eventPayload: row.event_payload ?? {},
+  occurredAt: row.occurred_at,
+  createdAt: row.created_at,
+});
+
+const mapWecomTagMapping = (row: WecomTagMappingRow): WecomTagMapping => ({
+  id: row.id,
+  channelCode: row.channel_code,
+  frequency: row.frequency,
+  tagId: row.tag_id,
+  tagName: row.tag_name,
+  enabled: row.enabled,
+  lastSyncStatus: row.last_sync_status,
+  lastSyncError: row.last_sync_error ?? undefined,
+  lastSyncedAt: row.last_synced_at ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapPushRecord = (row: PushRecordRow): PushRecord => ({
+  id: row.id,
+  articleId: row.article_id ?? undefined,
+  channelCode: row.channel_code,
+  subscriptionUserId: row.subscription_user_id ?? undefined,
+  qywxUserId: row.qywx_user_id,
+  deliveryMode: row.delivery_mode,
+  wecomTagId: row.wecom_tag_id ?? undefined,
+  wecomTagName: row.wecom_tag_name ?? undefined,
+  messageType: row.message_type,
+  title: row.title,
+  summary: row.summary,
+  url: row.url,
+  status: row.status,
+  retryCount: row.retry_count,
+  wecomErrcode: row.wecom_errcode ?? undefined,
+  wecomErrmsg: row.wecom_errmsg ?? undefined,
+  wecomMsgid: row.wecom_msgid ?? undefined,
+  responseCode: row.response_code ?? undefined,
+  requestPayload: row.request_payload ?? {},
+  responsePayload: row.response_payload ?? {},
+  errorDetail: row.error_detail ?? undefined,
+  sentAt: row.sent_at ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapPageAgentConversation = (
+  row: PageAgentConversationRow
+): PageAgentConversation => ({
+  id: row.id,
+  userId: row.user_id,
+  title: row.title ?? undefined,
+  pageType: row.page_type ?? undefined,
+  route: row.route ?? undefined,
+  pageTitle: row.page_title ?? undefined,
+  status: row.status,
+  lastMessageAt: row.last_message_at,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapPageAgentMessage = (row: PageAgentMessageRow): PageAgentMessage => ({
+  id: row.id,
+  conversationId: row.conversation_id,
+  userId: row.user_id,
+  role: row.role,
+  messageType: row.message_type,
+  content: row.content,
+  sanitizedContent: row.sanitized_content ?? undefined,
+  pageType: row.page_type ?? undefined,
+  route: row.route ?? undefined,
+  pageTitle: row.page_title ?? undefined,
+  contextPayload: row.context_payload ?? {},
+  sourcesPayload: row.sources_payload ?? [],
+  model: row.model ?? undefined,
+  tokensInput: row.tokens_input ?? undefined,
+  tokensOutput: row.tokens_output ?? undefined,
+  parentMessageId: row.parent_message_id ?? undefined,
+  feedbackScore: row.feedback_score ?? undefined,
+  feedbackTag: row.feedback_tag ?? undefined,
+  createdAt: row.created_at,
+});
+
+const mapUserProfile = (row: UserProfileRow): UserProfile => ({
+  id: row.id,
+  userId: row.user_id,
+  profileVersion: row.profile_version,
+  preferenceSummary: row.preference_summary,
+  personaPrompt: row.persona_prompt,
+  interestTopics: row.interest_topics ?? [],
+  responsePreferences: row.response_preferences ?? {},
+  evidenceStats: row.evidence_stats ?? {},
+  lastAnalyzedAt: row.last_analyzed_at ?? undefined,
+  lastSourceWindowStart: row.last_source_window_start ?? undefined,
+  lastSourceWindowEnd: row.last_source_window_end ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapUserProfileAnalysisJob = (
+  row: UserProfileAnalysisJobRow
+): UserProfileAnalysisJob => ({
+  id: row.id,
+  triggerMode: row.trigger_mode,
+  targetUserId: row.target_user_id ?? undefined,
+  status: row.status,
+  processedCount: row.processed_count,
+  successCount: row.success_count,
+  failedCount: row.failed_count,
+  errorMessage: row.error_message ?? undefined,
+  startedAt: row.started_at ?? undefined,
+  finishedAt: row.finished_at ?? undefined,
+  createdAt: row.created_at,
+});
+
+export const articleChannelStore = {
+  async list(enabledOnly = false): Promise<ArticleChannel[]> {
+    const result = await query<ArticleChannelRow>(
+      `
+      SELECT
+        code,
+        name,
+        description,
+        sort_order,
+        enabled,
+        created_at,
+        updated_at
+      FROM article_channels
+      ${enabledOnly ? "WHERE enabled = TRUE" : ""}
+      ORDER BY sort_order ASC, created_at ASC
+      `
+    );
+    return result.rows.map(mapArticleChannel);
+  },
+  async getByCode(code: string): Promise<ArticleChannel | undefined> {
+    const result = await query<ArticleChannelRow>(
+      `
+      SELECT
+        code,
+        name,
+        description,
+        sort_order,
+        enabled,
+        created_at,
+        updated_at
+      FROM article_channels
+      WHERE code = $1
+      LIMIT 1
+      `,
+      [code]
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapArticleChannel(result.rows[0]);
+  },
+};
+
+export const articleStore = {
+  async list(params: {
+    channelCode?: string;
+    category?: string;
+    keyword?: string;
+    status?: ArticleStatus;
+  }): Promise<Article[]> {
+    const values: unknown[] = [];
+    const conditions: string[] = [];
+    const discoverConditions: string[] = [];
+    if (params.status) {
+      values.push(params.status);
+      conditions.push(`articles.status = $${values.length}`);
+    }
+    if (params.category) {
+      values.push(params.category);
+      discoverConditions.push(`articles.category = $${values.length}`);
+    }
+    if (params.channelCode) {
+      values.push(params.channelCode);
+      discoverConditions.push(`articles.channel_code = $${values.length}`);
+    }
+    if (params.keyword) {
+      values.push(`%${params.keyword}%`);
+      discoverConditions.push(
+        `(articles.title ILIKE $${values.length} OR articles.summary ILIKE $${values.length} OR articles.content ILIKE $${values.length})`
+      );
+    }
+    if (discoverConditions.length > 0) {
+      conditions.push(`(${discoverConditions.join(" OR ")})`);
+    }
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const result = await query<ArticleRow>(
+      `
+      SELECT
+        articles.id,
+        articles.created_by_user_id,
+        articles.title,
+        articles.summary,
+        articles.content,
+        articles.source_content,
+        articles.original_url,
+        articles.channel_code,
+        channels.name AS channel_name,
+        articles.category,
+        articles.tags,
+        articles.status,
+        articles.author,
+        articles.published_at,
+        articles.created_at,
+        articles.updated_at
+      FROM articles
+      LEFT JOIN article_channels channels ON channels.code = articles.channel_code
+      ${whereClause}
+      ORDER BY articles.created_at DESC
+      `,
+      values
+    );
+    return result.rows.map(mapArticle);
+  },
+  async getById(id: string): Promise<Article | undefined> {
+    const result = await query<ArticleRow>(
+      `
+      SELECT
+        articles.id,
+        articles.created_by_user_id,
+        articles.title,
+        articles.summary,
+        articles.content,
+        articles.source_content,
+        articles.original_url,
+        articles.channel_code,
+        channels.name AS channel_name,
+        articles.category,
+        articles.tags,
+        articles.status,
+        articles.author,
+        articles.published_at,
+        articles.created_at,
+        articles.updated_at
+      FROM articles
+      LEFT JOIN article_channels channels ON channels.code = articles.channel_code
+      WHERE articles.id = $1
+      LIMIT 1
+      `,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapArticle(result.rows[0]);
+  },
+  async listPublishedWithin(input: {
+    startAt: string;
+    endAt: string;
+  }): Promise<Article[]> {
+    const result = await query<ArticleRow>(
+      `
+      SELECT
+        articles.id,
+        articles.created_by_user_id,
+        articles.title,
+        articles.summary,
+        articles.content,
+        articles.source_content,
+        articles.original_url,
+        articles.channel_code,
+        channels.name AS channel_name,
+        articles.category,
+        articles.tags,
+        articles.status,
+        articles.author,
+        articles.published_at,
+        articles.created_at,
+        articles.updated_at
+      FROM articles
+      LEFT JOIN article_channels channels ON channels.code = articles.channel_code
+      WHERE articles.status = 'published'
+        AND articles.published_at IS NOT NULL
+        AND articles.published_at > $1
+        AND articles.published_at <= $2
+      ORDER BY articles.published_at DESC, articles.created_at DESC
+      `,
+      [input.startAt, input.endAt]
+    );
+    return result.rows.map(mapArticle);
+  },
+  async create(input: Omit<Article, "id" | "createdAt" | "updatedAt">): Promise<Article> {
+    const result = await query<ArticleRow>(
+      `
+      WITH inserted AS (
+        INSERT INTO articles (
+          created_by_user_id,
+          title,
+          summary,
+          content,
+          source_content,
+          original_url,
+          channel_code,
+          category,
+          tags,
+          status,
+          author,
+          published_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *
+      )
+      SELECT
+        inserted.id,
+        inserted.created_by_user_id,
+        inserted.title,
+        inserted.summary,
+        inserted.content,
+        inserted.source_content,
+        inserted.original_url,
+        inserted.channel_code,
+        channels.name AS channel_name,
+        inserted.category,
+        inserted.tags,
+        inserted.status,
+        inserted.author,
+        inserted.published_at,
+        inserted.created_at,
+        inserted.updated_at
+      FROM inserted
+      LEFT JOIN article_channels channels ON channels.code = inserted.channel_code
+      `,
+      [
+        input.createdByUserId ?? null,
+        input.title,
+        input.summary,
+        input.content,
+        input.sourceContent ?? null,
+        input.originalUrl ?? null,
+        input.channelCode,
+        input.category,
+        input.tags,
+        input.status,
+        input.author,
+        input.publishedAt ?? null,
+      ]
+    );
+    return mapArticle(result.rows[0]);
+  },
+  async update(
+    id: string,
+    input: Partial<Omit<Article, "id" | "createdAt" | "updatedAt">>
+  ): Promise<Article | undefined> {
+    const values: unknown[] = [];
+    const updates: string[] = [];
+    if ("createdByUserId" in input) {
+      values.push(input.createdByUserId ?? null);
+      updates.push(`created_by_user_id = $${values.length}`);
+    }
+    if ("title" in input) {
+      values.push(input.title);
+      updates.push(`title = $${values.length}`);
+    }
+    if ("summary" in input) {
+      values.push(input.summary);
+      updates.push(`summary = $${values.length}`);
+    }
+    if ("content" in input) {
+      values.push(input.content);
+      updates.push(`content = $${values.length}`);
+    }
+    if ("sourceContent" in input) {
+      values.push(input.sourceContent ?? null);
+      updates.push(`source_content = $${values.length}`);
+    }
+    if ("originalUrl" in input) {
+      values.push(input.originalUrl ?? null);
+      updates.push(`original_url = $${values.length}`);
+    }
+    if ("channelCode" in input) {
+      values.push(input.channelCode);
+      updates.push(`channel_code = $${values.length}`);
+    }
+    if ("category" in input) {
+      values.push(input.category);
+      updates.push(`category = $${values.length}`);
+    }
+    if ("tags" in input) {
+      values.push(input.tags);
+      updates.push(`tags = $${values.length}`);
+    }
+    if ("status" in input) {
+      values.push(input.status);
+      updates.push(`status = $${values.length}`);
+    }
+    if ("author" in input) {
+      values.push(input.author);
+      updates.push(`author = $${values.length}`);
+    }
+    if ("publishedAt" in input) {
+      values.push(input.publishedAt ?? null);
+      updates.push(`published_at = $${values.length}`);
+    }
+    if (updates.length === 0) {
+      return this.getById(id);
+    }
+    values.push(id);
+    const result = await query<ArticleRow>(
+      `
+      UPDATE articles
+      SET ${updates.join(", ")}, updated_at = NOW()
+      WHERE id = $${values.length}
+      RETURNING id
+      `,
+      values
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return this.getById(id);
+  },
+  async remove(id: string): Promise<boolean> {
+    const result = await query<{ id: string }>(
+      `
+      DELETE FROM articles
+      WHERE id = $1
+      RETURNING id
+      `,
+      [id]
+    );
+    return result.rows.length > 0;
+  },
+};
+
+export const subscriptionStore = {
+  async listByUser(userId: string): Promise<Subscription[]> {
+    const result = await query<SubscriptionRow>(
+      `
+      SELECT
+        id,
+        user_id,
+        channel_codes,
+        categories,
+        frequency,
+        qywx_user_id,
+        qywx_user_name,
+        enabled,
+        created_at,
+        updated_at
+      FROM subscriptions
+      WHERE user_id = $1
+      ORDER BY updated_at DESC
+      `,
+      [userId]
+    );
+    return result.rows.map(mapSubscription);
+  },
+  async upsertByUser(
+    userId: string,
+    input: Omit<Subscription, "id" | "userId" | "createdAt" | "updatedAt">
+  ): Promise<Subscription> {
+    const result = await query<SubscriptionRow>(
+      `
+      INSERT INTO subscriptions (
+        user_id,
+        channel_codes,
+        categories,
+        frequency,
+        qywx_user_id,
+        qywx_user_name,
+        enabled
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (user_id, frequency)
+      DO UPDATE SET
+        channel_codes = EXCLUDED.channel_codes,
+        categories = EXCLUDED.categories,
+        qywx_user_id = EXCLUDED.qywx_user_id,
+        qywx_user_name = EXCLUDED.qywx_user_name,
+        enabled = EXCLUDED.enabled,
+        updated_at = NOW()
+      RETURNING
+        id,
+        user_id,
+        channel_codes,
+        categories,
+        frequency,
+        qywx_user_id,
+        qywx_user_name,
+        enabled,
+        created_at,
+        updated_at
+      `,
+      [
+        userId,
+        input.channelCodes,
+        input.categories,
+        input.frequency,
+        input.qywxUserId,
+        input.qywxUserName ?? null,
+        input.enabled,
+      ]
+    );
+    return mapSubscription(result.rows[0]);
+  },
+  async listEnabledByChannelCode(channelCode: string): Promise<Subscription[]> {
+    const result = await query<SubscriptionRow>(
+      `
+      SELECT
+        id,
+        user_id,
+        channel_codes,
+        categories,
+        frequency,
+        qywx_user_id,
+        qywx_user_name,
+        enabled,
+        created_at,
+        updated_at
+      FROM subscriptions
+      WHERE enabled = TRUE AND $1 = ANY(channel_codes)
+      ORDER BY updated_at DESC
+      `,
+      [channelCode]
+    );
+    return result.rows.map(mapSubscription);
+  },
+  async listEnabledByFrequency(
+    frequency: "daily" | "weekly" | "instant"
+  ): Promise<Subscription[]> {
+    const result = await query<SubscriptionRow>(
+      `
+      SELECT
+        id,
+        user_id,
+        channel_codes,
+        categories,
+        frequency,
+        qywx_user_id,
+        qywx_user_name,
+        enabled,
+        created_at,
+        updated_at
+      FROM subscriptions
+      WHERE enabled = TRUE
+        AND frequency = $1
+      ORDER BY updated_at DESC
+      `,
+      [frequency]
+    );
+    return result.rows.map(mapSubscription);
+  },
+  async listEnabledByChannelCodeAndFrequency(
+    channelCode: string,
+    frequency: "daily" | "weekly" | "instant"
+  ): Promise<Subscription[]> {
+    const result = await query<SubscriptionRow>(
+      `
+      SELECT
+        id,
+        user_id,
+        channel_codes,
+        categories,
+        frequency,
+        qywx_user_id,
+        qywx_user_name,
+        enabled,
+        created_at,
+        updated_at
+      FROM subscriptions
+      WHERE enabled = TRUE
+        AND frequency = $2
+        AND $1 = ANY(channel_codes)
+      ORDER BY updated_at DESC
+      `,
+      [channelCode, frequency]
+    );
+    return result.rows.map(mapSubscription);
+  },
+  async getEnabledByChannelCodeAndUserId(
+    channelCode: string,
+    userId: string,
+    frequency?: "daily" | "weekly" | "instant"
+  ): Promise<Subscription | undefined> {
+    const values: unknown[] = [channelCode, userId];
+    const conditions = [
+      "enabled = TRUE",
+      "$1 = ANY(channel_codes)",
+      "user_id = $2",
+    ];
+    if (frequency) {
+      values.push(frequency);
+      conditions.push(`frequency = $${values.length}`);
+    }
+    const result = await query<SubscriptionRow>(
+      `
+      SELECT
+        id,
+        user_id,
+        channel_codes,
+        categories,
+        frequency,
+        qywx_user_id,
+        qywx_user_name,
+        enabled,
+        created_at,
+        updated_at
+      FROM subscriptions
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY updated_at DESC
+      LIMIT 1
+      `,
+      values
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapSubscription(result.rows[0]);
+  },
+};
+
+export const pageAgentConversationStore = {
+  async create(input: {
+    userId: string;
+    pageType?: string;
+    route?: string;
+    pageTitle?: string;
+    title?: string;
+  }): Promise<PageAgentConversation> {
+    const result = await query<PageAgentConversationRow>(
+      `
+      INSERT INTO page_agent_conversations (
+        user_id,
+        page_type,
+        route,
+        page_title,
+        title
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+      `,
+      [
+        input.userId,
+        input.pageType ?? null,
+        input.route ?? null,
+        input.pageTitle ?? null,
+        input.title ?? null,
+      ]
+    );
+    return mapPageAgentConversation(result.rows[0]);
+  },
+  async getById(id: string): Promise<PageAgentConversation | undefined> {
+    const result = await query<PageAgentConversationRow>(
+      `
+      SELECT *
+      FROM page_agent_conversations
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapPageAgentConversation(result.rows[0]);
+  },
+  async listByUser(userId: string, limit: number): Promise<PageAgentConversation[]> {
+    const result = await query<PageAgentConversationRow>(
+      `
+      SELECT *
+      FROM page_agent_conversations
+      WHERE user_id = $1
+      ORDER BY last_message_at DESC
+      LIMIT $2
+      `,
+      [userId, Math.max(1, Math.min(limit, 50))]
+    );
+    return result.rows.map(mapPageAgentConversation);
+  },
+  async touch(id: string): Promise<void> {
+    await query(
+      `
+      UPDATE page_agent_conversations
+      SET last_message_at = NOW(), updated_at = NOW()
+      WHERE id = $1
+      `,
+      [id]
+    );
+  },
+};
+
+export const pageAgentMessageStore = {
+  async create(input: {
+    conversationId: string;
+    userId: string;
+    role: PageAgentMessageRole;
+    messageType: PageAgentMessageType;
+    content: string;
+    sanitizedContent?: string;
+    pageType?: string;
+    route?: string;
+    pageTitle?: string;
+    contextPayload: Record<string, unknown>;
+    sourcesPayload: unknown[];
+    model?: string;
+    tokensInput?: number;
+    tokensOutput?: number;
+    parentMessageId?: string;
+    feedbackScore?: number;
+    feedbackTag?: string;
+  }): Promise<PageAgentMessage> {
+    const result = await query<PageAgentMessageRow>(
+      `
+      INSERT INTO page_agent_messages (
+        conversation_id,
+        user_id,
+        role,
+        message_type,
+        content,
+        sanitized_content,
+        page_type,
+        route,
+        page_title,
+        context_payload,
+        sources_payload,
+        model,
+        tokens_input,
+        tokens_output,
+        parent_message_id,
+        feedback_score,
+        feedback_tag
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16, $17
+      )
+      RETURNING *
+      `,
+      [
+        input.conversationId,
+        input.userId,
+        input.role,
+        input.messageType,
+        input.content,
+        input.sanitizedContent ?? null,
+        input.pageType ?? null,
+        input.route ?? null,
+        input.pageTitle ?? null,
+        JSON.stringify(input.contextPayload),
+        JSON.stringify(input.sourcesPayload),
+        input.model ?? null,
+        input.tokensInput ?? null,
+        input.tokensOutput ?? null,
+        input.parentMessageId ?? null,
+        input.feedbackScore ?? null,
+        input.feedbackTag ?? null,
+      ]
+    );
+    return mapPageAgentMessage(result.rows[0]);
+  },
+  async getById(id: string): Promise<PageAgentMessage | undefined> {
+    const result = await query<PageAgentMessageRow>(
+      `
+      SELECT *
+      FROM page_agent_messages
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapPageAgentMessage(result.rows[0]);
+  },
+  async listRecentByConversation(
+    conversationId: string,
+    limit: number
+  ): Promise<PageAgentMessage[]> {
+    const result = await query<PageAgentMessageRow>(
+      `
+      SELECT *
+      FROM page_agent_messages
+      WHERE conversation_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2
+      `,
+      [conversationId, Math.max(1, Math.min(limit, 100))]
+    );
+    return result.rows.reverse().map(mapPageAgentMessage);
+  },
+  async listRecentByUser(userId: string, limit: number): Promise<PageAgentMessage[]> {
+    const result = await query<PageAgentMessageRow>(
+      `
+      SELECT *
+      FROM page_agent_messages
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2
+      `,
+      [userId, Math.max(1, Math.min(limit, 100))]
+    );
+    return result.rows.reverse().map(mapPageAgentMessage);
+  },
+  async listDistinctUserIdsForProfileAnalysis(limit: number): Promise<string[]> {
+    const result = await query<{ user_id: string }>(
+      `
+      SELECT DISTINCT user_id
+      FROM page_agent_messages
+      ORDER BY user_id ASC
+      LIMIT $1
+      `,
+      [Math.max(1, Math.min(limit, 200))]
+    );
+    return result.rows.map((item) => item.user_id);
+  },
+};
+
+export const userProfileStore = {
+  async getByUserId(userId: string): Promise<UserProfile | undefined> {
+    const result = await query<UserProfileRow>(
+      `
+      SELECT *
+      FROM user_profiles
+      WHERE user_id = $1
+      LIMIT 1
+      `,
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapUserProfile(result.rows[0]);
+  },
+  async upsertByUser(
+    userId: string,
+    input: {
+      profileVersion: number;
+      preferenceSummary: string;
+      personaPrompt: string;
+      interestTopics: string[];
+      responsePreferences: Record<string, unknown>;
+      evidenceStats: Record<string, unknown>;
+    }
+  ): Promise<UserProfile> {
+    const result = await query<UserProfileRow>(
+      `
+      INSERT INTO user_profiles (
+        user_id,
+        profile_version,
+        preference_summary,
+        persona_prompt,
+        interest_topics,
+        response_preferences,
+        evidence_stats,
+        last_analyzed_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, NOW(), NOW())
+      ON CONFLICT (user_id)
+      DO UPDATE SET
+        profile_version = EXCLUDED.profile_version,
+        preference_summary = EXCLUDED.preference_summary,
+        persona_prompt = EXCLUDED.persona_prompt,
+        interest_topics = EXCLUDED.interest_topics,
+        response_preferences = EXCLUDED.response_preferences,
+        evidence_stats = EXCLUDED.evidence_stats,
+        last_analyzed_at = NOW(),
+        updated_at = NOW()
+      RETURNING *
+      `,
+      [
+        userId,
+        input.profileVersion,
+        input.preferenceSummary,
+        input.personaPrompt.slice(0, 500),
+        input.interestTopics,
+        JSON.stringify(input.responsePreferences),
+        JSON.stringify(input.evidenceStats),
+      ]
+    );
+    return mapUserProfile(result.rows[0]);
+  },
+};
+
+export const userProfileAnalysisJobStore = {
+  async create(input: {
+    triggerMode: UserProfileAnalysisTriggerMode;
+    targetUserId?: string;
+  }): Promise<UserProfileAnalysisJob> {
+    const result = await query<UserProfileAnalysisJobRow>(
+      `
+      INSERT INTO user_profile_analysis_jobs (
+        trigger_mode,
+        target_user_id,
+        status
+      )
+      VALUES ($1, $2, 'pending')
+      RETURNING *
+      `,
+      [input.triggerMode, input.targetUserId ?? null]
+    );
+    return mapUserProfileAnalysisJob(result.rows[0]);
+  },
+  async getById(id: string): Promise<UserProfileAnalysisJob | undefined> {
+    const result = await query<UserProfileAnalysisJobRow>(
+      `
+      SELECT *
+      FROM user_profile_analysis_jobs
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapUserProfileAnalysisJob(result.rows[0]);
+  },
+  async markRunning(id: string): Promise<void> {
+    await query(
+      `
+      UPDATE user_profile_analysis_jobs
+      SET status = 'running', started_at = NOW()
+      WHERE id = $1
+      `,
+      [id]
+    );
+  },
+  async updateCounters(
+    id: string,
+    input: { processedCount: number; successCount: number; failedCount: number }
+  ): Promise<void> {
+    await query(
+      `
+      UPDATE user_profile_analysis_jobs
+      SET processed_count = $2,
+          success_count = $3,
+          failed_count = $4
+      WHERE id = $1
+      `,
+      [id, input.processedCount, input.successCount, input.failedCount]
+    );
+  },
+  async markSuccess(id: string): Promise<UserProfileAnalysisJob> {
+    const result = await query<UserProfileAnalysisJobRow>(
+      `
+      UPDATE user_profile_analysis_jobs
+      SET status = 'success', finished_at = NOW()
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id]
+    );
+    return mapUserProfileAnalysisJob(result.rows[0]);
+  },
+  async markFailed(id: string, errorMessage: string): Promise<UserProfileAnalysisJob> {
+    const result = await query<UserProfileAnalysisJobRow>(
+      `
+      UPDATE user_profile_analysis_jobs
+      SET status = 'failed', error_message = $2, finished_at = NOW()
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id, errorMessage]
+    );
+    return mapUserProfileAnalysisJob(result.rows[0]);
+  },
+};
+
+export const wecomConfigStore = {
+  async getEnabledConfig(appCode?: string): Promise<WecomAppConfig | undefined> {
+    const values: unknown[] = [];
+    const conditions = ["enabled = TRUE"];
+    if (appCode) {
+      values.push(appCode);
+      conditions.push(`app_code = $${values.length}`);
+    }
+    const result = await query<WecomAppConfigRow>(
+      `
+      SELECT
+        id,
+        app_code,
+        corp_id,
+        agent_id,
+        secret,
+        callback_token,
+        callback_aes_key,
+        internal_auth_token,
+        base_url,
+        enabled,
+        created_at,
+        updated_at
+      FROM wecom_app_configs
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY updated_at DESC
+      LIMIT 1
+      `,
+      values
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapWecomAppConfig(result.rows[0]);
+  },
+};
+
+export const wecomTagMappingStore = {
+  async list(params?: {
+    channelCode?: string;
+    frequency?: "daily" | "weekly" | "instant";
+    enabledOnly?: boolean;
+  }): Promise<WecomTagMapping[]> {
+    const values: unknown[] = [];
+    const conditions: string[] = [];
+    if (params?.enabledOnly) {
+      conditions.push("enabled = TRUE");
+    }
+    if (params?.channelCode) {
+      values.push(params.channelCode);
+      conditions.push(`channel_code = $${values.length}`);
+    }
+    if (params?.frequency) {
+      values.push(params.frequency);
+      conditions.push(`frequency = $${values.length}`);
+    }
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const result = await query<WecomTagMappingRow>(
+      `
+      SELECT
+        id,
+        channel_code,
+        frequency,
+        tag_id,
+        tag_name,
+        enabled,
+        last_sync_status,
+        last_sync_error,
+        last_synced_at,
+        created_at,
+        updated_at
+      FROM wecom_tag_mappings
+      ${whereClause}
+      ORDER BY channel_code ASC, frequency ASC
+      `
+    );
+    return result.rows.map(mapWecomTagMapping);
+  },
+  async listEnabled(): Promise<WecomTagMapping[]> {
+    return this.list({ enabledOnly: true });
+  },
+  async getByChannelCodeAndFrequency(
+    channelCode: string,
+    frequency: "daily" | "weekly" | "instant"
+  ): Promise<WecomTagMapping | undefined> {
+    const result = await query<WecomTagMappingRow>(
+      `
+      SELECT
+        id,
+        channel_code,
+        frequency,
+        tag_id,
+        tag_name,
+        enabled,
+        last_sync_status,
+        last_sync_error,
+        last_synced_at,
+        created_at,
+        updated_at
+      FROM wecom_tag_mappings
+      WHERE channel_code = $1
+        AND frequency = $2
+      LIMIT 1
+      `,
+      [channelCode, frequency]
+    );
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return mapWecomTagMapping(result.rows[0]);
+  },
+  async upsert(input: {
+    channelCode: string;
+    frequency: "daily" | "weekly" | "instant";
+    tagId: number;
+    tagName: string;
+    enabled?: boolean;
+  }): Promise<WecomTagMapping> {
+    const result = await query<WecomTagMappingRow>(
+      `
+      INSERT INTO wecom_tag_mappings (
+        channel_code,
+        frequency,
+        tag_id,
+        tag_name,
+        enabled
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (channel_code, frequency)
+      DO UPDATE SET
+        tag_id = EXCLUDED.tag_id,
+        tag_name = EXCLUDED.tag_name,
+        enabled = EXCLUDED.enabled,
+        updated_at = NOW()
+      RETURNING
+        id,
+        channel_code,
+        frequency,
+        tag_id,
+        tag_name,
+        enabled,
+        last_sync_status,
+        last_sync_error,
+        last_synced_at,
+        created_at,
+        updated_at
+      `,
+      [
+        input.channelCode,
+        input.frequency,
+        input.tagId,
+        input.tagName,
+        input.enabled ?? true,
+      ]
+    );
+    return mapWecomTagMapping(result.rows[0]);
+  },
+  async markSyncResult(
+    id: string,
+    input: {
+      status: TagSyncStatus;
+      errorMessage?: string;
+      syncedAt?: string;
+    }
+  ): Promise<void> {
+    await query(
+      `
+      UPDATE wecom_tag_mappings
+      SET
+        last_sync_status = $2,
+        last_sync_error = $3,
+        last_synced_at = $4,
+        updated_at = NOW()
+      WHERE id = $1
+      `,
+      [id, input.status, input.errorMessage ?? null, input.syncedAt ?? null]
+    );
+  },
+};
+
+export const pushRecordStore = {
+  async create(input: {
+    articleId?: string;
+    channelCode: string;
+    subscriptionUserId?: string;
+    qywxUserId: string;
+    deliveryMode?: PushDeliveryMode;
+    wecomTagId?: number;
+    wecomTagName?: string;
+    messageType: string;
+    title: string;
+    summary: string;
+    url: string;
+    requestPayload: Record<string, unknown>;
+  }): Promise<PushRecord> {
+    const result = await query<PushRecordRow>(
+      `
+      INSERT INTO push_records (
+        article_id,
+        channel_code,
+        subscription_user_id,
+        qywx_user_id,
+        delivery_mode,
+        wecom_tag_id,
+        wecom_tag_name,
+        message_type,
+        title,
+        summary,
+        url,
+        request_payload
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+      RETURNING
+        id,
+        article_id,
+        channel_code,
+        subscription_user_id,
+        qywx_user_id,
+        delivery_mode,
+        wecom_tag_id,
+        wecom_tag_name,
+        message_type,
+        title,
+        summary,
+        url,
+        status,
+        retry_count,
+        wecom_errcode,
+        wecom_errmsg,
+        wecom_msgid,
+        response_code,
+        request_payload,
+        response_payload,
+        error_detail,
+        sent_at,
+        created_at,
+        updated_at
+      `,
+      [
+        input.articleId ?? null,
+        input.channelCode,
+        input.subscriptionUserId ?? null,
+        input.qywxUserId,
+        input.deliveryMode ?? "user",
+        input.wecomTagId ?? null,
+        input.wecomTagName ?? null,
+        input.messageType,
+        input.title,
+        input.summary,
+        input.url,
+        JSON.stringify(input.requestPayload),
+      ]
+    );
+    return mapPushRecord(result.rows[0]);
+  },
+  async markSuccess(
+    id: string,
+    input: {
+      retryCount: number;
+      wecomErrcode: number;
+      wecomErrmsg: string;
+      wecomMsgid?: string;
+      responseCode?: string;
+      responsePayload: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    await query(
+      `
+      UPDATE push_records
+      SET
+        status = 'success',
+        retry_count = $2,
+        wecom_errcode = $3,
+        wecom_errmsg = $4,
+        wecom_msgid = $5,
+        response_code = $6,
+        response_payload = $7::jsonb,
+        error_detail = NULL,
+        sent_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+      `,
+      [
+        id,
+        input.retryCount,
+        input.wecomErrcode,
+        input.wecomErrmsg,
+        input.wecomMsgid ?? null,
+        input.responseCode ?? null,
+        JSON.stringify(input.responsePayload),
+      ]
+    );
+  },
+  async markFailed(
+    id: string,
+    input: {
+      retryCount: number;
+      wecomErrcode?: number;
+      wecomErrmsg?: string;
+      errorDetail: string;
+      responsePayload?: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    await query(
+      `
+      UPDATE push_records
+      SET
+        status = 'failed',
+        retry_count = $2,
+        wecom_errcode = $3,
+        wecom_errmsg = $4,
+        response_payload = $5::jsonb,
+        error_detail = $6,
+        updated_at = NOW()
+      WHERE id = $1
+      `,
+      [
+        id,
+        input.retryCount,
+        input.wecomErrcode ?? null,
+        input.wecomErrmsg ?? null,
+        JSON.stringify(input.responsePayload ?? {}),
+        input.errorDetail,
+      ]
+    );
+  },
+  async listRecent(limit = 20): Promise<PushRecord[]> {
+    const safeLimit = Math.max(1, Math.min(limit, 100));
+    const result = await query<PushRecordRow>(
+      `
+      SELECT
+        id,
+        article_id,
+        channel_code,
+        subscription_user_id,
+        qywx_user_id,
+        delivery_mode,
+        wecom_tag_id,
+        wecom_tag_name,
+        message_type,
+        title,
+        summary,
+        url,
+        status,
+        retry_count,
+        wecom_errcode,
+        wecom_errmsg,
+        wecom_msgid,
+        response_code,
+        request_payload,
+        response_payload,
+        error_detail,
+        sent_at,
+        created_at,
+        updated_at
+      FROM push_records
+      ORDER BY created_at DESC
+      LIMIT $1
+      `,
+      [safeLimit]
+    );
+    return result.rows.map(mapPushRecord);
+  },
+  async listTodayArticlesByUserIds(userIds: string[]): Promise<TodayPushedArticle[]> {
+    const normalizedUserIds = [...new Set(userIds.map((item) => item.trim()).filter(Boolean))];
+    if (normalizedUserIds.length === 0) {
+      return [];
+    }
+    const result = await query<TodayPushedArticleRow>(
+      `
+      WITH today_records AS (
+        SELECT
+          id,
+          article_id,
+          request_payload,
+          sent_at
+        FROM push_records
+        WHERE (
+            subscription_user_id = ANY($1::text[])
+            OR qywx_user_id = ANY($1::text[])
+            OR EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements_text(
+                CASE
+                  WHEN jsonb_typeof(request_payload -> 'userIds') = 'array'
+                    THEN request_payload -> 'userIds'
+                  ELSE '[]'::jsonb
+                END
+              ) AS user_id_item(value)
+              WHERE user_id_item.value = ANY($1::text[])
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements_text(
+                CASE
+                  WHEN jsonb_typeof(request_payload -> 'touser') = 'array'
+                    THEN request_payload -> 'touser'
+                  ELSE '[]'::jsonb
+                END
+              ) AS touser_item(value)
+              WHERE touser_item.value = ANY($1::text[])
+            )
+            OR COALESCE(request_payload ->> 'touser', '') = ANY($1::text[])
+          )
+          AND status = 'success'
+          AND sent_at IS NOT NULL
+          AND (sent_at AT TIME ZONE 'Asia/Shanghai')::date =
+              (NOW() AT TIME ZONE 'Asia/Shanghai')::date
+      ),
+      record_articles AS (
+        SELECT
+          id AS push_record_id,
+          sent_at,
+          article_id::text AS resolved_article_id
+        FROM today_records
+        WHERE article_id IS NOT NULL
+        UNION ALL
+        SELECT
+          today_records.id AS push_record_id,
+          today_records.sent_at,
+          article_ids.value AS resolved_article_id
+        FROM today_records
+        CROSS JOIN LATERAL jsonb_array_elements_text(
+          CASE
+            WHEN jsonb_typeof(today_records.request_payload -> 'articleIds') = 'array'
+              THEN today_records.request_payload -> 'articleIds'
+            ELSE '[]'::jsonb
+          END
+        ) AS article_ids(value)
+      ),
+      deduplicated_articles AS (
+        SELECT DISTINCT ON (record_articles.resolved_article_id)
+          record_articles.push_record_id,
+          record_articles.sent_at,
+          record_articles.resolved_article_id
+        FROM record_articles
+        ORDER BY record_articles.resolved_article_id, record_articles.sent_at DESC
+      )
+      SELECT
+        deduplicated_articles.push_record_id,
+        deduplicated_articles.sent_at,
+        articles.id,
+        articles.created_by_user_id,
+        articles.title,
+        articles.summary,
+        articles.content,
+        articles.channel_code,
+        channels.name AS channel_name,
+        articles.category,
+        articles.tags,
+        articles.status,
+        articles.author,
+        articles.published_at,
+        articles.created_at,
+        articles.updated_at
+      FROM deduplicated_articles
+      INNER JOIN articles ON articles.id::text = deduplicated_articles.resolved_article_id
+      LEFT JOIN article_channels channels ON channels.code = articles.channel_code
+      ORDER BY deduplicated_articles.sent_at DESC, articles.published_at DESC NULLS LAST
+      `,
+      [normalizedUserIds]
+    );
+    return result.rows.map((row: TodayPushedArticleRow) => ({
+      pushRecordId: row.push_record_id,
+      sentAt: row.sent_at,
+      article: mapArticle(row),
+    }));
+  },
+};
+
+export const feedbackStore = {
+  async create(input: {
+    userId: string;
+    type: "bug" | "ux" | "content" | "other";
+    content: string;
+    contact?: string;
+    pageRoute: string;
+    pageTitle: string;
+    source: string;
+  }): Promise<FeedbackEntry> {
+    const result = await query<FeedbackEntryRow>(
+      `
+      INSERT INTO feedback_entries (
+        user_id,
+        type,
+        content,
+        contact,
+        page_route,
+        page_title,
+        source
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+      `,
+      [
+        input.userId,
+        input.type,
+        input.content,
+        input.contact ?? null,
+        input.pageRoute,
+        input.pageTitle,
+        input.source,
+      ]
+    );
+    return mapFeedbackEntry(result.rows[0]);
+  },
+  async list(filters: FeedbackListFilters): Promise<FeedbackListResult> {
+    const conditions: string[] = [];
+    const values: Array<string | number> = [];
+    if (filters.type) {
+      values.push(filters.type);
+      conditions.push(`type = $${values.length}`);
+    }
+    if (filters.startAt) {
+      values.push(filters.startAt);
+      conditions.push(`created_at >= $${values.length}::timestamptz`);
+    }
+    if (filters.endAt) {
+      values.push(filters.endAt);
+      conditions.push(`created_at <= $${values.length}::timestamptz`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const offset = (filters.page - 1) * filters.pageSize;
+
+    values.push(filters.pageSize);
+    const limitPlaceholder = `$${values.length}`;
+    values.push(offset);
+    const offsetPlaceholder = `$${values.length}`;
+
+    const itemsResult = await query<FeedbackEntryRow>(
+      `
+      SELECT
+        id,
+        user_id,
+        type,
+        content,
+        contact,
+        page_route,
+        page_title,
+        source,
+        created_at
+      FROM feedback_entries
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ${limitPlaceholder}
+      OFFSET ${offsetPlaceholder}
+      `,
+      values
+    );
+
+    const countResult = await query<{ total: string }>(
+      `
+      SELECT COUNT(*)::text AS total
+      FROM feedback_entries
+      ${whereClause}
+      `,
+      values.slice(0, values.length - 2)
+    );
+
+    return {
+      items: itemsResult.rows.map(mapFeedbackEntry),
+      total: Number(countResult.rows[0]?.total ?? 0),
+    };
+  },
+};
+
+export const analyticsEventStore = {
+  async create(input: {
+    eventType: AnalyticsEvent["eventType"];
+    eventName: AnalyticsEvent["eventName"];
+    userId?: string;
+    sessionId?: string;
+    pageRoute?: string;
+    pageTitle?: string;
+    articleId?: string;
+    channelCode?: string;
+    sourceModule: string;
+    eventPayload?: Record<string, unknown>;
+    occurredAt?: string;
+  }): Promise<AnalyticsEvent> {
+    const result = await query<AnalyticsEventRow>(
+      `
+      INSERT INTO analytics_events (
+        event_type,
+        event_name,
+        user_id,
+        session_id,
+        page_route,
+        page_title,
+        article_id,
+        channel_code,
+        source_module,
+        event_payload,
+        occurred_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+      RETURNING
+        id,
+        event_type,
+        event_name,
+        user_id,
+        session_id,
+        page_route,
+        page_title,
+        article_id,
+        channel_code,
+        source_module,
+        event_payload,
+        occurred_at,
+        created_at
+      `,
+      [
+        input.eventType,
+        input.eventName,
+        input.userId ?? null,
+        input.sessionId ?? null,
+        input.pageRoute ?? null,
+        input.pageTitle ?? null,
+        input.articleId ?? null,
+        input.channelCode ?? null,
+        input.sourceModule,
+        JSON.stringify(input.eventPayload ?? {}),
+        input.occurredAt ?? new Date().toISOString(),
+      ]
+    );
+    return mapAnalyticsEvent(result.rows[0]);
+  },
+  async countByEventName(input: {
+    eventName: AnalyticsEvent["eventName"];
+    startAt?: string;
+    endAt?: string;
+    channelCode?: string;
+  }): Promise<number> {
+    const values: unknown[] = [input.eventName];
+    const conditions = ["event_name = $1"];
+    if (input.startAt) {
+      values.push(input.startAt);
+      conditions.push(`occurred_at >= $${values.length}::timestamptz`);
+    }
+    if (input.endAt) {
+      values.push(input.endAt);
+      conditions.push(`occurred_at <= $${values.length}::timestamptz`);
+    }
+    if (input.channelCode) {
+      values.push(input.channelCode);
+      conditions.push(`channel_code = $${values.length}`);
+    }
+    const result = await query<{ total: string }>(
+      `
+      SELECT COUNT(*)::text AS total
+      FROM analytics_events
+      WHERE ${conditions.join(" AND ")}
+      `,
+      values
+    );
+    return Number(result.rows[0]?.total ?? 0);
+  },
+  async countDistinctUsers(input: {
+    startAt?: string;
+    endAt?: string;
+    channelCode?: string;
+  }): Promise<number> {
+    const values: unknown[] = [];
+    const conditions = ["user_id IS NOT NULL"];
+    if (input.startAt) {
+      values.push(input.startAt);
+      conditions.push(`occurred_at >= $${values.length}::timestamptz`);
+    }
+    if (input.endAt) {
+      values.push(input.endAt);
+      conditions.push(`occurred_at <= $${values.length}::timestamptz`);
+    }
+    if (input.channelCode) {
+      values.push(input.channelCode);
+      conditions.push(`channel_code = $${values.length}`);
+    }
+    const result = await query<{ total: string }>(
+      `
+      SELECT COUNT(DISTINCT user_id)::text AS total
+      FROM analytics_events
+      WHERE ${conditions.join(" AND ")}
+      `,
+      values
+    );
+    return Number(result.rows[0]?.total ?? 0);
+  },
+  async listDailyTrend(input: {
+    startAt: string;
+    endAt: string;
+  }): Promise<Array<{ date: string; pv: number; uv: number; articleViews: number }>> {
+    const result = await query<{
+      date: string;
+      pv: string;
+      uv: string;
+      article_views: string;
+    }>(
+      `
+      SELECT
+        to_char(date_trunc('day', occurred_at AT TIME ZONE 'Asia/Shanghai'), 'YYYY-MM-DD') AS date,
+        COUNT(*) FILTER (WHERE event_name = 'page_view')::text AS pv,
+        COUNT(DISTINCT user_id) FILTER (
+          WHERE event_name = 'page_view' AND user_id IS NOT NULL
+        )::text AS uv,
+        COUNT(*) FILTER (WHERE event_name = 'article_view')::text AS article_views
+      FROM analytics_events
+      WHERE occurred_at >= $1::timestamptz
+        AND occurred_at <= $2::timestamptz
+      GROUP BY 1
+      ORDER BY 1 ASC
+      `,
+      [input.startAt, input.endAt]
+    );
+    return result.rows.map((row) => ({
+      date: row.date,
+      pv: Number(row.pv),
+      uv: Number(row.uv),
+      articleViews: Number(row.article_views),
+    }));
+  },
+  async listChannelMetricGroups(input: {
+    eventName: AnalyticsEvent["eventName"];
+    startAt: string;
+    endAt: string;
+  }): Promise<Array<{ key: string; label: string; value: number }>> {
+    const result = await query<{
+      key: string;
+      label: string;
+      value: string;
+    }>(
+      `
+      SELECT
+        analytics.channel_code AS key,
+        COALESCE(channels.name, analytics.channel_code) AS label,
+        COUNT(*)::text AS value
+      FROM analytics_events analytics
+      LEFT JOIN article_channels channels
+        ON channels.code = analytics.channel_code
+      WHERE analytics.event_name = $1
+        AND analytics.channel_code IS NOT NULL
+        AND analytics.occurred_at >= $2::timestamptz
+        AND analytics.occurred_at <= $3::timestamptz
+      GROUP BY analytics.channel_code, channels.name
+      ORDER BY COUNT(*) DESC, analytics.channel_code ASC
+      `,
+      [input.eventName, input.startAt, input.endAt]
+    );
+    return result.rows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      value: Number(row.value),
+    }));
+  },
+  async listFeedbackTypeMetrics(input: {
+    startAt: string;
+    endAt: string;
+  }): Promise<Array<{ key: string; label: string; value: number }>> {
+    const result = await query<{
+      key: string;
+      value: string;
+    }>(
+      `
+      SELECT
+        COALESCE(event_payload->>'type', 'unknown') AS key,
+        COUNT(*)::text AS value
+      FROM analytics_events
+      WHERE event_name = 'feedback_created'
+        AND occurred_at >= $1::timestamptz
+        AND occurred_at <= $2::timestamptz
+      GROUP BY COALESCE(event_payload->>'type', 'unknown')
+      ORDER BY COUNT(*) DESC, key ASC
+      `,
+      [input.startAt, input.endAt]
+    );
+    return result.rows.map((row) => ({
+      key: row.key,
+      label: row.key,
+      value: Number(row.value),
+    }));
+  },
+  async listTopArticles(input: {
+    startAt: string;
+    endAt: string;
+    limit: number;
+  }): Promise<
+    Array<{
+      articleId: string;
+      title: string;
+      channelCode: string;
+      channelName: string;
+      viewCount: number;
+    }>
+  > {
+    const result = await query<{
+      article_id: string;
+      title: string;
+      channel_code: string;
+      channel_name: string | null;
+      view_count: string;
+    }>(
+      `
+      SELECT
+        analytics.article_id,
+        articles.title,
+        articles.channel_code,
+        COALESCE(channels.name, articles.channel_code) AS channel_name,
+        COUNT(*)::text AS view_count
+      FROM analytics_events analytics
+      INNER JOIN articles
+        ON articles.id = analytics.article_id
+      LEFT JOIN article_channels channels
+        ON channels.code = articles.channel_code
+      WHERE analytics.event_name = 'article_view'
+        AND analytics.article_id IS NOT NULL
+        AND analytics.occurred_at >= $1::timestamptz
+        AND analytics.occurred_at <= $2::timestamptz
+      GROUP BY analytics.article_id, articles.title, articles.channel_code, channels.name
+      ORDER BY COUNT(*) DESC, articles.title ASC
+      LIMIT $3
+      `,
+      [input.startAt, input.endAt, input.limit]
+    );
+    return result.rows.map((row) => ({
+      articleId: row.article_id,
+      title: row.title,
+      channelCode: row.channel_code,
+      channelName: row.channel_name ?? row.channel_code,
+      viewCount: Number(row.view_count),
+    }));
+  },
+  async listTopChannels(input: {
+    startAt: string;
+    endAt: string;
+    limit: number;
+  }): Promise<Array<{ channelCode: string; channelName: string; viewCount: number }>> {
+    const result = await query<{
+      channel_code: string;
+      channel_name: string | null;
+      view_count: string;
+    }>(
+      `
+      SELECT
+        analytics.channel_code,
+        COALESCE(channels.name, analytics.channel_code) AS channel_name,
+        COUNT(*)::text AS view_count
+      FROM analytics_events analytics
+      LEFT JOIN article_channels channels
+        ON channels.code = analytics.channel_code
+      WHERE analytics.event_name = 'article_view'
+        AND analytics.channel_code IS NOT NULL
+        AND analytics.occurred_at >= $1::timestamptz
+        AND analytics.occurred_at <= $2::timestamptz
+      GROUP BY analytics.channel_code, channels.name
+      ORDER BY COUNT(*) DESC, analytics.channel_code ASC
+      LIMIT $3
+      `,
+      [input.startAt, input.endAt, input.limit]
+    );
+    return result.rows.map((row) => ({
+      channelCode: row.channel_code,
+      channelName: row.channel_name ?? row.channel_code,
+      viewCount: Number(row.view_count),
+    }));
+  },
+  async getStatus(): Promise<{
+    latestEventAt?: string;
+    totalEvents: number;
+    todayEventCount: number;
+  }> {
+    const result = await query<{
+      latest_event_at: string | null;
+      total_events: string;
+      today_event_count: string;
+    }>(
+      `
+      WITH today_start AS (
+        SELECT date_trunc('day', NOW() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai' AS value
+      )
+      SELECT
+        MAX(occurred_at) AS latest_event_at,
+        COUNT(*)::text AS total_events,
+        COUNT(*) FILTER (
+          WHERE occurred_at >= (SELECT value FROM today_start)
+        )::text AS today_event_count
+      FROM analytics_events
+      `
+    );
+    return {
+      latestEventAt: result.rows[0]?.latest_event_at ?? undefined,
+      totalEvents: Number(result.rows[0]?.total_events ?? 0),
+      todayEventCount: Number(result.rows[0]?.today_event_count ?? 0),
+    };
+  },
+};
+
+export const recordAnalyticsEventSafely = async (input: {
+  eventType: AnalyticsEvent["eventType"];
+  eventName: AnalyticsEvent["eventName"];
+  userId?: string;
+  sessionId?: string;
+  pageRoute?: string;
+  pageTitle?: string;
+  articleId?: string;
+  channelCode?: string;
+  sourceModule: string;
+  eventPayload?: Record<string, unknown>;
+}): Promise<void> => {
+  try {
+    await analyticsEventStore.create(input);
+  } catch (error) {
+    logger.error("analytics.event.write.failed", {
+      eventType: input.eventType,
+      eventName: input.eventName,
+      sourceModule: input.sourceModule,
+      userId: input.userId,
+      articleId: input.articleId,
+      channelCode: input.channelCode,
+      error,
+    });
+  }
+};

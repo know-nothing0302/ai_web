@@ -1,0 +1,196 @@
+import { Router } from "express";
+import { z } from "zod";
+
+import { env } from "../../config/env";
+import { logger } from "../../lib/logger";
+import { feedbackStore, recordAnalyticsEventSafely } from "../../lib/store";
+import {
+  requireAdminOrFeedbackReadToken,
+  requireAuth,
+  requireFeedbackReader,
+} from "../../middleware/auth";
+
+const createSchema = z.object({
+  type: z.enum(["bug", "ux", "content", "other"]),
+  content: z.string().trim().min(1).max(4000),
+  contact: z.string().trim().max(255).optional(),
+  pageRoute: z.string().trim().min(1).max(500),
+  pageTitle: z.string().trim().min(1).max(200),
+});
+
+const listSchema = z.object({
+  type: z.enum(["bug", "ux", "content", "other"]).optional(),
+  startAt: z.string().datetime({ offset: true }).optional(),
+  endAt: z.string().datetime({ offset: true }).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const feedbackRouter = Router();
+
+feedbackRouter.get(
+  "/external",
+  requireAdminOrFeedbackReadToken,
+  async (request, response) => {
+    const parsed = listSchema.safeParse(request.query);
+    if (!parsed.success) {
+      response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+      return;
+    }
+
+    logger.info("feedback.external.read.start", {
+      type: parsed.data.type,
+      startAt: parsed.data.startAt,
+      endAt: parsed.data.endAt,
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+      stage: "list",
+    });
+
+    try {
+      const result = await feedbackStore.list(parsed.data);
+      logger.info("feedback.external.read.success", {
+        type: parsed.data.type,
+        startAt: parsed.data.startAt,
+        endAt: parsed.data.endAt,
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+        total: result.total,
+        returnedCount: result.items.length,
+        stage: "list",
+      });
+      response.json({
+        items: result.items,
+        pagination: {
+          page: parsed.data.page,
+          pageSize: parsed.data.pageSize,
+          total: result.total,
+        },
+      });
+    } catch (error) {
+      logger.error("feedback.external.read.failed", {
+        type: parsed.data.type,
+        startAt: parsed.data.startAt,
+        endAt: parsed.data.endAt,
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+        stage: "list",
+        error,
+      });
+      response.status(500).json({ message: "反馈查询失败" });
+    }
+  }
+);
+
+feedbackRouter.get("/admin", requireFeedbackReader, async (request, response) => {
+  const parsed = listSchema.safeParse(request.query);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+
+  logger.info("feedback.admin.read.start", {
+    type: parsed.data.type,
+    startAt: parsed.data.startAt,
+    endAt: parsed.data.endAt,
+    page: parsed.data.page,
+    pageSize: parsed.data.pageSize,
+    stage: "list",
+  });
+
+  try {
+    const result = await feedbackStore.list(parsed.data);
+    logger.info("feedback.admin.read.success", {
+      type: parsed.data.type,
+      startAt: parsed.data.startAt,
+      endAt: parsed.data.endAt,
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+      total: result.total,
+      returnedCount: result.items.length,
+      stage: "list",
+    });
+    response.json({
+      items: result.items,
+      pagination: {
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+        total: result.total,
+      },
+    });
+  } catch (error) {
+    logger.error("feedback.admin.read.failed", {
+      type: parsed.data.type,
+      startAt: parsed.data.startAt,
+      endAt: parsed.data.endAt,
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+      stage: "list",
+      error,
+    });
+    response.status(500).json({ message: "反馈查询失败" });
+  }
+});
+
+feedbackRouter.post("/", requireAuth, async (request, response) => {
+  const parsed = createSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+  const userId = request.session.user?.id ?? (env.devAuthBypass ? "dev-mock-id" : undefined);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+
+  logger.info("feedback.submit.start", {
+    userId,
+    pageRoute: parsed.data.pageRoute,
+    pageTitle: parsed.data.pageTitle,
+    type: parsed.data.type,
+    stage: "create",
+  });
+
+  try {
+    const item = await feedbackStore.create({
+      userId,
+      type: parsed.data.type,
+      content: parsed.data.content,
+      contact: parsed.data.contact,
+      pageRoute: parsed.data.pageRoute,
+      pageTitle: parsed.data.pageTitle,
+      source: "web_feedback",
+    });
+    logger.info("feedback.submit.success", {
+      userId,
+      feedbackId: item.id,
+      pageRoute: item.pageRoute,
+      type: item.type,
+      stage: "create",
+    });
+    await recordAnalyticsEventSafely({
+      eventType: "feedback",
+      eventName: "feedback_created",
+      userId,
+      pageRoute: parsed.data.pageRoute,
+      pageTitle: parsed.data.pageTitle,
+      sourceModule: "feedback.routes",
+      eventPayload: {
+        type: parsed.data.type,
+        source: "web_feedback",
+      },
+    });
+    response.status(201).json(item);
+  } catch (error) {
+    logger.error("feedback.submit.failed", {
+      userId,
+      pageRoute: parsed.data.pageRoute,
+      pageTitle: parsed.data.pageTitle,
+      type: parsed.data.type,
+      stage: "create",
+      error,
+    });
+    response.status(500).json({ message: "反馈提交失败，请稍后重试" });
+  }
+});

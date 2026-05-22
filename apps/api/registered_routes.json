@@ -1,0 +1,106 @@
+[
+  {
+    "methods": "GET",
+    "path": "//"
+  },
+  {
+    "methods": "GET",
+    "path": "//integrations"
+  },
+  {
+    "methods": "GET",
+    "path": "//me"
+  },
+  {
+    "methods": "GET",
+    "path": "//cas/login"
+  },
+  {
+    "methods": "GET",
+    "path": "//cas/callback"
+  },
+  {
+    "methods": "POST",
+    "path": "//logout"
+  },
+  {
+    "methods": "GET",
+    "path": "//"
+  },
+  {
+    "methods": "GET",
+    "path": "//publish/spec"
+  },
+  {
+    "methods": "POST",
+    "path": "//publish/token"
+  },
+  {
+    "methods": "GET",
+    "path": "//:id"
+  },
+  {
+    "methods": "POST",
+    "path": "//"
+  },
+  {
+    "methods": "POST",
+    "path": "//publish"
+  },
+  {
+    "methods": "PATCH",
+    "path": "//:id"
+  },
+  {
+    "methods": "GET",
+    "path": "//"
+  },
+  {
+    "methods": "GET",
+    "path": "//me"
+  },
+  {
+    "methods": "PUT",
+    "path": "//me"
+  },
+  {
+    "methods": "POST",
+    "path": "//instant"
+  },
+  {
+    "methods": "POST",
+    "path": "//daily"
+  },
+  {
+    "methods": "POST",
+    "path": "//verify"
+  },
+  {
+    "methods": "GET",
+    "path": "//records"
+  },
+  {
+    "methods": "POST",
+    "path": "//page-agent/v1/chat/completions"
+  },
+  {
+    "methods": "POST",
+    "path": "//page-agent/chat/completions"
+  },
+  {
+    "methods": "POST",
+    "path": "//summary"
+  },
+  {
+    "methods": "POST",
+    "path": "//chat"
+  },
+  {
+    "methods": "POST",
+    "path": "//chat/stream"
+  },
+  {
+    "methods": "GET",
+    "path": "//health"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "name": "ai_web",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build:api": "npm --prefix apps/api run build",
+    "build:web": "npm --prefix apps/web run build",
+    "typecheck:api": "npm --prefix apps/api run typecheck"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test:article-extract-flow": "tsx src/scripts/test_article_extract_flow.ts",
+    "test:wecom-template-cards": "tsx src/scripts/test_wecom_template_cards.ts",
+    "test:publish-flow": "tsx src/scripts/test_publish_flow.ts",
+    "token:rotate-publish": "tsx src/scripts/rotate_publish_token.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:migrate": "tsx src/scripts/migrate.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "ai_web backend api",
+  "dependencies": {
+    "axios": "^1.15.0",
+    "cheerio": "^1.1.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "node-cron": "^4.2.1",
+    "pg": "^8.17.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.18.2",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.6.0",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
