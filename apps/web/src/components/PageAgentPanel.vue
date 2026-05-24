@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
-import { ArrowUp, Square, X } from "lucide-vue-next";
+import { ArrowUp, Square, X, MessageSquare, Plus } from "lucide-vue-next";
 
-import { type PageAgentMessage } from "../page_agent/types";
+import { type PageAgentConversation, type PageAgentMessage } from "../page_agent/types";
 import { renderMarkdown } from "../shared/markdown";
 
 const props = defineProps<{
@@ -10,6 +10,8 @@ const props = defineProps<{
   loading: boolean;
   question: string;
   messages: PageAgentMessage[];
+  conversations: PageAgentConversation[];
+  loadingConversations: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -18,6 +20,9 @@ const emit = defineEmits<{
   stop: [];
   copy: [value: string];
   "update:question": [value: string];
+  "load-conversations": [];
+  "select-conversation": [id: string];
+  "new-conversation": [];
 }>();
 
 const messageContainerRef = ref<HTMLElement | null>(null);
@@ -45,6 +50,26 @@ watch(
     });
   }
 );
+
+watch(
+  () => props.visible,
+  (open) => {
+    if (open) {
+      emit("load-conversations");
+    }
+  }
+);
+
+const formatTime = (iso: string): string => {
+  const d = new Date(iso);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "昨天";
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+};
 </script>
 
 <template>
@@ -54,21 +79,51 @@ watch(
     >
       <header class="flex items-center justify-between border-b border-[#b3e5fc]/35 px-4 py-3">
         <h2 class="text-sm font-semibold text-[#0f4069]">AI 智能分析与搜索</h2>
-        <button
-          type="button"
-          class="rounded-xl p-2 text-[#6b86a0] transition-colors hover:bg-[#eaf7ff] hover:text-[#01579b]"
-          @click="emit('close')"
-        >
-          <X class="h-4 w-4" />
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            v-if="messages.length > 0 || conversations.length > 0"
+            type="button"
+            class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#e1f5fe]"
+            @click="emit('new-conversation')"
+          >
+            <Plus class="h-3.5 w-3.5" />
+            新建对话
+          </button>
+          <button
+            type="button"
+            class="rounded-xl p-2 text-[#6b86a0] transition-colors hover:bg-[#eaf7ff] hover:text-[#01579b]"
+            @click="emit('close')"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
       </header>
 
       <div
         ref="messageContainerRef"
         class="max-h-[44vh] min-h-[190px] overflow-y-auto px-4 py-4"
       >
-        <div v-if="messages.length === 0" class="rounded-2xl bg-[#f8fbfe] px-4 py-5 text-center text-sm text-[#7b95ad]">
+        <div v-if="messages.length === 0 && !loadingConversations && conversations.length === 0" class="rounded-2xl bg-[#f8fbfe] px-4 py-5 text-center text-sm text-[#7b95ad]">
           可以直接问当前页面内容
+        </div>
+        <div v-else-if="messages.length === 0 && loadingConversations" class="flex items-center justify-center py-8 text-sm text-[#7b95ad]">
+          加载历史对话…
+        </div>
+        <div v-else-if="messages.length === 0 && conversations.length > 0" class="space-y-1">
+          <div class="mb-3 flex items-center gap-2 text-xs font-medium text-[#6e89a3]">
+            <MessageSquare class="h-3.5 w-3.5" />
+            历史对话
+          </div>
+          <button
+            v-for="conv in conversations"
+            :key="conv.id"
+            type="button"
+            class="w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-[#eaf7ff]"
+            @click="emit('select-conversation', conv.id)"
+          >
+            <span class="line-clamp-1 text-[#0f4069]">{{ conv.pageTitle || "未命名对话" }}</span>
+            <span class="mt-0.5 block text-[11px] text-[#8aa3bc]">{{ formatTime(conv.createdAt) }}</span>
+          </button>
         </div>
         <div v-else class="space-y-4">
           <div

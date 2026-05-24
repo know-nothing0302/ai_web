@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
-import { RouterLink } from "vue-router";
-import { useRoute } from "vue-router";
+import { computed, onActivated, onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import {
   Search,
   Filter,
@@ -19,9 +18,11 @@ import {
   ChevronRight,
   ChevronDown,
 } from "lucide-vue-next";
-import { listArticles, listChannels, type Article } from "../services/api";
+import { listArticles, listChannels, getReadingHistory, type Article } from "../services/api";
 import { buildArticleListContext, setPageAgentContext } from "../page_agent/context";
 import { sanitizeCardText } from "../shared/text_sanitizer";
+import { useSearchHistory } from "../composables/useSearchHistory";
+import BackToTop from "../components/BackToTop.vue";
 
 type ChannelItem = {
   key: string;
@@ -34,11 +35,33 @@ const keyword = ref("");
 const category = ref("");
 const channelCode = ref("");
 const route = useRoute();
+const router = useRouter();
 const loading = ref(false);
 const items = ref<Article[]>([]);
 const activeChannel = ref("");
 const currentPage = ref(1);
 const pageSize = 9;
+const { searchHistory, addSearchHistory, clearHistory } = useSearchHistory();
+const isSearchFocused = ref(false);
+const readArticleIds = ref<Set<string>>(new Set());
+
+const fetchReadArticleIds = async (): Promise<void> => {
+  try {
+    const result = await getReadingHistory(1, 200);
+    readArticleIds.value = new Set(result.items.map((h) => h.articleId));
+  } catch {
+    // not critical — fails silently
+  }
+};
+
+const onSearchFocus = (): void => {
+  isSearchFocused.value = true;
+};
+const onSearchBlur = (): void => {
+  setTimeout(() => {
+    isSearchFocused.value = false;
+  }, 200);
+};
 
 const categories = ref<{ value: string; label: string }[]>([{ value: "", label: "全部栏目" }]);
 const isCategoryDropdownOpen = ref(false);
@@ -73,15 +96,40 @@ const resetToFirstPage = (): void => {
   currentPage.value = 1;
 };
 
+function syncSearchParamsToUrl(): void {
+  const query: Record<string, string> = {};
+  if (keyword.value) query.keyword = keyword.value;
+  if (category.value) query.category = category.value;
+  if (channelCode.value) query.channelCode = channelCode.value;
+  if (currentPage.value > 1) query.page = String(currentPage.value);
+  void router.replace({ query });
+}
+
+const handleSearch = (): void => {
+  resetToFirstPage();
+  if (keyword.value.trim()) {
+    addSearchHistory(keyword.value.trim());
+  }
+  syncSearchParamsToUrl();
+  load();
+};
+
+const handleHistoryChipClick = (term: string): void => {
+  keyword.value = term;
+  handleSearch();
+};
+
 const goPrevPage = (): void => {
   if (currentPage.value > 1) {
     currentPage.value -= 1;
+    syncSearchParamsToUrl();
   }
 };
 
 const goNextPage = (): void => {
   if (currentPage.value < totalPages.value) {
     currentPage.value += 1;
+    syncSearchParamsToUrl();
   }
 };
 
@@ -128,6 +176,7 @@ const openChannel = (channel: ChannelItem | null): void => {
     console.info("[ArticlesPage] 切换栏目", { channel: "全部" });
   }
   resetToFirstPage();
+  syncSearchParamsToUrl();
   load();
 };
 
@@ -135,6 +184,7 @@ const handleCategoryChange = (): void => {
   activeChannel.value = "";
   channelCode.value = "";
   resetToFirstPage();
+  syncSearchParamsToUrl();
   load();
 };
 
@@ -185,6 +235,13 @@ const loadChannels = async (): Promise<void> => {
 onMounted(async () => {
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleDocumentKeydown);
+
+  // Restore search state from URL query params
+  if (route.query.keyword) keyword.value = route.query.keyword as string;
+  if (route.query.category) category.value = route.query.category as string;
+  if (route.query.channelCode) channelCode.value = route.query.channelCode as string;
+  if (route.query.page) currentPage.value = Math.max(1, parseInt(route.query.page as string, 10) || 1);
+
   await loadChannels();
   await load();
 });
@@ -193,6 +250,13 @@ onBeforeUnmount(() => {
   document.removeEventListener("click", handleDocumentClick);
   document.removeEventListener("keydown", handleDocumentKeydown);
   setPageAgentContext(null);
+});
+
+onActivated(() => {
+  // When KeepAlive reactivates this component (e.g. navigating back from article detail),
+  // ensure URL reflects the current search state
+  syncSearchParamsToUrl();
+  fetchReadArticleIds();
 });
 
 watchEffect(() => {
@@ -239,7 +303,9 @@ watchEffect(() => {
             <Search class="w-4 h-4 text-[#0288d1] mr-2 shrink-0" />
             <input
               v-model="keyword"
-              @keyup.enter="resetToFirstPage(); load()"
+              @keyup.enter="handleSearch"
+              @focus="onSearchFocus"
+              @blur="onSearchBlur"
               class="w-full h-full bg-transparent border-0 outline-none text-sm text-[#355878] placeholder:text-[#7d97b1]"
               placeholder="搜索政策、医学AI..."
             />
@@ -282,11 +348,32 @@ watchEffect(() => {
           <button
             type="button"
             class="btn-primary h-12 px-8 text-sm shrink-0 shadow-md shadow-[#0288d1]/20 whitespace-nowrap rounded-2xl"
-            @click="resetToFirstPage(); load()"
+            @click="handleSearch"
           >
             搜索
           </button>
         </div>
+      </div>
+
+      <!-- Search History Chips -->
+      <div v-if="isSearchFocused && searchHistory.length > 0" class="-mt-2 mb-4 flex flex-wrap items-center gap-2">
+        <span class="text-xs text-[#4f6b8a] mr-1">最近搜索：</span>
+        <button
+          v-for="term in searchHistory"
+          :key="term"
+          type="button"
+          class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-white/80 border border-[#81d4fa]/50 text-[#0288d1] hover:bg-[#e1f5fe] hover:border-[#0288d1] transition-colors"
+          @click="handleHistoryChipClick(term)"
+        >
+          {{ term }}
+        </button>
+        <button
+          type="button"
+          class="text-xs text-[#8aa3bc] hover:text-[#4f6b8a] hover:underline ml-1 transition-colors"
+          @click="clearHistory"
+        >
+          清除历史
+        </button>
       </div>
 
       <!-- Compact Channel Tabs -->
@@ -325,11 +412,12 @@ watchEffect(() => {
 
     <div v-else class="space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-      <RouterLink 
-        v-for="item in paginatedItems" 
-        :key="item.id" 
+      <RouterLink
+        v-for="item in paginatedItems"
+        :key="item.id"
         :to="`/articles/${item.id}`"
         class="glass-card p-6 group flex flex-col h-full hover:shadow-xl hover:shadow-[#0288d1]/10 transition-all border border-transparent hover:border-[#b3e5fc]"
+        :class="{ 'bg-read': readArticleIds.has(item.id) }"
       >
         <div class="flex items-center justify-between mb-4">
           <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
@@ -383,6 +471,8 @@ watchEffect(() => {
         </div>
       </div>
     </div>
+
+    <BackToTop />
   </div>
 </template>
 
@@ -396,5 +486,10 @@ watchEffect(() => {
 .category-dropdown-leave-to {
   opacity: 0;
   transform: translateY(-6px) scale(0.98);
+}
+
+.bg-read {
+  background: #f3f7fb;
+  border-color: rgba(2, 119, 189, 0.12);
 }
 </style>

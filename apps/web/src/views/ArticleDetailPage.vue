@@ -4,13 +4,24 @@ import { useRoute, useRouter } from "vue-router";
 import { ArrowLeft, Clock, User, Hash, Sparkles, Link } from "lucide-vue-next";
 
 import { buildArticleDetailContext, setPageAgentContext } from "../page_agent/context";
-import { getArticle, reportArticleView, type Article } from "../services/api";
+import {
+  getArticle,
+  reportArticleView,
+  checkFavorite,
+  addFavorite,
+  removeFavorite,
+  reportReadingHistory,
+  type Article,
+} from "../services/api";
 import { renderMarkdown } from "../shared/markdown";
+import BackToTop from "../components/BackToTop.vue";
 
 const route = useRoute();
 const router = useRouter();
 const item = ref<Article | null>(null);
 const loading = ref(false);
+const isFavorited = ref(false);
+const favoriting = ref(false);
 
 const parsedContent = computed(() => {
   if (!item.value?.content) return "";
@@ -26,15 +37,40 @@ const load = async (): Promise<void> => {
   console.info("[ArticleDetailPage] 加载文章详情", { id: route.params.id?.toString() ?? "" });
   loading.value = true;
   try {
-    item.value = await getArticle(route.params.id.toString());
-    await reportArticleView({
+    const articleId = route.params.id.toString();
+    item.value = await getArticle(articleId);
+    // 记录浏览历史
+    reportArticleView({
       articleId: item.value.id,
       channelCode: item.value.channelCode,
       pageRoute: route.fullPath,
       pageTitle: item.value.title,
     }).catch(() => undefined);
+    reportReadingHistory(articleId).catch(() => undefined);
+    // 检查收藏状态
+    checkFavorite(articleId).then((result) => {
+      isFavorited.value = result.isFavorited;
+    }).catch(() => undefined);
   } finally {
     loading.value = false;
+  }
+};
+
+const toggleFavorite = async (): Promise<void> => {
+  if (favoriting.value || !item.value) return;
+  favoriting.value = true;
+  try {
+    if (isFavorited.value) {
+      await removeFavorite(item.value.id);
+      isFavorited.value = false;
+    } else {
+      await addFavorite(item.value.id);
+      isFavorited.value = true;
+    }
+  } catch {
+    // silent
+  } finally {
+    favoriting.value = false;
   }
 };
 
@@ -93,9 +129,22 @@ onBeforeUnmount(() => {
           <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
         </div>
         
-        <h1 class="text-3xl md:text-4xl font-bold text-[#0f4069] leading-tight mb-5 tracking-tight font-serif">
-          {{ item.title }}
-        </h1>
+        <div class="flex items-center justify-center gap-3 mb-5">
+          <h1 class="text-3xl md:text-4xl font-bold text-[#0f4069] leading-tight tracking-tight font-serif">
+            {{ item.title }}
+          </h1>
+          <button
+            type="button"
+            class="shrink-0 rounded-xl p-2 transition-all duration-300"
+            :class="isFavorited ? 'text-[#f59e0b] hover:text-[#d97706] bg-[#fef3c7]/60 hover:bg-[#fef3c7]' : 'text-[#b3e5fc] hover:text-[#f59e0b] hover:bg-[#fef3c7]/40'"
+            :title="isFavorited ? '取消收藏' : '收藏'"
+            :disabled="favoriting"
+            @click="toggleFavorite"
+          >
+            <svg v-if="isFavorited" class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg v-else class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2zm0 2.46L9.91 9.23 5.13 10.08l4.07 3.97-.96 5.6L12 17.29l3.76 1.98-.96-5.6 4.07-3.97-4.78-.85L12 4.46z"/></svg>
+          </button>
+        </div>
         
         <div v-if="item.tags && item.tags.length" class="flex flex-wrap items-center justify-center gap-2 mb-6">
           <span v-for="tag in item.tags" :key="tag" class="text-xs text-[#0288d1] bg-[#e1f5fe]/80 px-2.5 py-1 rounded-full flex items-center border border-[#81d4fa]/30">
@@ -121,6 +170,7 @@ onBeforeUnmount(() => {
           >
              <Link class="w-3.5 h-3.5 opacity-80" />
              查看原文
+             <span class="text-[10px] text-[#8aa3bc] font-normal">（外部链接）</span>
           </a>
           <span v-else class="flex items-center gap-1.5 text-[#8aa3bc]">
             <Link class="w-4 h-4 opacity-60" />
@@ -168,4 +218,6 @@ onBeforeUnmount(() => {
       </div>
     </article>
   </div>
+
+  <BackToTop />
 </template>

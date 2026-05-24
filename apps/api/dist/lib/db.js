@@ -307,6 +307,24 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_article_occurred_at
   ON analytics_events(article_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_user_occurred_at
   ON analytics_events(user_id, occurred_at DESC);
+
+-- 用户收藏
+CREATE TABLE IF NOT EXISTS user_favorites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR(100) NOT NULL,
+  article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, article_id)
+);
+
+-- 浏览历史
+CREATE TABLE IF NOT EXISTS reading_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR(100) NOT NULL,
+  article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  viewed_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_reading_history_user_time ON reading_history(user_id, viewed_at DESC);
 `;
 const seedSql = `
 INSERT INTO article_channels (code, name, description, sort_order, enabled)

@@ -2,8 +2,10 @@ import axios from "axios";
 import {
   type PageAgentContextPayload,
   type PageAgentConversation,
+  type PageAgentMessage,
   type PageAgentRequestPayload,
   type PageAgentResponse,
+  type PageAgentSource,
 } from "../page_agent/types";
 
 export interface Article {
@@ -399,4 +401,91 @@ export const createPageAgentConversation = async (payload: {
 export const listPageAgentConversations = async (): Promise<PageAgentConversation[]> => {
   const result = await request.get<{ items: PageAgentConversation[] }>("/page-agent/conversations");
   return result.data.items;
+};
+
+interface BackendPageAgentMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sourcesPayload?: Array<{
+    type: string;
+    title: string;
+    url: string;
+    articleId?: string;
+    originalUrl?: string;
+    summary?: string;
+  }>;
+}
+
+export interface FavoriteItem {
+  id: string;
+  articleId: string;
+  title: string;
+  summary: string;
+  channelCode: string;
+  category: string;
+  publishedAt: string | null;
+  createdAt: string;
+}
+
+export interface ReadingHistoryItem {
+  id: string;
+  articleId: string;
+  title: string;
+  channelCode: string;
+  category: string;
+  viewedAt: string;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  pagination: { page: number; pageSize: number; total: number };
+}
+
+export const addFavorite = async (articleId: string): Promise<{ id: string; createdAt: string }> => {
+  const result = await request.post<{ id: string; createdAt: string }>("/profile/favorites", { articleId });
+  return result.data;
+};
+
+export const removeFavorite = async (articleId: string): Promise<void> => {
+  await request.delete(`/profile/favorites/${articleId}`);
+};
+
+export const checkFavorite = async (articleId: string): Promise<{ isFavorited: boolean; id?: string; createdAt?: string }> => {
+  const result = await request.get<{ isFavorited: boolean; id?: string; createdAt?: string }>(
+    `/profile/favorites/check/${articleId}`
+  );
+  return result.data;
+};
+
+export const getFavorites = async (page = 1): Promise<PaginatedResponse<FavoriteItem>> => {
+  const result = await request.get<PaginatedResponse<FavoriteItem>>("/profile/favorites", {
+    params: { page, pageSize: 20 },
+  });
+  return result.data;
+};
+
+export const getReadingHistory = async (page = 1, pageSize = 100): Promise<PaginatedResponse<ReadingHistoryItem>> => {
+  const result = await request.get<PaginatedResponse<ReadingHistoryItem>>("/profile/history", {
+    params: { page, pageSize },
+  });
+  return result.data;
+};
+
+export const reportReadingHistory = async (articleId: string): Promise<void> => {
+  await request.post("/profile/history", { articleId });
+};
+
+export const getPageAgentConversationMessages = async (
+  conversationId: string
+): Promise<PageAgentMessage[]> => {
+  const result = await request.get<{ items: BackendPageAgentMessage[] }>(
+    `/page-agent/conversations/${conversationId}/messages`
+  );
+  return result.data.items.map((msg) => ({
+    id: msg.id,
+    role: msg.role,
+    text: msg.content,
+    sources: msg.sourcesPayload as PageAgentSource[] | undefined,
+  }));
 };

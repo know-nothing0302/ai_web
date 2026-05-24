@@ -21,6 +21,7 @@ const routes_6 = require("./modules/push/routes");
 const routes_7 = require("./modules/stats/routes");
 const routes_8 = require("./modules/subscriptions/routes");
 const health_1 = require("./routes/health");
+const routes_9 = require("./modules/profile/routes");
 exports.app = (0, express_1.default)();
 exports.app.set("trust proxy", 1);
 const webCorsOrigin = (() => {
@@ -59,6 +60,7 @@ exports.app.use("/api/push", routes_6.pushRouter);
 exports.app.use("/api/stats", routes_7.statsRouter);
 exports.app.use("/api/ai", routes_2.aiXyRouter);
 exports.app.use("/api/feedback", routes_4.feedbackRouter);
+exports.app.use("/api/profile", routes_9.profileRouter);
 exports.app.use("/api/page-agent", routes_5.pageAgentRouter);
 exports.app.use((error, request, response, _next) => {
     logger_1.logger.error("http.request.failed", {

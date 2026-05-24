@@ -7,6 +7,8 @@ import AdminPublishPage from "./views/AdminPublishPage.vue";
 import AdminStatsPage from "./views/AdminStatsPage.vue";
 import SubscriptionPage from "./views/SubscriptionPage.vue";
 import TodayPushDigestPage from "./views/TodayPushDigestPage.vue";
+import ProfilePage from "./views/ProfilePage.vue";
+import AiLabPage from "./views/AiLabPage.vue";
 
 const appBase = import.meta.env.BASE_URL;
 const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
@@ -21,6 +23,8 @@ const routes = [
   { path: "/admin", component: AdminPage, meta: { title: `${defaultTitle} - 内容发布` } },
   { path: "/admin/publish", component: AdminPublishPage, meta: { title: `${defaultTitle} - 内容发布` } },
   { path: "/admin/stats", component: AdminStatsPage, meta: { title: `${defaultTitle} - 统计信息` } },
+  { path: "/ai-lab", component: AiLabPage, meta: { title: `${defaultTitle} - AI 试验场` } },
+  { path: "/profile", component: ProfilePage, meta: { title: `${defaultTitle} - 个人中心` } },
 ];
 
 export const router = createRouter({

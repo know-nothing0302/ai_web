@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut } from "lucide-vue-next";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap } from "lucide-vue-next";
 
 import FeedbackPanel from "./components/FeedbackPanel.vue";
 import NeuralBackground from "./components/NeuralBackground.vue";
@@ -13,12 +13,14 @@ import {
   buildPageAgentClientErrorMessage,
   logPageAgentClient,
 } from "./page_agent/error_message";
-import { type PageAgentMessage, type PageAgentResponse } from "./page_agent/types";
+import { type PageAgentConversation, type PageAgentMessage, type PageAgentResponse } from "./page_agent/types";
 import {
   askPageAgent,
   canAccessAdminViews,
   createPageAgentConversation,
   getCurrentUser,
+  getPageAgentConversationMessages,
+  listPageAgentConversations,
   submitFeedback,
 } from "./services/api";
 
@@ -31,6 +33,8 @@ const pageAgentMessages = ref<PageAgentMessage[]>([]);
 const pageAgentRequestToken = ref(0);
 const pageAgentConversationId = ref("");
 const pageAgentIntroActive = ref(true);
+const pageAgentConversations = ref<PageAgentConversation[]>([]);
+const pageAgentConversationsLoading = ref(false);
 const feedbackOpen = ref(false);
 const feedbackSubmitting = ref(false);
 const appMessage = ref("");
@@ -199,6 +203,50 @@ const stopPageAgentRequest = (): void => {
   pageAgentLoading.value = false;
 };
 
+const loadPageAgentConversations = async (): Promise<void> => {
+  if (pageAgentConversationsLoading.value) return;
+  pageAgentConversationsLoading.value = true;
+  try {
+    pageAgentConversations.value = await listPageAgentConversations();
+    // Auto-load most recent conversation messages on fresh open (e.g. after page refresh)
+    if (pageAgentConversations.value.length > 0 && pageAgentMessages.value.length === 0) {
+      try {
+        const latestConv = pageAgentConversations.value[0];
+        const messages = await getPageAgentConversationMessages(latestConv.id);
+        pageAgentMessages.value = messages;
+        pageAgentConversationId.value = latestConv.id;
+      } catch {
+        // Auto-load failed, keep showing conversation list
+      }
+    }
+  } catch {
+    // silently fail — non-critical
+  } finally {
+    pageAgentConversationsLoading.value = false;
+  }
+};
+
+const selectPageAgentConversation = async (conversationId: string): Promise<void> => {
+  pageAgentLoading.value = true;
+  try {
+    const messages = await getPageAgentConversationMessages(conversationId);
+    pageAgentMessages.value = messages;
+    pageAgentConversationId.value = conversationId;
+  } catch {
+    pageAgentMessages.value = [];
+  } finally {
+    pageAgentLoading.value = false;
+  }
+};
+
+const resetPageAgentConversation = (): void => {
+  pageAgentConversationId.value = "";
+  pageAgentMessages.value = [];
+  pageAgentQuestion.value = "";
+  pageAgentRequestToken.value = Date.now();
+  pageAgentLoading.value = false;
+};
+
 watch(
   () => route.fullPath,
   () => {
@@ -206,10 +254,10 @@ watch(
       fromConversationId: pageAgentConversationId.value || undefined,
       route: route.fullPath,
     });
+    // Reset conversation so next question creates a new one,
+    // but keep messages visible for cross-page reference
     pageAgentConversationId.value = "";
     pageAgentRequestToken.value = Date.now();
-    pageAgentQuestion.value = "";
-    pageAgentMessages.value = [];
     pageAgentLoading.value = false;
   }
 );
@@ -231,6 +279,7 @@ const logout = async () => {
 const navItems = computed(() => {
   const items = [
     { path: "/", name: "资讯发现", icon: FileText },
+    { path: "/ai-lab", name: "AI 试验场", icon: Zap },
     { path: "/subscription", name: "智能订阅", icon: Bell },
   ];
 
@@ -279,7 +328,17 @@ const navItems = computed(() => {
           </nav>
 
           <!-- Actions -->
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3">
+            <router-link
+              to="/profile"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-300 hover:bg-[#e1f5fe] text-[#4f6b8a] hover:text-[#01579b]"
+              title="个人中心"
+            >
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#0288d1] to-[#01579b] flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
+                {{ currentUser?.displayName?.charAt(0) || "U" }}
+              </div>
+              <span class="hidden sm:inline max-w-[6rem] truncate">{{ currentUser?.displayName || "个人中心" }}</span>
+            </router-link>
             <button @click="logout" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" title="退出登录">
               <LogOut class="w-5 h-5" />
             </button>
@@ -293,7 +352,9 @@ const navItems = computed(() => {
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10 relative">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
-          <component :is="Component" />
+          <KeepAlive include="ArticlesPage">
+            <component :is="Component" />
+          </KeepAlive>
         </transition>
       </router-view>
     </main>
@@ -304,11 +365,16 @@ const navItems = computed(() => {
       :loading="pageAgentLoading"
       :question="pageAgentQuestion"
       :messages="pageAgentMessages"
-      @close="pageAgentOpen = false"
+      :conversations="pageAgentConversations"
+      :loading-conversations="pageAgentConversationsLoading"
+      @close="pageAgentOpen = false; pageAgentConversations = []"
       @submit="submitPageAgentQuestion"
       @stop="stopPageAgentRequest"
       @copy="copyPageAgentMessage"
       @update:question="pageAgentQuestion = $event"
+      @load-conversations="loadPageAgentConversations"
+      @select-conversation="selectPageAgentConversation"
+      @new-conversation="resetPageAgentConversation"
     />
 
     <PageAgentLauncher
