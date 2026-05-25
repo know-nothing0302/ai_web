@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.recordAnalyticsEventSafely = exports.analyticsEventStore = exports.feedbackStore = exports.pushRecordStore = exports.wecomTagMappingStore = exports.wecomConfigStore = exports.userProfileAnalysisJobStore = exports.userProfileStore = exports.pageAgentMessageStore = exports.pageAgentConversationStore = exports.subscriptionStore = exports.articleStore = exports.articleChannelStore = void 0;
+exports.recordAnalyticsEventSafely = exports.analyticsEventStore = exports.feedbackLikeStore = exports.feedbackStore = exports.pushRecordStore = exports.wecomTagMappingStore = exports.wecomConfigStore = exports.userProfileAnalysisJobStore = exports.userProfileStore = exports.pageAgentMessageStore = exports.pageAgentConversationStore = exports.subscriptionStore = exports.articleStore = exports.articleChannelStore = void 0;
 const db_1 = require("./db");
 const logger_1 = require("./logger");
 const mapArticle = (row) => ({
@@ -1400,6 +1400,66 @@ exports.feedbackStore = {
         if (result.rows.length === 0)
             return null;
         return mapFeedbackEntry(result.rows[0]);
+    },
+};
+exports.feedbackLikeStore = {
+    async listPublic(params) {
+        const conditions = [
+            `fe.status = ANY($1::text[])`,
+        ];
+        const values = [
+            ["approved", "verified", "deployed", "wontfix", "reverted"],
+        ];
+        const orderClause = params.sort === "popular"
+            ? "ORDER BY like_count DESC, fe.created_at DESC"
+            : "ORDER BY fe.created_at DESC";
+        const offset = (params.page - 1) * params.pageSize;
+        values.push(params.pageSize);
+        const limitPlaceholder = `$${values.length}`;
+        values.push(offset);
+        const offsetPlaceholder = `$${values.length}`;
+        const itemsResult = await (0, db_1.query)(`SELECT fe.id, fe.user_id, fe.type, fe.content, fe.page_route, fe.page_title, fe.status, fe.admin_note, fe.created_at,
+              COUNT(fl.id) AS like_count
+       FROM feedback_entries fe
+       LEFT JOIN feedback_likes fl ON fl.feedback_id = fe.id
+       WHERE fe.status = ANY($1::text[])
+       GROUP BY fe.id
+       ${orderClause}
+       LIMIT ${limitPlaceholder}
+       OFFSET ${offsetPlaceholder}`, values);
+        const countResult = await (0, db_1.query)(`SELECT COUNT(*)::text AS total FROM feedback_entries fe WHERE fe.status = ANY($1::text[])`, [["approved", "verified", "deployed", "wontfix", "reverted"]]);
+        const items = itemsResult.rows.map((row) => ({
+            id: row.id,
+            userId: row.user_id,
+            type: row.type,
+            content: row.content,
+            pageRoute: row.page_route,
+            pageTitle: row.page_title,
+            status: row.status,
+            adminNote: row.admin_note ?? undefined,
+            createdAt: row.created_at,
+            likeCount: Number(row.like_count ?? 0),
+            likedByMe: false,
+        }));
+        if (params.currentUserId && items.length > 0) {
+            const feedbackIds = items.map((i) => i.id);
+            const likesResult = await (0, db_1.query)(`SELECT feedback_id FROM feedback_likes WHERE feedback_id = ANY($1::text[]) AND user_id = $2`, [feedbackIds, params.currentUserId]);
+            const likedSet = new Set(likesResult.rows.map((r) => r.feedback_id));
+            for (const item of items) {
+                item.likedByMe = likedSet.has(item.id);
+            }
+        }
+        return { items: items, total: Number(countResult.rows[0]?.total ?? 0) };
+    },
+    async like(feedbackId, userId) {
+        await (0, db_1.query)(`INSERT INTO feedback_likes (feedback_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [feedbackId, userId]);
+    },
+    async unlike(feedbackId, userId) {
+        await (0, db_1.query)(`DELETE FROM feedback_likes WHERE feedback_id = $1 AND user_id = $2`, [feedbackId, userId]);
+    },
+    async getLikeCount(feedbackId) {
+        const result = await (0, db_1.query)(`SELECT COUNT(*)::text AS count FROM feedback_likes WHERE feedback_id = $1`, [feedbackId]);
+        return Number(result.rows[0]?.count ?? 0);
     },
 };
 exports.analyticsEventStore = {

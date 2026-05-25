@@ -11,6 +11,7 @@ import TodayPushDigestPage from "./views/TodayPushDigestPage.vue";
 import ProfilePage from "./views/ProfilePage.vue";
 import AiLabPage from "./views/AiLabPage.vue";
 import FeedbackReviewPage from "./views/FeedbackReviewPage.vue";
+import FeedbackPublicPage from "./views/FeedbackPublicPage.vue";
 
 const appBase = import.meta.env.BASE_URL;
 const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
@@ -29,6 +30,7 @@ const routes = [
   { path: "/admin/feedback-review", component: FeedbackReviewPage, meta: { title: `${defaultTitle} - 反馈审批` } },
   { path: "/ai-lab", component: AiLabPage, meta: { title: `${defaultTitle} - AI 试验场` } },
   { path: "/profile", component: ProfilePage, meta: { title: `${defaultTitle} - 个人中心` } },
+  { path: "/feedback-public", component: FeedbackPublicPage, meta: { title: `${defaultTitle} - 反馈墙` } },
 ];
 
 export const router = createRouter({

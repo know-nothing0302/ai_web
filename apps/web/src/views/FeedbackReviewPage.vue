@@ -39,13 +39,18 @@ const grouped = computed(() => {
     batch_review: [],
     human_gate: [],
     pending_eval: [],
+    processed: [],
   };
   for (const item of items.value) {
-    const key = groupKey(item);
-    if (groups[key]) {
-      groups[key].push(item);
+    if (isProcessedStatus(item.status)) {
+      groups.processed.push(item);
     } else {
-      groups.human_gate.push(item);
+      const key = groupKey(item);
+      if (groups[key]) {
+        groups[key].push(item);
+      } else {
+        groups.human_gate.push(item);
+      }
     }
   }
   return groups;
@@ -70,6 +75,9 @@ const alignmentLabel = (align?: string): string => {
   if (align === "edge") return "边缘";
   return align ?? "未知";
 };
+
+const isProcessedStatus = (status: string): boolean =>
+  ["approved", "wontfix", "snoozed", "verified", "deployed", "reverted"].includes(status);
 
 const fixScopeLabel = (scope?: string): string => {
   if (scope === "tiny") return "微小改动";
@@ -162,6 +170,7 @@ const handleApprove = async (id: string) => {
       items.value[idx] = { ...items.value[idx], status: "approved" };
     }
     showMessage("已批准");
+    await loadList();
   } catch {
     showMessage("操作失败");
   } finally {
@@ -174,6 +183,7 @@ const handleSnooze = async (id: string) => {
   try {
     await updateFeedbackStatus(id, { status: "snoozed", adminNote: "已搁置，待后续评估" });
     showMessage("已搁置");
+    await loadList();
   } catch {
     showMessage("操作失败");
   } finally {
@@ -483,6 +493,34 @@ onMounted(async () => {
                   <span class="text-sm font-medium text-[#355878]">#{{ item.id.slice(0, 8) }}</span>
                   <p class="mt-1 text-sm text-[#4f6b8a]">{{ item.content }}</p>
                   <p class="mt-1 text-xs text-[#6e89a3]">{{ item.pageTitle }} · {{ formatDateTime(item.createdAt) }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          v-if="grouped.processed.length > 0"
+          class="glass-panel rounded-3xl border p-6 shadow-sm opacity-70"
+        >
+          <h2 class="flex items-center gap-2 text-lg font-semibold text-[#0f4069]">
+            <span>✅</span> 已处理（{{ grouped.processed.length }}条）
+          </h2>
+          <div class="mt-4 space-y-3">
+            <div
+              v-for="item in grouped.processed"
+              :key="item.id"
+              class="rounded-2xl border border-[#d8edf9] bg-white/60 p-4"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-[#355878]">#{{ item.id.slice(0, 8) }}</span>
+                    <span class="truncate text-sm text-[#0f4069]">{{ item.pageTitle || item.pageRoute }}</span>
+                    <span class="rounded-full bg-[#e8f5e9] px-2 py-0.5 text-xs text-[#2e7d32]">{{ item.status }}</span>
+                  </div>
+                  <p class="mt-1 line-clamp-2 text-sm text-[#4f6b8a]">{{ item.content }}</p>
+                  <p class="mt-1 text-xs text-[#6e89a3]">{{ formatDateTime(item.createdAt) }}</p>
                 </div>
               </div>
             </div>

@@ -345,6 +345,17 @@ CREATE TABLE IF NOT EXISTS reading_history (
 );
 CREATE INDEX IF NOT EXISTS idx_reading_history_user_time ON reading_history(user_id, viewed_at DESC);
 
+-- 反馈点赞
+CREATE TABLE IF NOT EXISTS feedback_likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  feedback_id UUID NOT NULL REFERENCES feedback_entries(id) ON DELETE CASCADE,
+  user_id VARCHAR(64) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(feedback_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_likes_feedback_id ON feedback_likes(feedback_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_likes_user_id ON feedback_likes(user_id);
+
 -- 生日推送日志
 CREATE TABLE IF NOT EXISTS birthday_push_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

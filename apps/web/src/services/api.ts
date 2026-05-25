@@ -626,3 +626,44 @@ export const getAdminFeedbackEvalList = async (params: {
   });
   return result.data;
 };
+
+
+// --- Feedback public wall ---
+
+export interface FeedbackPublicItem {
+  id: string;
+  userId: string;
+  type: "bug" | "ux" | "content" | "other";
+  content: string;
+  pageRoute: string;
+  pageTitle: string;
+  status: string;
+  adminNote?: string;
+  createdAt: string;
+  likeCount: number;
+  likedByMe: boolean;
+}
+
+export interface FeedbackPublicListResponse {
+  items: FeedbackPublicItem[];
+  total: number;
+}
+
+export const getFeedbackPublicList = async (params: {
+  page?: number;
+  pageSize?: number;
+  sort?: "recent" | "popular";
+}): Promise<FeedbackPublicListResponse> => {
+  const result = await request.get<FeedbackPublicListResponse>("/feedback/public", { params });
+  return result.data;
+};
+
+export const likeFeedback = async (id: string): Promise<{ likedByMe: boolean; likeCount: number }> => {
+  const result = await request.post<{ likedByMe: boolean; likeCount: number }>(`/feedback/public/${id}/like`);
+  return result.data;
+};
+
+export const unlikeFeedback = async (id: string): Promise<{ likedByMe: boolean; likeCount: number }> => {
+  const result = await request.delete<{ likedByMe: boolean; likeCount: number }>(`/feedback/public/${id}/like`);
+  return result.data;
+};

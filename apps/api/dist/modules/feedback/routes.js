@@ -224,3 +224,60 @@ exports.feedbackRouter.patch("/admin/:id", auth_1.requireFeedbackReader, async (
     }
     res.json(updated);
 });
+// --- Public feedback wall ---
+const publicListSchema = zod_1.z.object({
+    page: zod_1.z.coerce.number().int().min(1).default(1),
+    pageSize: zod_1.z.coerce.number().int().min(1).max(100).default(20),
+    sort: zod_1.z.enum(["recent", "popular"]).default("recent"),
+});
+exports.feedbackRouter.get("/public", async (request, response) => {
+    const parsed = publicListSchema.safeParse(request.query);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    try {
+        const currentUserId = request.session.user?.id ?? undefined;
+        const result = await store_1.feedbackLikeStore.listPublic({
+            ...parsed.data,
+            currentUserId,
+        });
+        response.json({ items: result.items, total: result.total });
+    }
+    catch (error) {
+        logger_1.logger.error("feedback.public.list.failed", { error });
+        response.status(500).json({ message: "查询失败" });
+    }
+});
+exports.feedbackRouter.post("/public/:id/like", auth_1.requireAuth, async (request, response) => {
+    const userId = request.session.user?.id;
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    try {
+        await store_1.feedbackLikeStore.like(request.params.id, userId);
+        const likeCount = await store_1.feedbackLikeStore.getLikeCount(request.params.id);
+        response.json({ likedByMe: true, likeCount });
+    }
+    catch (error) {
+        logger_1.logger.error("feedback.public.like.failed", { error });
+        response.status(500).json({ message: "点赞失败" });
+    }
+});
+exports.feedbackRouter.delete("/public/:id/like", auth_1.requireAuth, async (request, response) => {
+    const userId = request.session.user?.id;
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    try {
+        await store_1.feedbackLikeStore.unlike(request.params.id, userId);
+        const likeCount = await store_1.feedbackLikeStore.getLikeCount(request.params.id);
+        response.json({ likedByMe: false, likeCount });
+    }
+    catch (error) {
+        logger_1.logger.error("feedback.public.unlike.failed", { error });
+        response.status(500).json({ message: "取消点赞失败" });
+    }
+});

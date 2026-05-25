@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, Cake, ClipboardCheck } from "lucide-vue-next";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, Cake, ClipboardCheck, MessageSquare } from "lucide-vue-next";
 
 import FeedbackPanel from "./components/FeedbackPanel.vue";
 import NeuralBackground from "./components/NeuralBackground.vue";
@@ -294,6 +294,8 @@ const navItems = computed(() => {
       { path: "/admin/feedback-review", name: "反馈审批", icon: ClipboardCheck }
     );
   }
+
+  items.push({ path: "/feedback-public", name: "反馈墙", icon: MessageSquare });
 
   return items;
 });
