@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from "vue";
 import { BarChart3 } from "lucide-vue-next";
 
 import {
-  canAccessAdminViews,
   getAdminFeedbackList,
   getCurrentUser,
   getStatsDistributions,

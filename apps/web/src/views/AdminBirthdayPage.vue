@@ -20,7 +20,6 @@ import {
   getBirthdayBlessing,
   updateBirthdayBlessing,
   searchBirthdayUsers,
-  type BirthdayCardPreview,
   type BirthdayPushLogItem,
   type BirthdayPushResult,
   type SearchUserItem,
