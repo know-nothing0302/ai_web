@@ -5,6 +5,7 @@ import ArticlesPage from "./views/ArticlesPage.vue";
 import AdminPage from "./views/AdminPage.vue";
 import AdminPublishPage from "./views/AdminPublishPage.vue";
 import AdminStatsPage from "./views/AdminStatsPage.vue";
+import AdminBirthdayPage from "./views/AdminBirthdayPage.vue";
 import SubscriptionPage from "./views/SubscriptionPage.vue";
 import TodayPushDigestPage from "./views/TodayPushDigestPage.vue";
 import ProfilePage from "./views/ProfilePage.vue";
@@ -23,6 +24,7 @@ const routes = [
   { path: "/admin", component: AdminPage, meta: { title: `${defaultTitle} - 内容发布` } },
   { path: "/admin/publish", component: AdminPublishPage, meta: { title: `${defaultTitle} - 内容发布` } },
   { path: "/admin/stats", component: AdminStatsPage, meta: { title: `${defaultTitle} - 统计信息` } },
+  { path: "/admin/birthday", component: AdminBirthdayPage, meta: { title: `${defaultTitle} - 生日推送` } },
   { path: "/ai-lab", component: AiLabPage, meta: { title: `${defaultTitle} - AI 试验场` } },
   { path: "/profile", component: ProfilePage, meta: { title: `${defaultTitle} - 个人中心` } },
 ];

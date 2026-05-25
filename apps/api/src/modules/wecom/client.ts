@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
 import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { env } from "../../config/env";
@@ -597,6 +598,11 @@ const sendTemplateCard = async (
   };
 };
 
+interface WecomMediaUploadResponse extends WecomApiBaseResponse {
+  media_id?: string;
+  created_at?: string;
+}
+
 export const wecomClient = {
   async sendTextNoticeCard(
     input: WecomTextNoticeContentInput & WecomMessageTargetToUser
@@ -737,5 +743,87 @@ export const wecomClient = {
   },
   resetConfigCache(): void {
     cachedConfig = undefined;
+  },
+  async uploadImage(filePath: string): Promise<string> {
+    const config = await getRuntimeConfig();
+    const accessToken = await fetchAccessToken(config);
+    const buffer = await readFile(filePath);
+    const blob = new Blob([buffer], { type: "image/png" });
+    const formData = new FormData();
+    formData.append("media", blob, "birthday_card.png");
+    const response = await httpClient.post<WecomMediaUploadResponse>(
+      `${config.baseUrl}/media/upload`,
+      formData,
+      {
+        params: { access_token: accessToken, type: "image" },
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+    const data = response.data;
+    if (data.errcode !== 0 || !data.media_id) {
+      throw new WecomApiError("企业微信上传图片失败", {
+        endpoint: "/media/upload",
+        attempt: 1,
+        errcode: data.errcode,
+        errmsg: data.errmsg,
+        responseBody: data,
+      });
+    }
+    logger.info("wecom.media.upload.success", {
+      mediaId: data.media_id,
+    });
+    return data.media_id;
+  },
+  async sendTextMessage(input: {
+    touser: string;
+    content: string;
+  }): Promise<WecomSendMessageResult> {
+    const config = await getRuntimeConfig();
+    const payload = {
+      touser: input.touser,
+      msgtype: "text",
+      agentid: config.agentId,
+      text: {
+        content: input.content,
+      },
+      safe: 0,
+    };
+    const { data, attempt } = await requestWecom<WecomSendMessageResponse>(
+      config,
+      { method: "post", data: payload },
+      "/message/send"
+    );
+    return {
+      payload: payload as unknown as WecomSendMessageRequest,
+      result: data,
+      attempt,
+      invalidUserIds: parsePipeList(data.invaliduser),
+    };
+  },
+  async sendImageMessage(input: {
+    touser: string;
+    mediaId: string;
+  }): Promise<WecomSendMessageResult> {
+    const config = await getRuntimeConfig();
+    const payload = {
+      touser: input.touser,
+      msgtype: "image",
+      agentid: config.agentId,
+      image: {
+        media_id: input.mediaId,
+      },
+      safe: 0,
+    };
+    const { data, attempt } = await requestWecom<WecomSendMessageResponse>(
+      config,
+      { method: "post", data: payload },
+      "/message/send"
+    );
+    return {
+      payload: payload as unknown as WecomSendMessageRequest,
+      result: data,
+      attempt,
+      invalidUserIds: parsePipeList(data.invaliduser),
+    };
   },
 };

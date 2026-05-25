@@ -145,6 +145,24 @@ export const requireAdminOrFeedbackReadToken = (
   next();
 };
 
+export const requireInternalToken = async (
+  request: Request,
+  response: Response,
+  next: NextFunction
+): Promise<void> => {
+  const requestToken = extractInternalAuthToken(request);
+  const configuredToken = await getConfiguredInternalAuthToken();
+  if (!requestToken) {
+    response.status(401).json({ message: "缺少内部认证令牌" });
+    return;
+  }
+  if (!configuredToken || requestToken !== configuredToken) {
+    response.status(403).json({ message: "内部认证令牌无效" });
+    return;
+  }
+  next();
+};
+
 export const requireAdminOrStatsExternalReadToken = (
   request: Request,
   response: Response,

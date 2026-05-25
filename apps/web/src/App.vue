@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap } from "lucide-vue-next";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, Cake } from "lucide-vue-next";
 
 import FeedbackPanel from "./components/FeedbackPanel.vue";
 import NeuralBackground from "./components/NeuralBackground.vue";
@@ -286,7 +286,8 @@ const navItems = computed(() => {
   if (canAccessAdminViews(currentUser.value)) {
     items.push(
       { path: "/admin/publish", name: "内容发布", icon: Settings },
-      { path: "/admin/stats", name: "统计信息", icon: BarChart3 }
+      { path: "/admin/stats", name: "统计信息", icon: BarChart3 },
+      { path: "/admin/birthday", name: "生日推送", icon: Cake }
     );
   }
 

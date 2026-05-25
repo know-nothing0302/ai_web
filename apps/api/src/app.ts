@@ -16,6 +16,8 @@ import { statsRouter } from "./modules/stats/routes";
 import { subscriptionRouter } from "./modules/subscriptions/routes";
 import { healthRouter } from "./routes/health";
 import { profileRouter } from "./modules/profile/routes";
+import { userRouter } from "./modules/users/routes";
+import { birthdayRouter } from "./modules/birthday/routes";
 
 export const app = express();
 app.set("trust proxy", 1);
@@ -61,6 +63,8 @@ app.use("/api/stats", statsRouter);
 app.use("/api/ai", aiXyRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/profile", profileRouter);
+app.use("/api/internal/users", userRouter);
+app.use("/api/internal/birthday", birthdayRouter);
 app.use("/api/page-agent", pageAgentRouter);
 
 app.use(

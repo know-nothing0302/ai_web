@@ -489,3 +489,69 @@ export const getPageAgentConversationMessages = async (
     sources: msg.sourcesPayload as PageAgentSource[] | undefined,
   }));
 };
+
+// --- Birthday push admin ---
+
+export interface BirthdayPushLogItem {
+  id: string;
+  userXh: string;
+  xm: string;
+  csrq: string | null;
+  cardPath: string | null;
+  blessingText: string | null;
+  pushedAt: string;
+  status: string;
+  pushedTo: string[];
+  errorMessage: string | null;
+}
+
+export const getBirthdayLogs = async (params: {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+}): Promise<PaginatedResponse<BirthdayPushLogItem>> => {
+  const result = await request.get<PaginatedResponse<BirthdayPushLogItem>>(
+    "/internal/birthday/logs",
+    { params }
+  );
+  return result.data;
+};
+
+export const resendBirthdayPush = async (payload: {
+  xh: string;
+  blessing: string;
+}): Promise<{ message: string; name: string; cardPath: string }> => {
+  const result = await request.post<{ message: string; name: string; cardPath: string }>(
+    "/internal/birthday/resend",
+    payload
+  );
+  return result.data;
+};
+
+export const getBirthdayBlessing = async (): Promise<{ blessingTemplate: string }> => {
+  const result = await request.get<{ blessingTemplate: string }>("/internal/birthday/blessing");
+  return result.data;
+};
+
+export const updateBirthdayBlessing = async (payload: {
+  blessingTemplate: string;
+}): Promise<{ message: string; blessingTemplate: string }> => {
+  const result = await request.put<{ message: string; blessingTemplate: string }>(
+    "/internal/birthday/blessing",
+    payload
+  );
+  return result.data;
+};
+
+export interface SearchUserItem {
+  xh: string;
+  xm: string;
+  csrq: string | null;
+}
+
+export const searchBirthdayUsers = async (keyword: string): Promise<SearchUserItem[]> => {
+  const result = await request.get<{ items: SearchUserItem[] }>("/internal/birthday/users/search", {
+    params: { keyword },
+  });
+  return result.data.items;
+};

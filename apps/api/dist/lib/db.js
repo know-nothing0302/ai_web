@@ -308,6 +308,25 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_article_occurred_at
 CREATE INDEX IF NOT EXISTS idx_analytics_events_user_occurred_at
   ON analytics_events(user_id, occurred_at DESC);
 
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  xh VARCHAR(50) UNIQUE NOT NULL,
+  user_type VARCHAR(10) NOT NULL CHECK (user_type IN ('bks', 'yjs', 'jzg')),
+  xm VARCHAR(100),
+  xb VARCHAR(10),
+  csrq DATE,
+  sjh VARCHAR(20),
+  xydm VARCHAR(20),
+  xymc VARCHAR(200),
+  zydm VARCHAR(20),
+  zymc VARCHAR(200),
+  xszt VARCHAR(50),
+  nj VARCHAR(10),
+  xslx VARCHAR(50),
+  synced_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 用户收藏
 CREATE TABLE IF NOT EXISTS user_favorites (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -325,6 +344,35 @@ CREATE TABLE IF NOT EXISTS reading_history (
   viewed_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_reading_history_user_time ON reading_history(user_id, viewed_at DESC);
+
+-- 生日推送日志
+CREATE TABLE IF NOT EXISTS birthday_push_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_xh VARCHAR(50) NOT NULL,
+  xm VARCHAR(100) NOT NULL,
+  csrq DATE,
+  card_path VARCHAR(500),
+  blessing_text VARCHAR(500),
+  pushed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  status VARCHAR(20) NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'failed')),
+  pushed_to VARCHAR[] NOT NULL DEFAULT '{}',
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_birthday_push_log_pushed_at ON birthday_push_log(pushed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_birthday_push_log_user_xh ON birthday_push_log(user_xh);
+
+-- 生日祝福语配置
+CREATE TABLE IF NOT EXISTS birthday_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  blessing_template VARCHAR(500) NOT NULL DEFAULT '亲爱的{name}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！',
+  updated_by VARCHAR(64),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO birthday_config (blessing_template)
+SELECT '亲爱的{name}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！'
+WHERE NOT EXISTS (SELECT 1 FROM birthday_config);
 `;
 const seedSql = `
 INSERT INTO article_channels (code, name, description, sort_order, enabled)

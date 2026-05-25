@@ -74,6 +74,10 @@ exports.env = {
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean),
+    oracleUser: process.env.ORACLE_USER ?? "",
+    oraclePassword: process.env.ORACLE_PASSWORD ?? "",
+    oracleConnectString: process.env.ORACLE_CONNECT_STRING ?? "",
+    birthdayPushMode: (process.env.BIRTHDAY_PUSH_MODE ?? "test"),
     postgresHost: process.env.POSTGRES_HOST ?? "localhost",
     postgresPort: toInt(process.env.POSTGRES_PORT, 5432),
     postgresUser: process.env.POSTGRES_USER ?? "postgres",

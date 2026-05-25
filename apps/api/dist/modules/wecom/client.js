@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.wecomClient = void 0;
 const promises_1 = require("node:fs/promises");
+const promises_2 = require("node:fs/promises");
 const axios_1 = __importDefault(require("axios"));
 const env_1 = require("../../config/env");
 const logger_1 = require("../../lib/logger");
@@ -58,7 +59,7 @@ const getEnvConfig = () => ({
 });
 const getRandomWebImageUrl = async () => {
     if (!cachedWebImages || cachedWebImages.expiresAt <= Date.now()) {
-        const fileNames = await (0, promises_1.readdir)(webImageDirectory);
+        const fileNames = await (0, promises_2.readdir)(webImageDirectory);
         cachedWebImages = {
             expiresAt: Date.now() + CONFIG_CACHE_TTL_MS,
             fileNames: fileNames.filter((fileName) => /\.(png|jpe?g|webp|gif)$/i.test(fileName)),
@@ -463,5 +464,69 @@ exports.wecomClient = {
     },
     resetConfigCache() {
         cachedConfig = undefined;
+    },
+    async uploadImage(filePath) {
+        const config = await getRuntimeConfig();
+        const accessToken = await fetchAccessToken(config);
+        const buffer = await (0, promises_1.readFile)(filePath);
+        const blob = new Blob([buffer], { type: "image/png" });
+        const formData = new FormData();
+        formData.append("media", blob, "birthday_card.png");
+        const response = await httpClient.post(`${config.baseUrl}/media/upload`, formData, {
+            params: { access_token: accessToken, type: "image" },
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+        const data = response.data;
+        if (data.errcode !== 0 || !data.media_id) {
+            throw new errors_1.WecomApiError("企业微信上传图片失败", {
+                endpoint: "/media/upload",
+                attempt: 1,
+                errcode: data.errcode,
+                errmsg: data.errmsg,
+                responseBody: data,
+            });
+        }
+        logger_1.logger.info("wecom.media.upload.success", {
+            mediaId: data.media_id,
+        });
+        return data.media_id;
+    },
+    async sendTextMessage(input) {
+        const config = await getRuntimeConfig();
+        const payload = {
+            touser: input.touser,
+            msgtype: "text",
+            agentid: config.agentId,
+            text: {
+                content: input.content,
+            },
+            safe: 0,
+        };
+        const { data, attempt } = await requestWecom(config, { method: "post", data: payload }, "/message/send");
+        return {
+            payload: payload,
+            result: data,
+            attempt,
+            invalidUserIds: parsePipeList(data.invaliduser),
+        };
+    },
+    async sendImageMessage(input) {
+        const config = await getRuntimeConfig();
+        const payload = {
+            touser: input.touser,
+            msgtype: "image",
+            agentid: config.agentId,
+            image: {
+                media_id: input.mediaId,
+            },
+            safe: 0,
+        };
+        const { data, attempt } = await requestWecom(config, { method: "post", data: payload }, "/message/send");
+        return {
+            payload: payload,
+            result: data,
+            attempt,
+            invalidUserIds: parsePipeList(data.invaliduser),
+        };
     },
 };

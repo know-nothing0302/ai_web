@@ -169,6 +169,25 @@ is_running() {
     return 1
 }
 
+# 确保 dist/ 中包含非 TypeScript 构建产物（PSD、Python 脚本等）
+ensure_dist_assets() {
+    local dist_dir="$API_DIR/dist"
+    local src_image="$API_DIR/image"
+    local src_scripts="$API_DIR/src/scripts"
+
+    # 复制 image/（PSD 模板、字体文件）
+    if [ -d "$src_image" ] && [ ! -d "$dist_dir/image" ]; then
+        cp -r "$src_image" "$dist_dir/image"
+        log "${BLUE}已复制 image/ 到 dist/${NC}"
+    fi
+
+    # 复制 Python 脚本
+    if [ -f "$src_scripts/gen_birthday_card.py" ] && [ ! -f "$dist_dir/scripts/gen_birthday_card.py" ]; then
+        cp "$src_scripts/gen_birthday_card.py" "$dist_dir/scripts/"
+        log "${BLUE}已复制 gen_birthday_card.py 到 dist/scripts/${NC}"
+    fi
+}
+
 need_rebuild() {
     [ ! -f "$API_DIR/dist/server.js" ] && return 0
     local latest_src=$(find "$API_DIR/src" -type f -exec stat -c %Y {} + 2>/dev/null | sort -nr | head -1)
@@ -224,6 +243,9 @@ start_service() {
     else
         log "${BLUE}构建产物 dist/server.js 已是最新，跳过构建步骤${NC}"
     fi
+
+    # 确保非 TS 构建产物存在（PSD、Python 脚本等，rsync --delete 可能已清除）
+    ensure_dist_assets
 
     if [ ! -f "$API_DIR/dist/server.js" ]; then
         log "${RED}构建完成后仍未找到 dist/server.js${NC}"

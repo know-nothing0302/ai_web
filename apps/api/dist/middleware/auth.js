@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireAdminOrStatsExternalReadToken = exports.requireAdminOrFeedbackReadToken = exports.requireAdminOrInternalToken = exports.requireFeedbackReader = exports.requireStatsReader = exports.requireContentHubOperator = exports.requireAdmin = exports.requireAuth = void 0;
+exports.requireAdminOrStatsExternalReadToken = exports.requireInternalToken = exports.requireAdminOrFeedbackReadToken = exports.requireAdminOrInternalToken = exports.requireFeedbackReader = exports.requireStatsReader = exports.requireContentHubOperator = exports.requireAdmin = exports.requireAuth = void 0;
 const env_1 = require("../config/env");
 const store_1 = require("../lib/store");
 const getRequestUser = (request) => {
@@ -114,6 +114,20 @@ const requireAdminOrFeedbackReadToken = (request, response, next) => {
     next();
 };
 exports.requireAdminOrFeedbackReadToken = requireAdminOrFeedbackReadToken;
+const requireInternalToken = async (request, response, next) => {
+    const requestToken = extractInternalAuthToken(request);
+    const configuredToken = await getConfiguredInternalAuthToken();
+    if (!requestToken) {
+        response.status(401).json({ message: "缺少内部认证令牌" });
+        return;
+    }
+    if (!configuredToken || requestToken !== configuredToken) {
+        response.status(403).json({ message: "内部认证令牌无效" });
+        return;
+    }
+    next();
+};
+exports.requireInternalToken = requireInternalToken;
 const requireAdminOrStatsExternalReadToken = (request, response, next) => {
     const user = getRequestUser(request);
     if (user?.role === "admin") {
