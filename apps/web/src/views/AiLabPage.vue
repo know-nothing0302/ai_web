@@ -1,4 +1,19 @@
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { canAccessAdminViews, getCurrentUser } from "../services/api";
+
+const accessDenied = ref(false);
+
+onMounted(async () => {
+  try {
+    const user = await getCurrentUser();
+    if (!canAccessAdminViews(user)) {
+      accessDenied.value = true;
+    }
+  } catch {
+    accessDenied.value = true;
+  }
+});
 const cards = [
   { icon: "🤖", title: "智能问答" },
   { icon: "📄", title: "文档助手" },
@@ -8,7 +23,14 @@ const cards = [
 </script>
 
 <template>
-  <div class="ai-lab-page">
+  <section v-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
+    <h2 class="text-lg font-semibold text-[#0f4069]">无权限访问</h2>
+    <p class="mt-2 text-[#4f6b8a]">
+      当前账号不在 AI 试验场允许名单内。
+    </p>
+  </section>
+
+  <div v-else class="ai-lab-page">
     <div class="grid-overlay"></div>
 
     <div class="text-center mb-12 relative z-10">

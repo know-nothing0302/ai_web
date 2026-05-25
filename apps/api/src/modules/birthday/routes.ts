@@ -6,7 +6,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { logger } from "../../lib/logger";
 import { query } from "../../lib/db";
-import { requireAdmin, requireAdminOrInternalToken, requireInternalToken } from "../../middleware/auth";
+import { requireAdmin, requireAdminOrInternalToken, requireInternalToken, requireContentHubOperator } from "../../middleware/auth";
 import { wecomClient } from "../wecom/client";
 import { generateCard } from "../../jobs/birthday";
 
@@ -128,7 +128,7 @@ birthdayRouter.post(
 // ============================================================
 
 // --- GET /users/search — search users by xm/xh ---
-birthdayRouter.get("/users/search", requireAdmin, async (req, res) => {
+birthdayRouter.get("/users/search", requireContentHubOperator, async (req, res) => {
   try {
     const keyword = req.query.keyword?.toString().trim();
     if (!keyword || keyword.length < 2) {
@@ -157,7 +157,7 @@ const logsQuerySchema = z.object({
   keyword: z.string().optional(),
 });
 
-birthdayRouter.get("/logs", requireAdmin, async (req, res) => {
+birthdayRouter.get("/logs", requireContentHubOperator, async (req, res) => {
   try {
     const parsed = logsQuerySchema.safeParse(req.query);
     if (!parsed.success) {
@@ -216,7 +216,7 @@ const resendSchema = z.object({
   blessing: z.string().trim().min(1).max(500),
 });
 
-birthdayRouter.post("/resend", requireAdmin, async (req, res) => {
+birthdayRouter.post("/resend", requireContentHubOperator, async (req, res) => {
   try {
     const parsed = resendSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -268,7 +268,7 @@ birthdayRouter.post("/resend", requireAdmin, async (req, res) => {
 });
 
 // --- GET /blessing — get current blessing template ---
-birthdayRouter.get("/blessing", requireAdmin, async (req, res) => {
+birthdayRouter.get("/blessing", requireContentHubOperator, async (req, res) => {
   try {
     const result = await query<{ blessing_template: string }>(
       "SELECT blessing_template FROM birthday_config LIMIT 1"
@@ -286,7 +286,7 @@ const blessingSchema = z.object({
   blessingTemplate: z.string().trim().min(1).max(500),
 });
 
-birthdayRouter.put("/blessing", requireAdmin, async (req, res) => {
+birthdayRouter.put("/blessing", requireContentHubOperator, async (req, res) => {
   try {
     const parsed = blessingSchema.safeParse(req.body);
     if (!parsed.success) {

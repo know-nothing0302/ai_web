@@ -129,9 +129,9 @@ const pageAgentHandler = async (request, response) => {
         response.json(buildPageAgentResponse(parsed.data.model ?? env_1.env.deepseekModel, "AI 服务暂不可用，请稍后重试。", false));
     }
 };
-exports.aiXyRouter.post("/page-agent/v1/chat/completions", auth_1.requireAuth, pageAgentHandler);
-exports.aiXyRouter.post("/page-agent/chat/completions", auth_1.requireAuth, pageAgentHandler);
-exports.aiXyRouter.post("/summary", auth_1.requireAuth, async (request, response) => {
+exports.aiXyRouter.post("/page-agent/v1/chat/completions", auth_1.requireContentHubOperator, pageAgentHandler);
+exports.aiXyRouter.post("/page-agent/chat/completions", auth_1.requireContentHubOperator, pageAgentHandler);
+exports.aiXyRouter.post("/summary", auth_1.requireContentHubOperator, async (request, response) => {
     const parsed = summarySchema.safeParse(request.body);
     if (!parsed.success) {
         response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
@@ -153,7 +153,7 @@ exports.aiXyRouter.post("/summary", auth_1.requireAuth, async (request, response
     summary = cleanThinkContent(summary);
     response.json({ summary });
 });
-exports.aiXyRouter.post("/chat", auth_1.requireAuth, async (request, response) => {
+exports.aiXyRouter.post("/chat", auth_1.requireContentHubOperator, async (request, response) => {
     const parsed = chatSchema.safeParse(request.body);
     if (!parsed.success) {
         response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
@@ -180,7 +180,7 @@ exports.aiXyRouter.post("/chat", auth_1.requireAuth, async (request, response) =
     const answer = cleanThinkContent(result.data?.answer);
     response.json({ ...result.data, answer });
 });
-exports.aiXyRouter.post("/chat/stream", auth_1.requireAuth, async (request, response) => {
+exports.aiXyRouter.post("/chat/stream", auth_1.requireContentHubOperator, async (request, response) => {
     const parsed = chatSchema.safeParse(request.body);
     if (!parsed.success) {
         response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });

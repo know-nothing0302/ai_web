@@ -2,7 +2,7 @@ import axios from "axios";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { env } from "../../config/env";
-import { requireAdmin, requireAuth } from "../../middleware/auth";
+import { requireAdmin, requireContentHubOperator } from "../../middleware/auth";
 
 const summarySchema = z.object({
   content: z.string().min(1),
@@ -150,10 +150,10 @@ const pageAgentHandler = async (request: Request, response: Response) => {
   }
 };
 
-aiXyRouter.post("/page-agent/v1/chat/completions", requireAuth, pageAgentHandler);
-aiXyRouter.post("/page-agent/chat/completions", requireAuth, pageAgentHandler);
+aiXyRouter.post("/page-agent/v1/chat/completions", requireContentHubOperator, pageAgentHandler);
+aiXyRouter.post("/page-agent/chat/completions", requireContentHubOperator, pageAgentHandler);
 
-aiXyRouter.post("/summary", requireAuth, async (request, response) => {
+aiXyRouter.post("/summary", requireContentHubOperator, async (request, response) => {
   const parsed = summarySchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
@@ -180,7 +180,7 @@ aiXyRouter.post("/summary", requireAuth, async (request, response) => {
   response.json({ summary });
 });
 
-aiXyRouter.post("/chat", requireAuth, async (request, response) => {
+aiXyRouter.post("/chat", requireContentHubOperator, async (request, response) => {
   const parsed = chatSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
@@ -212,7 +212,7 @@ aiXyRouter.post("/chat", requireAuth, async (request, response) => {
   response.json({ ...result.data, answer });
 });
 
-aiXyRouter.post("/chat/stream", requireAuth, async (request, response) => {
+aiXyRouter.post("/chat/stream", requireContentHubOperator, async (request, response) => {
   const parsed = chatSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });

@@ -101,7 +101,7 @@ exports.birthdayRouter.post("/push-test", auth_1.requireInternalToken, async (re
 // NEW: Admin endpoints for birthday push management
 // ============================================================
 // --- GET /users/search — search users by xm/xh ---
-exports.birthdayRouter.get("/users/search", auth_1.requireAdmin, async (req, res) => {
+exports.birthdayRouter.get("/users/search", auth_1.requireContentHubOperator, async (req, res) => {
     try {
         const keyword = req.query.keyword?.toString().trim();
         if (!keyword || keyword.length < 2) {
@@ -126,7 +126,7 @@ const logsQuerySchema = zod_1.z.object({
     pageSize: zod_1.z.coerce.number().int().min(1).max(100).default(20),
     keyword: zod_1.z.string().optional(),
 });
-exports.birthdayRouter.get("/logs", auth_1.requireAdmin, async (req, res) => {
+exports.birthdayRouter.get("/logs", auth_1.requireContentHubOperator, async (req, res) => {
     try {
         const parsed = logsQuerySchema.safeParse(req.query);
         if (!parsed.success) {
@@ -162,7 +162,7 @@ const resendSchema = zod_1.z.object({
     xh: zod_1.z.string().trim().min(1),
     blessing: zod_1.z.string().trim().min(1).max(500),
 });
-exports.birthdayRouter.post("/resend", auth_1.requireAdmin, async (req, res) => {
+exports.birthdayRouter.post("/resend", auth_1.requireContentHubOperator, async (req, res) => {
     try {
         const parsed = resendSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -200,7 +200,7 @@ exports.birthdayRouter.post("/resend", auth_1.requireAdmin, async (req, res) => 
     }
 });
 // --- GET /blessing — get current blessing template ---
-exports.birthdayRouter.get("/blessing", auth_1.requireAdmin, async (req, res) => {
+exports.birthdayRouter.get("/blessing", auth_1.requireContentHubOperator, async (req, res) => {
     try {
         const result = await (0, db_1.query)("SELECT blessing_template FROM birthday_config LIMIT 1");
         const template = result.rows[0]?.blessing_template ?? "亲爱的{name}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！";
@@ -215,7 +215,7 @@ exports.birthdayRouter.get("/blessing", auth_1.requireAdmin, async (req, res) =>
 const blessingSchema = zod_1.z.object({
     blessingTemplate: zod_1.z.string().trim().min(1).max(500),
 });
-exports.birthdayRouter.put("/blessing", auth_1.requireAdmin, async (req, res) => {
+exports.birthdayRouter.put("/blessing", auth_1.requireContentHubOperator, async (req, res) => {
     try {
         const parsed = blessingSchema.safeParse(req.body);
         if (!parsed.success) {
