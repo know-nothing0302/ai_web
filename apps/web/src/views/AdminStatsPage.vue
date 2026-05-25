@@ -148,9 +148,15 @@ const showFeedbackActionMessage = (value: string): void => {
 
 const statusOptions = [
   { value: "pending", label: "待处理" },
-  { value: "in_progress", label: "处理中" },
-  { value: "optimized", label: "已优化" },
-  { value: "implemented", label: "已实现" },
+  { value: "evaluating", label: "评估中" },
+  { value: "snoozed", label: "已搁置" },
+  { value: "approved", label: "已批准" },
+  { value: "in_progress", label: "开发中" },
+  { value: "testing", label: "测试中" },
+  { value: "deployed", label: "已部署" },
+  { value: "verified", label: "已验证" },
+  { value: "failed_testing", label: "测试未通过" },
+  { value: "reverted", label: "已回退" },
   { value: "wontfix", label: "暂缓" },
   { value: "duplicate", label: "重复" },
 ] as const;
@@ -158,11 +164,17 @@ const statusOptions = [
 const statusClass = (s: string): string => {
   const map: Record<string, string> = {
     pending: "bg-gray-100 text-gray-600",
-    in_progress: "bg-blue-50 text-blue-700",
-    optimized: "bg-green-50 text-green-700",
-    implemented: "bg-emerald-50 text-emerald-700",
-    wontfix: "bg-amber-50 text-amber-700",
-    duplicate: "bg-purple-50 text-purple-700",
+    evaluating: "bg-blue-50 text-blue-700",
+    snoozed: "bg-amber-50 text-amber-700",
+    approved: "bg-teal-50 text-teal-700",
+    in_progress: "bg-indigo-50 text-indigo-700",
+    testing: "bg-purple-50 text-purple-700",
+    deployed: "bg-cyan-50 text-cyan-700",
+    verified: "bg-green-50 text-green-700",
+    failed_testing: "bg-red-50 text-red-700",
+    reverted: "bg-orange-50 text-orange-700",
+    wontfix: "bg-amber-100 text-amber-800",
+    duplicate: "bg-purple-100 text-purple-800",
   };
   return map[s] || "bg-gray-100 text-gray-600";
 };
@@ -170,9 +182,15 @@ const statusClass = (s: string): string => {
 const statusLabel = (s: string): string => {
   const map: Record<string, string> = {
     pending: "待处理",
-    in_progress: "处理中",
-    optimized: "已优化",
-    implemented: "已实现",
+    evaluating: "评估中",
+    snoozed: "已搁置",
+    approved: "已批准",
+    in_progress: "开发中",
+    testing: "测试中",
+    deployed: "已部署",
+    verified: "已验证",
+    failed_testing: "测试未通过",
+    reverted: "已回退",
     wontfix: "暂缓",
     duplicate: "重复",
   };

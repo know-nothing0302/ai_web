@@ -2,12 +2,18 @@
   "name": "ai_web",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev:api": "npm --prefix apps/api run dev",
     "dev:web": "npm --prefix apps/web run dev",
     "build:api": "npm --prefix apps/api run build",
     "build:web": "npm --prefix apps/web run build",
     "typecheck:api": "npm --prefix apps/api run typecheck"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "pg-mem": "^3.0.14"
   }
 }

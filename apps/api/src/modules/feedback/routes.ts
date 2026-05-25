@@ -199,7 +199,7 @@ feedbackRouter.post("/", requireAuth, async (request, response) => {
 const patchSchema = z
   .object({
     status: z
-      .enum(["pending", "in_progress", "optimized", "implemented", "wontfix", "duplicate"])
+      .enum(["pending", "evaluating", "snoozed", "approved", "in_progress", "testing", "deployed", "verified", "failed_testing", "reverted", "wontfix", "duplicate"])
       .optional(),
     adminNote: z.string().trim().max(5000).optional(),
   })

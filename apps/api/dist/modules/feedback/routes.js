@@ -182,7 +182,7 @@ exports.feedbackRouter.post("/", auth_1.requireAuth, async (request, response) =
 const patchSchema = zod_1.z
     .object({
     status: zod_1.z
-        .enum(["pending", "in_progress", "optimized", "implemented", "wontfix", "duplicate"])
+        .enum(["pending", "evaluating", "snoozed", "approved", "in_progress", "testing", "deployed", "verified", "failed_testing", "reverted", "wontfix", "duplicate"])
         .optional(),
     adminNote: zod_1.z.string().trim().max(5000).optional(),
 })

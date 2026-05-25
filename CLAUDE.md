@@ -125,3 +125,16 @@ npm run build:web   # 前端编译（vue-tsc + vite build）
 docker compose up   # 完整开发环境一键启动
 ```
 
+## CC 子 Agent 通知
+
+项目专用 CC：`cc-ai-web`。完成后通知 Hermes：
+
+```bash
+CC_TASK_ID=<TASK> cc-notify done "<简述>"
+CC_TASK_ID=<TASK> cc-notify blocked "<原因>"
+CC_TASK_ID=<TASK> cc-notify failed "<失败原因>"
+```
+
+source: cc-ai-web
+通知规范见 `~/.claude/CLAUDE.md § CC 子 Agent 通知`。
+

@@ -104,9 +104,15 @@ export interface FeedbackListItem {
 
 export type FeedbackStatus =
   | "pending"
+  | "evaluating"
+  | "snoozed"
+  | "approved"
   | "in_progress"
-  | "optimized"
-  | "implemented"
+  | "testing"
+  | "deployed"
+  | "verified"
+  | "failed_testing"
+  | "reverted"
   | "wontfix"
   | "duplicate";
 
