@@ -56,19 +56,37 @@ const mapWecomAppConfig = (row) => ({
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
-const mapFeedbackEntry = (row) => ({
-    id: row.id,
-    userId: row.user_id,
-    type: row.type,
-    content: row.content,
-    contact: row.contact ?? undefined,
-    pageRoute: row.page_route,
-    pageTitle: row.page_title,
-    source: row.source,
-    status: row.status,
-    adminNote: row.admin_note ?? undefined,
-    createdAt: row.created_at,
-});
+const mapFeedbackEntry = (row) => {
+    const base = {
+        id: row.id,
+        userId: row.user_id,
+        type: row.type,
+        content: row.content,
+        contact: row.contact ?? undefined,
+        pageRoute: row.page_route,
+        pageTitle: row.page_title,
+        source: row.source,
+        status: row.status,
+        adminNote: row.admin_note ?? undefined,
+        createdAt: row.created_at,
+    };
+    const evalRow = row;
+    if (evalRow.eval_type) {
+        return {
+            ...base,
+            evaluation: {
+                evalType: evalRow.eval_type,
+                severity: evalRow.severity,
+                fixScope: evalRow.fix_scope,
+                alignment: evalRow.alignment,
+                suggestedAction: evalRow.suggested_action,
+                suggestion: evalRow.suggestion,
+                evaluatedAt: evalRow.evaluated_at,
+            },
+        };
+    }
+    return base;
+};
 const mapAnalyticsEvent = (row) => ({
     id: row.id,
     eventType: row.event_type,
@@ -1291,12 +1309,50 @@ exports.feedbackStore = {
             values.push(filters.endAt);
             conditions.push(`created_at <= $${values.length}::timestamptz`);
         }
+        if (filters.status) {
+            const statuses = filters.status.split(",").map((s) => s.trim()).filter(Boolean);
+            if (statuses.length > 0) {
+                values.push(statuses);
+                conditions.push(`status = ANY($${values.length}::text[])`);
+            }
+        }
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
         const offset = (filters.page - 1) * filters.pageSize;
         values.push(filters.pageSize);
         const limitPlaceholder = `$${values.length}`;
         values.push(offset);
         const offsetPlaceholder = `$${values.length}`;
+        if (filters.includeEval) {
+            const itemsResult = await (0, db_1.query)(`
+        SELECT
+          fe.id, fe.user_id, fe.type, fe.content, fe.contact,
+          fe.page_route, fe.page_title, fe.source, fe.status,
+          fe.admin_note, fe.created_at,
+          ev.eval_type, ev.severity, ev.fix_scope, ev.alignment,
+          ev.suggested_action, ev.suggestion, ev.evaluated_at
+        FROM feedback_entries fe
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM feedback_evaluations
+          WHERE feedback_id = fe.id
+          ORDER BY evaluated_at DESC
+          LIMIT 1
+        ) ev ON true
+        ${whereClause}
+        ORDER BY fe.created_at DESC
+        LIMIT ${limitPlaceholder}
+        OFFSET ${offsetPlaceholder}
+        `, values);
+            const countResult = await (0, db_1.query)(`
+        SELECT COUNT(*)::text AS total
+        FROM feedback_entries
+        ${whereClause}
+        `, values.slice(0, values.length - 2));
+            return {
+                items: itemsResult.rows.map(mapFeedbackEntry),
+                total: Number(countResult.rows[0]?.total ?? 0),
+            };
+        }
         const itemsResult = await (0, db_1.query)(`
       SELECT
         id,

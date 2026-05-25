@@ -5,6 +5,7 @@ import {
   Article,
   ArticleChannel,
   FeedbackEntry,
+  FeedbackEvaluation,
   FeedbackStatus,
   FeedbackType,
   PageAgentConversation,
@@ -211,6 +212,16 @@ interface FeedbackEntryRow {
   created_at: string;
 }
 
+interface FeedbackEntryWithEvalRow extends FeedbackEntryRow {
+  eval_type: string | null;
+  severity: string | null;
+  fix_scope: string | null;
+  alignment: string | null;
+  suggested_action: string | null;
+  suggestion: string | null;
+  evaluated_at: string | null;
+}
+
 interface AnalyticsEventRow {
   id: string;
   event_type: AnalyticsEventType;
@@ -231,8 +242,10 @@ interface FeedbackListFilters {
   type?: FeedbackType;
   startAt?: string;
   endAt?: string;
+  status?: string;
   page: number;
   pageSize: number;
+  includeEval?: boolean;
 }
 
 interface FeedbackListResult {
@@ -297,19 +310,37 @@ const mapWecomAppConfig = (row: WecomAppConfigRow): WecomAppConfig => ({
   updatedAt: row.updated_at,
 });
 
-const mapFeedbackEntry = (row: FeedbackEntryRow): FeedbackEntry => ({
-  id: row.id,
-  userId: row.user_id,
-  type: row.type,
-  content: row.content,
-  contact: row.contact ?? undefined,
-  pageRoute: row.page_route,
-  pageTitle: row.page_title,
-  source: row.source,
-  status: row.status as FeedbackStatus,
-  adminNote: row.admin_note ?? undefined,
-  createdAt: row.created_at,
-});
+const mapFeedbackEntry = (row: FeedbackEntryRow | FeedbackEntryWithEvalRow): FeedbackEntry => {
+  const base = {
+    id: row.id,
+    userId: row.user_id,
+    type: row.type,
+    content: row.content,
+    contact: row.contact ?? undefined,
+    pageRoute: row.page_route,
+    pageTitle: row.page_title,
+    source: row.source,
+    status: row.status as FeedbackStatus,
+    adminNote: row.admin_note ?? undefined,
+    createdAt: row.created_at,
+  };
+  const evalRow = row as FeedbackEntryWithEvalRow;
+  if (evalRow.eval_type) {
+    return {
+      ...base,
+      evaluation: {
+        evalType: evalRow.eval_type,
+        severity: evalRow.severity!,
+        fixScope: evalRow.fix_scope!,
+        alignment: evalRow.alignment!,
+        suggestedAction: evalRow.suggested_action!,
+        suggestion: evalRow.suggestion!,
+        evaluatedAt: evalRow.evaluated_at!,
+      },
+    };
+  }
+  return base;
+};
 
 const mapAnalyticsEvent = (row: AnalyticsEventRow): AnalyticsEvent => ({
   id: row.id,
@@ -1793,7 +1824,7 @@ export const feedbackStore = {
   },
   async list(filters: FeedbackListFilters): Promise<FeedbackListResult> {
     const conditions: string[] = [];
-    const values: Array<string | number> = [];
+    const values: unknown[] = [];
 
     if (filters.type) {
       values.push(filters.type);
@@ -1807,6 +1838,13 @@ export const feedbackStore = {
       values.push(filters.endAt);
       conditions.push(`created_at <= $${values.length}::timestamptz`);
     }
+    if (filters.status) {
+      const statuses = filters.status.split(",").map((s) => s.trim()).filter(Boolean);
+      if (statuses.length > 0) {
+        values.push(statuses);
+        conditions.push(`status = ANY($${values.length}::text[])`);
+      }
+    }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const offset = (filters.page - 1) * filters.pageSize;
@@ -1815,6 +1853,46 @@ export const feedbackStore = {
     const limitPlaceholder = `$${values.length}`;
     values.push(offset);
     const offsetPlaceholder = `$${values.length}`;
+
+    if (filters.includeEval) {
+      const itemsResult = await query<FeedbackEntryWithEvalRow>(
+        `
+        SELECT
+          fe.id, fe.user_id, fe.type, fe.content, fe.contact,
+          fe.page_route, fe.page_title, fe.source, fe.status,
+          fe.admin_note, fe.created_at,
+          ev.eval_type, ev.severity, ev.fix_scope, ev.alignment,
+          ev.suggested_action, ev.suggestion, ev.evaluated_at
+        FROM feedback_entries fe
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM feedback_evaluations
+          WHERE feedback_id = fe.id
+          ORDER BY evaluated_at DESC
+          LIMIT 1
+        ) ev ON true
+        ${whereClause}
+        ORDER BY fe.created_at DESC
+        LIMIT ${limitPlaceholder}
+        OFFSET ${offsetPlaceholder}
+        `,
+        values
+      );
+
+      const countResult = await query<{ total: string }>(
+        `
+        SELECT COUNT(*)::text AS total
+        FROM feedback_entries
+        ${whereClause}
+        `,
+        values.slice(0, values.length - 2)
+      );
+
+      return {
+        items: itemsResult.rows.map(mapFeedbackEntry),
+        total: Number(countResult.rows[0]?.total ?? 0),
+      };
+    }
 
     const itemsResult = await query<FeedbackEntryRow>(
       `

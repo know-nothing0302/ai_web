@@ -83,8 +83,22 @@ feedbackRouter.get(
   }
 );
 
+const adminListSchema = z.object({
+  type: z.enum(["bug", "ux", "content", "other"]).optional(),
+  status: z.string().optional(),
+  startAt: z.string().datetime({ offset: true }).optional(),
+  endAt: z.string().datetime({ offset: true }).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  includeEval: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => v === true || v === "true")
+    .optional()
+    .default(false),
+});
+
 feedbackRouter.get("/admin", requireFeedbackReader, async (request, response) => {
-  const parsed = listSchema.safeParse(request.query);
+  const parsed = adminListSchema.safeParse(request.query);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
     return;
@@ -92,21 +106,28 @@ feedbackRouter.get("/admin", requireFeedbackReader, async (request, response) =>
 
   logger.info("feedback.admin.read.start", {
     type: parsed.data.type,
+    status: parsed.data.status,
     startAt: parsed.data.startAt,
     endAt: parsed.data.endAt,
     page: parsed.data.page,
     pageSize: parsed.data.pageSize,
+    includeEval: parsed.data.includeEval,
     stage: "list",
   });
 
   try {
-    const result = await feedbackStore.list(parsed.data);
+    const result = await feedbackStore.list({
+      ...parsed.data,
+      includeEval: parsed.data.includeEval,
+    });
     logger.info("feedback.admin.read.success", {
       type: parsed.data.type,
+      status: parsed.data.status,
       startAt: parsed.data.startAt,
       endAt: parsed.data.endAt,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
+      includeEval: parsed.data.includeEval,
       total: result.total,
       returnedCount: result.items.length,
       stage: "list",
@@ -122,10 +143,12 @@ feedbackRouter.get("/admin", requireFeedbackReader, async (request, response) =>
   } catch (error) {
     logger.error("feedback.admin.read.failed", {
       type: parsed.data.type,
+      status: parsed.data.status,
       startAt: parsed.data.startAt,
       endAt: parsed.data.endAt,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
+      includeEval: parsed.data.includeEval,
       stage: "list",
       error,
     });

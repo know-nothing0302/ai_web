@@ -100,6 +100,7 @@ export interface FeedbackListItem {
   status: FeedbackStatus;
   adminNote?: string;
   createdAt: string;
+  evaluation?: FeedbackEvaluation;
 }
 
 export type FeedbackStatus =
@@ -115,6 +116,16 @@ export type FeedbackStatus =
   | "reverted"
   | "wontfix"
   | "duplicate";
+
+export interface FeedbackEvaluation {
+  evalType: string;
+  severity: string;
+  fixScope: string;
+  alignment: string;
+  suggestedAction: string;
+  suggestion: string;
+  evaluatedAt: string;
+}
 
 export interface FeedbackListResponse {
   items: FeedbackListItem[];
@@ -602,5 +613,16 @@ export const updateFeedbackStatus = async (
   payload: { status?: string; adminNote?: string }
 ): Promise<FeedbackListItem> => {
   const result = await request.patch<FeedbackListItem>(`/feedback/admin/${id}`, payload);
+  return result.data;
+};
+
+export const getAdminFeedbackEvalList = async (params: {
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<FeedbackListResponse> => {
+  const result = await request.get<FeedbackListResponse>("/feedback/admin", {
+    params: { ...params, includeEval: true },
+  });
   return result.data;
 };

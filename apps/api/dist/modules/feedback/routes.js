@@ -70,28 +70,48 @@ exports.feedbackRouter.get("/external", auth_1.requireAdminOrFeedbackReadToken, 
         response.status(500).json({ message: "反馈查询失败" });
     }
 });
+const adminListSchema = zod_1.z.object({
+    type: zod_1.z.enum(["bug", "ux", "content", "other"]).optional(),
+    status: zod_1.z.string().optional(),
+    startAt: zod_1.z.string().datetime({ offset: true }).optional(),
+    endAt: zod_1.z.string().datetime({ offset: true }).optional(),
+    page: zod_1.z.coerce.number().int().min(1).default(1),
+    pageSize: zod_1.z.coerce.number().int().min(1).max(100).default(20),
+    includeEval: zod_1.z
+        .union([zod_1.z.literal("true"), zod_1.z.literal("false"), zod_1.z.boolean()])
+        .transform((v) => v === true || v === "true")
+        .optional()
+        .default(false),
+});
 exports.feedbackRouter.get("/admin", auth_1.requireFeedbackReader, async (request, response) => {
-    const parsed = listSchema.safeParse(request.query);
+    const parsed = adminListSchema.safeParse(request.query);
     if (!parsed.success) {
         response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
         return;
     }
     logger_1.logger.info("feedback.admin.read.start", {
         type: parsed.data.type,
+        status: parsed.data.status,
         startAt: parsed.data.startAt,
         endAt: parsed.data.endAt,
         page: parsed.data.page,
         pageSize: parsed.data.pageSize,
+        includeEval: parsed.data.includeEval,
         stage: "list",
     });
     try {
-        const result = await store_1.feedbackStore.list(parsed.data);
+        const result = await store_1.feedbackStore.list({
+            ...parsed.data,
+            includeEval: parsed.data.includeEval,
+        });
         logger_1.logger.info("feedback.admin.read.success", {
             type: parsed.data.type,
+            status: parsed.data.status,
             startAt: parsed.data.startAt,
             endAt: parsed.data.endAt,
             page: parsed.data.page,
             pageSize: parsed.data.pageSize,
+            includeEval: parsed.data.includeEval,
             total: result.total,
             returnedCount: result.items.length,
             stage: "list",
@@ -108,10 +128,12 @@ exports.feedbackRouter.get("/admin", auth_1.requireFeedbackReader, async (reques
     catch (error) {
         logger_1.logger.error("feedback.admin.read.failed", {
             type: parsed.data.type,
+            status: parsed.data.status,
             startAt: parsed.data.startAt,
             endAt: parsed.data.endAt,
             page: parsed.data.page,
             pageSize: parsed.data.pageSize,
+            includeEval: parsed.data.includeEval,
             stage: "list",
             error,
         });

@@ -215,6 +215,16 @@ export type FeedbackStatus =
   | "wontfix"
   | "duplicate";
 
+export interface FeedbackEvaluation {
+  evalType: string;
+  severity: string;
+  fixScope: string;
+  alignment: string;
+  suggestedAction: string;
+  suggestion: string;
+  evaluatedAt: string;
+}
+
 export interface FeedbackEntry {
   id: string;
   userId: string;
@@ -227,6 +237,7 @@ export interface FeedbackEntry {
   status: FeedbackStatus;
   adminNote?: string;
   createdAt: string;
+  evaluation?: FeedbackEvaluation;
 }
 
 export type AnalyticsEventType =

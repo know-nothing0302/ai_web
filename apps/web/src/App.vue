@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, Cake } from "lucide-vue-next";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, Cake, ClipboardCheck } from "lucide-vue-next";
 
 import FeedbackPanel from "./components/FeedbackPanel.vue";
 import NeuralBackground from "./components/NeuralBackground.vue";
@@ -290,7 +290,8 @@ const navItems = computed(() => {
     items.push(
       { path: "/ai-lab", name: "AI 试验场", icon: Zap },
       { path: "/admin/publish", name: "内容发布", icon: Settings },
-      { path: "/admin/birthday", name: "生日推送", icon: Cake }
+      { path: "/admin/birthday", name: "生日推送", icon: Cake },
+      { path: "/admin/feedback-review", name: "反馈审批", icon: ClipboardCheck }
     );
   }
 

@@ -10,6 +10,7 @@ import SubscriptionPage from "./views/SubscriptionPage.vue";
 import TodayPushDigestPage from "./views/TodayPushDigestPage.vue";
 import ProfilePage from "./views/ProfilePage.vue";
 import AiLabPage from "./views/AiLabPage.vue";
+import FeedbackReviewPage from "./views/FeedbackReviewPage.vue";
 
 const appBase = import.meta.env.BASE_URL;
 const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
@@ -25,6 +26,7 @@ const routes = [
   { path: "/admin/publish", component: AdminPublishPage, meta: { title: `${defaultTitle} - 内容发布` } },
   { path: "/admin/stats", component: AdminStatsPage, meta: { title: `${defaultTitle} - 统计信息` } },
   { path: "/admin/birthday", component: AdminBirthdayPage, meta: { title: `${defaultTitle} - 生日推送` } },
+  { path: "/admin/feedback-review", component: FeedbackReviewPage, meta: { title: `${defaultTitle} - 反馈审批` } },
   { path: "/ai-lab", component: AiLabPage, meta: { title: `${defaultTitle} - AI 试验场` } },
   { path: "/profile", component: ProfilePage, meta: { title: `${defaultTitle} - 个人中心` } },
 ];
