@@ -65,6 +65,8 @@ const mapFeedbackEntry = (row) => ({
     pageRoute: row.page_route,
     pageTitle: row.page_title,
     source: row.source,
+    status: row.status,
+    adminNote: row.admin_note ?? undefined,
     createdAt: row.created_at,
 });
 const mapAnalyticsEvent = (row) => ({
@@ -1305,6 +1307,8 @@ exports.feedbackStore = {
         page_route,
         page_title,
         source,
+        status,
+        admin_note,
         created_at
       FROM feedback_entries
       ${whereClause}
@@ -1321,6 +1325,25 @@ exports.feedbackStore = {
             items: itemsResult.rows.map(mapFeedbackEntry),
             total: Number(countResult.rows[0]?.total ?? 0),
         };
+    },
+    async update(id, input) {
+        const sets = [];
+        const values = [];
+        if (input.status) {
+            values.push(input.status);
+            sets.push(`status = $${values.length}`);
+        }
+        if (input.adminNote !== undefined) {
+            values.push(input.adminNote);
+            sets.push(`admin_note = $${values.length}`);
+        }
+        if (sets.length === 0)
+            return null;
+        values.push(id);
+        const result = await (0, db_1.query)(`UPDATE feedback_entries SET ${sets.join(", ")} WHERE id = $${values.length} RETURNING *`, values);
+        if (result.rows.length === 0)
+            return null;
+        return mapFeedbackEntry(result.rows[0]);
     },
 };
 exports.analyticsEventStore = {

@@ -11,7 +11,9 @@ import {
   getStatsRankings,
   getStatsStatus,
   getStatsTrends,
+  updateFeedbackStatus,
   type FeedbackListItem,
+  type FeedbackStatus,
   type StatsDistributionsResponse,
   type StatsOverviewResponse,
   type StatsRankingsResponse,
@@ -42,6 +44,9 @@ const feedbackTypeOptions = [
   { label: "其他", value: "other" },
 ] as const;
 const feedbackActionMessage = ref("");
+const editingStatus = ref<FeedbackStatus>("pending");
+const editingAdminNote = ref("");
+const savingFeedback = ref(false);
 
 const statsRangeOptions = [
   { label: "近7天", value: "last7days" },
@@ -141,6 +146,39 @@ const showFeedbackActionMessage = (value: string): void => {
   }, 2000);
 };
 
+const statusOptions = [
+  { value: "pending", label: "待处理" },
+  { value: "in_progress", label: "处理中" },
+  { value: "optimized", label: "已优化" },
+  { value: "implemented", label: "已实现" },
+  { value: "wontfix", label: "暂缓" },
+  { value: "duplicate", label: "重复" },
+] as const;
+
+const statusClass = (s: string): string => {
+  const map: Record<string, string> = {
+    pending: "bg-gray-100 text-gray-600",
+    in_progress: "bg-blue-50 text-blue-700",
+    optimized: "bg-green-50 text-green-700",
+    implemented: "bg-emerald-50 text-emerald-700",
+    wontfix: "bg-amber-50 text-amber-700",
+    duplicate: "bg-purple-50 text-purple-700",
+  };
+  return map[s] || "bg-gray-100 text-gray-600";
+};
+
+const statusLabel = (s: string): string => {
+  const map: Record<string, string> = {
+    pending: "待处理",
+    in_progress: "处理中",
+    optimized: "已优化",
+    implemented: "已实现",
+    wontfix: "暂缓",
+    duplicate: "重复",
+  };
+  return map[s] || s;
+};
+
 const copyFeedbackValue = async (value: string, successMessage: string): Promise<void> => {
   if (!value.trim()) {
     return;
@@ -156,13 +194,13 @@ const copyFeedbackValue = async (value: string, successMessage: string): Promise
 const checkAccess = async (): Promise<boolean> => {
   try {
     const user = await getCurrentUser();
-    const userId = user?.id?.trim() ?? "";
-    const username = user?.username?.trim() ?? "";
-    currentUserId.value = userId || username;
-    if (!canAccessAdminViews(user)) {
+    if (!user) {
       accessDenied.value = true;
       return false;
     }
+    const userId = user?.id?.trim() ?? "";
+    const username = user?.username?.trim() ?? "";
+    currentUserId.value = userId || username;
     accessDenied.value = false;
     return true;
   } catch {
@@ -239,6 +277,42 @@ watch(feedbackTypeFilter, async () => {
     await loadFeedbackList(resolveStatsRange(statsRange.value));
   }
 });
+
+watch(selectedFeedback, (item) => {
+  if (item) {
+    editingStatus.value = item.status || "pending";
+    editingAdminNote.value = item.adminNote || "";
+  }
+});
+
+const handleSaveFeedback = async () => {
+  if (!selectedFeedback.value) return;
+  savingFeedback.value = true;
+  try {
+    await updateFeedbackStatus(selectedFeedback.value.id, {
+      status: editingStatus.value,
+      adminNote: editingAdminNote.value || undefined,
+    });
+    const idx = feedbackItems.value.findIndex((f) => f.id === selectedFeedback.value!.id);
+    if (idx >= 0) {
+      feedbackItems.value[idx] = {
+        ...feedbackItems.value[idx],
+        status: editingStatus.value as FeedbackStatus,
+        adminNote: editingAdminNote.value || undefined,
+      };
+    }
+    selectedFeedback.value = {
+      ...selectedFeedback.value,
+      status: editingStatus.value as FeedbackStatus,
+      adminNote: editingAdminNote.value || undefined,
+    };
+    showFeedbackActionMessage("反馈状态已更新");
+  } catch {
+    showFeedbackActionMessage("保存失败");
+  } finally {
+    savingFeedback.value = false;
+  }
+};
 </script>
 
 <template>
@@ -246,7 +320,7 @@ watch(feedbackTypeFilter, async () => {
     <section v-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
       <h2 class="text-lg font-semibold text-[#0f4069]">无权限访问</h2>
       <p class="mt-2 text-[#4f6b8a]">
-        当前账号（{{ currentUserId || "未知用户" }}）不在统计信息允许名单内。
+        当前账号（{{ currentUserId || "未知用户" }}）无权限访问。
       </p>
     </section>
 
@@ -498,6 +572,7 @@ watch(feedbackTypeFilter, async () => {
               <tr class="border-b border-[#e1f5fe] text-left text-[#4f6b8a]">
                 <th class="px-2 py-2">提交时间</th>
                 <th class="px-2 py-2">类型</th>
+                <th class="px-2 py-2">状态</th>
                 <th class="px-2 py-2">页面</th>
                 <th class="px-2 py-2">内容摘要</th>
                 <th class="px-2 py-2 text-right">操作</th>
@@ -511,6 +586,11 @@ watch(feedbackTypeFilter, async () => {
               >
                 <td class="px-2 py-3">{{ formatDateTime(item.createdAt) }}</td>
                 <td class="px-2 py-3">{{ formatFeedbackType(item.type) }}</td>
+                <td class="px-2 py-3">
+                  <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium" :class="statusClass(item.status)">
+                    {{ statusLabel(item.status) }}
+                  </span>
+                </td>
                 <td class="px-2 py-3">{{ item.pageTitle || item.pageRoute }}</td>
                 <td class="px-2 py-3">{{ summarizeFeedback(item.content) }}</td>
                 <td class="px-2 py-3 text-right">
@@ -599,6 +679,38 @@ watch(feedbackTypeFilter, async () => {
               <div>
                 <p class="text-[#6e89a3]">用户 ID</p>
                 <p class="mt-1">{{ selectedFeedback.userId }}</p>
+              </div>
+            </div>
+
+            <div class="mt-6 border-t border-[#e1f5fe] pt-5 space-y-4">
+              <div>
+                <p class="text-[#6e89a3] mb-1">处理状态</p>
+                <select
+                  v-model="editingStatus"
+                  class="rounded-xl border border-[#b3e5fc] bg-white px-3 py-2 text-sm text-[#355878] outline-none transition-colors focus:border-[#4fc3f7]"
+                >
+                  <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <p class="text-[#6e89a3] mb-1">管理员备注</p>
+                <textarea
+                  v-model="editingAdminNote"
+                  class="input-ai w-full min-h-[60px] text-sm"
+                  placeholder="备注信息..."
+                ></textarea>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  class="btn-primary text-sm"
+                  :disabled="savingFeedback"
+                  @click="handleSaveFeedback"
+                >
+                  {{ savingFeedback ? '保存中...' : '保存' }}
+                </button>
               </div>
             </div>
           </div>

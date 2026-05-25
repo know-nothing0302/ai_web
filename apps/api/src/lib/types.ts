@@ -201,6 +201,14 @@ export interface UserProfileAnalysisJob {
 
 export type FeedbackType = "bug" | "ux" | "content" | "other";
 
+export type FeedbackStatus =
+  | "pending"
+  | "in_progress"
+  | "optimized"
+  | "implemented"
+  | "wontfix"
+  | "duplicate";
+
 export interface FeedbackEntry {
   id: string;
   userId: string;
@@ -210,6 +218,8 @@ export interface FeedbackEntry {
   pageRoute: string;
   pageTitle: string;
   source: string;
+  status: FeedbackStatus;
+  adminNote?: string;
   createdAt: string;
 }
 

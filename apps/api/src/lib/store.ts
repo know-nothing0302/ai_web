@@ -5,6 +5,7 @@ import {
   Article,
   ArticleChannel,
   FeedbackEntry,
+  FeedbackStatus,
   FeedbackType,
   PageAgentConversation,
   PageAgentConversationStatus,
@@ -205,6 +206,8 @@ interface FeedbackEntryRow {
   page_route: string;
   page_title: string;
   source: string;
+  status: string;
+  admin_note: string | null;
   created_at: string;
 }
 
@@ -303,6 +306,8 @@ const mapFeedbackEntry = (row: FeedbackEntryRow): FeedbackEntry => ({
   pageRoute: row.page_route,
   pageTitle: row.page_title,
   source: row.source,
+  status: row.status as FeedbackStatus,
+  adminNote: row.admin_note ?? undefined,
   createdAt: row.created_at,
 });
 
@@ -1789,6 +1794,7 @@ export const feedbackStore = {
   async list(filters: FeedbackListFilters): Promise<FeedbackListResult> {
     const conditions: string[] = [];
     const values: Array<string | number> = [];
+
     if (filters.type) {
       values.push(filters.type);
       conditions.push(`type = $${values.length}`);
@@ -1821,6 +1827,8 @@ export const feedbackStore = {
         page_route,
         page_title,
         source,
+        status,
+        admin_note,
         created_at
       FROM feedback_entries
       ${whereClause}
@@ -1844,6 +1852,31 @@ export const feedbackStore = {
       items: itemsResult.rows.map(mapFeedbackEntry),
       total: Number(countResult.rows[0]?.total ?? 0),
     };
+  },
+  async update(
+    id: string,
+    input: { status?: FeedbackStatus; adminNote?: string }
+  ): Promise<FeedbackEntry | null> {
+    const sets: string[] = [];
+    const values: unknown[] = [];
+
+    if (input.status) {
+      values.push(input.status);
+      sets.push(`status = $${values.length}`);
+    }
+    if (input.adminNote !== undefined) {
+      values.push(input.adminNote);
+      sets.push(`admin_note = $${values.length}`);
+    }
+    if (sets.length === 0) return null;
+
+    values.push(id);
+    const result = await query<FeedbackEntryRow>(
+      `UPDATE feedback_entries SET ${sets.join(", ")} WHERE id = $${values.length} RETURNING *`,
+      values
+    );
+    if (result.rows.length === 0) return null;
+    return mapFeedbackEntry(result.rows[0]);
   },
 };
 

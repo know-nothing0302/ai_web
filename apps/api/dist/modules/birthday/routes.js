@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.birthdayRouter = void 0;
 const node_child_process_1 = require("node:child_process");
 const node_crypto_1 = require("node:crypto");
+const node_fs_1 = require("node:fs");
 const promises_1 = require("node:fs/promises");
 const node_path_1 = require("node:path");
 const express_1 = require("express");
@@ -97,6 +98,34 @@ exports.birthdayRouter.post("/push-test", auth_1.requireInternalToken, async (re
         res.status(500).json({ message: "测试推送失败", detail: error.message });
     }
 });
+// --- POST /preview --- generate card preview image, return as base64 ---
+const previewSchema = zod_1.z.object({
+    xm: zod_1.z.string().trim().min(1),
+    csrq: zod_1.z.string().trim().min(1),
+    blessing: zod_1.z.string().trim().min(1).max(500),
+});
+exports.birthdayRouter.post("/preview", auth_1.requireAdmin, async (req, res) => {
+    try {
+        const parsed = previewSchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+            return;
+        }
+        const { xm, csrq, blessing } = parsed.data;
+        const cardPath = await (0, birthday_1.generateCard)(xm, csrq);
+        const imageData = (0, node_fs_1.readFileSync)(cardPath);
+        const cardBase64 = `data:image/png;base64,${imageData.toString("base64")}`;
+        logger_1.logger.info("birthday.preview.success", { xm, cardPath });
+        res.json({ cardBase64, xm, blessing });
+    }
+    catch (error) {
+        logger_1.logger.error("birthday.preview.failed", { error: error.message });
+        res.status(500).json({ message: "预览生成失败", detail: error.message });
+    }
+});
+// ============================================================
+// NEW: Admin endpoints for birthday push management
+// ============================================================
 // ============================================================
 // NEW: Admin endpoints for birthday push management
 // ============================================================
@@ -192,11 +221,12 @@ exports.birthdayRouter.post("/resend", auth_1.requireContentHubOperator, async (
         await (0, db_1.query)(`INSERT INTO birthday_push_log (user_xh, xm, csrq, card_path, blessing_text, status, pushed_to)
        VALUES ($1, $2, $3::date, $4, $5, 'success', $6)`, [xh, xm, csrq, cardPath, blessing, [TEST_USER]]);
         logger_1.logger.info("birthday.resend.success", { xh, xm, cardPath });
-        res.json({ message: "推送成功", name: xm, cardPath });
+        res.json({ message: "推送成功", name: xm, cardPath, status: "success", pushedTo: [TEST_USER] });
     }
     catch (error) {
         logger_1.logger.error("birthday.resend.failed", { error: error.message });
-        res.status(500).json({ message: "推送失败", detail: error.message });
+        const message = error.message || "推送失败";
+        res.status(500).json({ message: "推送失败", detail: message, name: req.body.xm || "未知", status: "failed", errorCode: "WECOM_API_ERROR" });
     }
 });
 // --- GET /blessing — get current blessing template ---

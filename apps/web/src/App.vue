@@ -282,11 +282,14 @@ const navItems = computed(() => {
     { path: "/subscription", name: "智能订阅", icon: Bell },
   ];
 
+  if (currentUser.value) {
+    items.push({ path: "/admin/stats", name: "统计信息", icon: BarChart3 });
+  }
+
   if (canAccessAdminViews(currentUser.value)) {
     items.push(
       { path: "/ai-lab", name: "AI 试验场", icon: Zap },
       { path: "/admin/publish", name: "内容发布", icon: Settings },
-      { path: "/admin/stats", name: "统计信息", icon: BarChart3 },
       { path: "/admin/birthday", name: "生日推送", icon: Cake }
     );
   }

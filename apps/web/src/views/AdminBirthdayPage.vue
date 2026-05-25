@@ -9,14 +9,20 @@ import {
   ChevronRight,
   RefreshCw,
   ExternalLink,
+  Eye,
+  CheckCircle,
+  XCircle,
 } from "lucide-vue-next";
 import {
   getBirthdayLogs,
+  getBirthdayPreview,
   resendBirthdayPush,
   getBirthdayBlessing,
   updateBirthdayBlessing,
   searchBirthdayUsers,
+  type BirthdayCardPreview,
   type BirthdayPushLogItem,
+  type BirthdayPushResult,
   type SearchUserItem,
 } from "../services/api";
 
@@ -35,7 +41,10 @@ const searchLoading = ref(false);
 const selectedUser = ref<SearchUserItem | null>(null);
 const blessingText = ref("");
 const resendLoading = ref(false);
-const resendMessage = ref("");
+const previewLoading = ref(false);
+const previewBase64 = ref("");
+const previewError = ref("");
+const pushResult = ref<BirthdayPushResult | null>(null);
 
 // --- Blessing template ---
 const blessingTemplate = ref("");
@@ -129,19 +138,42 @@ const clearSelectedUser = () => {
 };
 
 // --- Resend ---
+const handlePreview = async () => {
+  if (!selectedUser.value || !blessingText.value.trim()) return;
+  previewLoading.value = true;
+  previewError.value = "";
+  previewBase64.value = "";
+  try {
+    const result = await getBirthdayPreview({
+      xm: selectedUser.value.xm,
+      csrq: selectedUser.value.csrq || "",
+      blessing: blessingText.value.trim(),
+    });
+    previewBase64.value = result.cardBase64;
+  } catch (error: any) {
+    previewError.value = error.response?.data?.message || "预览生成失败";
+  } finally {
+    previewLoading.value = false;
+  }
+};
+
 const handleResend = async () => {
   if (!selectedUser.value || !blessingText.value.trim()) return;
   resendLoading.value = true;
-  resendMessage.value = "";
+  pushResult.value = null;
   try {
     const result = await resendBirthdayPush({
       xh: selectedUser.value.xh,
       blessing: blessingText.value.trim(),
     });
-    resendMessage.value = `已向测试用户推送 ${result.name} 的生日贺卡`;
+    pushResult.value = { status: "success", name: result.name, pushedTo: result.pushedTo || ["100002013029"] };
     await loadLogs();
   } catch (error: any) {
-    resendMessage.value = error.response?.data?.message || "推送失败";
+    pushResult.value = {
+      status: "failed",
+      name: selectedUser.value?.xm || "未知",
+      errorDetail: error.response?.data?.detail || error.response?.data?.message || "推送失败",
+    };
   } finally {
     resendLoading.value = false;
   }
@@ -259,12 +291,20 @@ onMounted(() => {
           v-model="blessingText"
           class="input-ai w-full min-h-[80px] text-sm leading-relaxed"
           placeholder="输入祝福语..."
-          :disabled="!selectedUser"
         ></textarea>
       </div>
 
-      <!-- Push button -->
-      <div class="mt-4">
+      <!-- Preview & Push buttons -->
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          class="btn-secondary flex items-center gap-2"
+          :disabled="!selectedUser || !blessingText.trim() || previewLoading"
+          @click="handlePreview"
+        >
+          <Eye class="w-4 h-4" />
+          {{ previewLoading ? "生成预览中..." : "预览贺卡" }}
+        </button>
         <button
           type="button"
           class="btn-primary flex items-center gap-2"
@@ -274,9 +314,32 @@ onMounted(() => {
           <MessageSquare class="w-4 h-4" />
           {{ resendLoading ? "推送中..." : "推送到测试账号 (100002013029)" }}
         </button>
-        <p v-if="resendMessage" class="mt-2 text-sm" :class="resendMessage.includes('已向') ? 'text-green-600' : 'text-red-500'">
-          {{ resendMessage }}
-        </p>
+      </div>
+
+      <!-- Preview card display -->
+      <div v-if="previewBase64" class="mt-4 rounded-2xl border border-[#b3e5fc] p-4 bg-white">
+        <p class="text-sm text-[#4f6b8a] mb-3">贺卡预览</p>
+        <img :src="previewBase64" alt="生日贺卡预览" class="max-w-full rounded-xl shadow-sm" />
+        <p class="text-xs text-[#8aa3bc] mt-2">姓名：{{ selectedUser?.xm }} | 祝福语：{{ blessingText }}</p>
+      </div>
+      <p v-if="previewError" class="mt-2 text-sm text-red-500">{{ previewError }}</p>
+
+      <!-- Push result card -->
+      <div v-if="pushResult" class="mt-4 rounded-2xl border p-4"
+        :class="pushResult.status === 'success' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'">
+        <div class="flex items-center gap-2">
+          <CheckCircle v-if="pushResult.status === 'success'" class="w-5 h-5 text-green-600" />
+          <XCircle v-else class="w-5 h-5 text-red-500" />
+          <span class="font-medium text-sm"
+            :class="pushResult.status === 'success' ? 'text-green-700' : 'text-red-700'">
+            {{ pushResult.status === 'success' ? '推送成功' : '推送失败' }}
+          </span>
+        </div>
+        <div class="mt-2 text-sm space-y-1" :class="pushResult.status === 'success' ? 'text-green-600' : 'text-red-500'">
+          <p>接收人：{{ pushResult.name }}</p>
+          <p v-if="pushResult.pushedTo?.length">推送目标：{{ pushResult.pushedTo.join(', ') }}</p>
+          <p v-if="pushResult.errorDetail">错误详情：{{ pushResult.errorDetail }}</p>
+        </div>
       </div>
     </section>
 

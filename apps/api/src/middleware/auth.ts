@@ -94,8 +94,8 @@ export const requireContentHubOperator = (
   next();
 };
 
-export const requireStatsReader = requireContentHubOperator;
-export const requireFeedbackReader = requireStatsReader;
+export const requireStatsReader = requireAuth;
+export const requireFeedbackReader = requireContentHubOperator;
 
 export const requireAdminOrInternalToken = async (
   request: Request,

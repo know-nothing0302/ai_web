@@ -97,8 +97,18 @@ export interface FeedbackListItem {
   pageRoute: string;
   pageTitle: string;
   source: string;
+  status: FeedbackStatus;
+  adminNote?: string;
   createdAt: string;
 }
+
+export type FeedbackStatus =
+  | "pending"
+  | "in_progress"
+  | "optimized"
+  | "implemented"
+  | "wontfix"
+  | "duplicate";
 
 export interface FeedbackListResponse {
   items: FeedbackListItem[];
@@ -520,8 +530,8 @@ export const getBirthdayLogs = async (params: {
 export const resendBirthdayPush = async (payload: {
   xh: string;
   blessing: string;
-}): Promise<{ message: string; name: string; cardPath: string }> => {
-  const result = await request.post<{ message: string; name: string; cardPath: string }>(
+}): Promise<{ message: string; name: string; cardPath: string; status: string; pushedTo: string[] }> => {
+  const result = await request.post<{ message: string; name: string; cardPath: string; status: string; pushedTo: string[] }>(
     "/internal/birthday/resend",
     payload
   );
@@ -554,4 +564,37 @@ export const searchBirthdayUsers = async (keyword: string): Promise<SearchUserIt
     params: { keyword },
   });
   return result.data.items;
+};
+
+// --- Birthday preview ---
+export interface BirthdayCardPreview {
+  cardBase64: string;
+  xm: string;
+  blessing: string;
+}
+
+export const getBirthdayPreview = async (payload: {
+  xm: string;
+  csrq: string;
+  blessing: string;
+}): Promise<BirthdayCardPreview> => {
+  const result = await request.post<BirthdayCardPreview>("/internal/birthday/preview", payload);
+  return result.data;
+};
+
+// --- Birthday push result ---
+export interface BirthdayPushResult {
+  status: "success" | "failed";
+  name: string;
+  pushedTo?: string[];
+  errorDetail?: string;
+}
+
+// --- Feedback admin update ---
+export const updateFeedbackStatus = async (
+  id: string,
+  payload: { status?: string; adminNote?: string }
+): Promise<FeedbackListItem> => {
+  const result = await request.patch<FeedbackListItem>(`/feedback/admin/${id}`, payload);
+  return result.data;
 };

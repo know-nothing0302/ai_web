@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Router } from "express";
@@ -122,6 +123,39 @@ birthdayRouter.post(
     }
   }
 );
+
+// --- POST /preview --- generate card preview image, return as base64 ---
+const previewSchema = z.object({
+  xm: z.string().trim().min(1),
+  csrq: z.string().trim().min(1),
+  blessing: z.string().trim().min(1).max(500),
+});
+
+birthdayRouter.post("/preview", requireAdmin, async (req, res) => {
+  try {
+    const parsed = previewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+      return;
+    }
+
+    const { xm, csrq, blessing } = parsed.data;
+    const cardPath = await generateCard(xm, csrq);
+    const imageData = readFileSync(cardPath);
+    const cardBase64 = `data:image/png;base64,${imageData.toString("base64")}`;
+
+    logger.info("birthday.preview.success", { xm, cardPath });
+
+    res.json({ cardBase64, xm, blessing });
+  } catch (error: any) {
+    logger.error("birthday.preview.failed", { error: error.message });
+    res.status(500).json({ message: "预览生成失败", detail: error.message });
+  }
+});
+
+// ============================================================
+// NEW: Admin endpoints for birthday push management
+// ============================================================
 
 // ============================================================
 // NEW: Admin endpoints for birthday push management
@@ -260,10 +294,11 @@ birthdayRouter.post("/resend", requireContentHubOperator, async (req, res) => {
 
     logger.info("birthday.resend.success", { xh, xm, cardPath });
 
-    res.json({ message: "推送成功", name: xm, cardPath });
+    res.json({ message: "推送成功", name: xm, cardPath, status: "success", pushedTo: [TEST_USER] });
   } catch (error: any) {
     logger.error("birthday.resend.failed", { error: error.message });
-    res.status(500).json({ message: "推送失败", detail: error.message });
+    const message = error.message || "推送失败";
+    res.status(500).json({ message: "推送失败", detail: message, name: req.body.xm || "未知", status: "failed", errorCode: "WECOM_API_ERROR" });
   }
 });
 

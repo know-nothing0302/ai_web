@@ -75,8 +75,8 @@ const requireContentHubOperator = (request, response, next) => {
     next();
 };
 exports.requireContentHubOperator = requireContentHubOperator;
-exports.requireStatsReader = exports.requireContentHubOperator;
-exports.requireFeedbackReader = exports.requireStatsReader;
+exports.requireStatsReader = exports.requireAuth;
+exports.requireFeedbackReader = exports.requireContentHubOperator;
 const requireAdminOrInternalToken = async (request, response, next) => {
     const user = getRequestUser(request);
     if (user?.role === "admin") {

@@ -179,3 +179,26 @@ exports.feedbackRouter.post("/", auth_1.requireAuth, async (request, response) =
         response.status(500).json({ message: "反馈提交失败，请稍后重试" });
     }
 });
+const patchSchema = zod_1.z
+    .object({
+    status: zod_1.z
+        .enum(["pending", "in_progress", "optimized", "implemented", "wontfix", "duplicate"])
+        .optional(),
+    adminNote: zod_1.z.string().trim().max(5000).optional(),
+})
+    .refine((data) => data.status || data.adminNote !== undefined, {
+    message: "至少需要提供 status 或 adminNote",
+});
+exports.feedbackRouter.patch("/admin/:id", auth_1.requireFeedbackReader, async (req, res) => {
+    const parsed = patchSchema.safeParse(req.body);
+    if (!parsed.success) {
+        res.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    const updated = await store_1.feedbackStore.update(req.params.id, parsed.data);
+    if (!updated) {
+        res.status(404).json({ message: "反馈记录不存在" });
+        return;
+    }
+    res.json(updated);
+});
