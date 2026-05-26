@@ -40,6 +40,7 @@ export const env = {
   wecomCallbackAesKey: process.env.WECOM_CALLBACK_AES_KEY ?? "",
   wecomInternalAuthToken: process.env.WECOM_INTERNAL_AUTH_TOKEN ?? "",
   feedbackExternalReadToken: process.env.FEEDBACK_EXTERNAL_READ_TOKEN ?? "",
+  feedbackInternalWriteToken: process.env.FEEDBACK_INTERNAL_WRITE_TOKEN ?? "",
   statsExternalReadToken: process.env.STATS_EXTERNAL_READ_TOKEN ?? "",
   wecomRequestTimeoutMs: toInt(process.env.WECOM_REQUEST_TIMEOUT_MS, 5000),
   wecomTokenRefreshSkewSeconds: toInt(

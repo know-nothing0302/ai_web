@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { canAccessAdminViews, getCurrentUser } from "../services/api";
 
 const accessDenied = ref(false);
+const router = useRouter();
 
 onMounted(async () => {
   try {
@@ -19,6 +21,7 @@ const cards = [
   { icon: "📄", title: "文档助手" },
   { icon: "🎨", title: "创意生成" },
   { icon: "🔬", title: "数据分析" },
+  { icon: "🎂", title: "生日推送", to: "/admin/birthday" },
 ];
 </script>
 
@@ -47,10 +50,13 @@ const cards = [
         v-for="card in cards"
         :key="card.title"
         class="ai-lab-card group"
+        :class="{ 'cursor-pointer': !!card.to }"
+        @click="card.to ? router.push(card.to) : undefined"
       >
         <div class="card-icon">{{ card.icon }}</div>
         <h3 class="card-title">{{ card.title }}</h3>
-        <span class="coming-soon-badge">即将上线</span>
+        <span v-if="card.to" class="coming-soon-badge" style="background:rgba(251,191,36,0.12);color:#fbbf24;border-color:rgba(251,191,36,0.25)">管理入口</span>
+        <span v-else class="coming-soon-badge">即将上线</span>
       </div>
     </div>
   </div>

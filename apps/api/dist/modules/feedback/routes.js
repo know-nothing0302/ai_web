@@ -1,9 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.feedbackRouter = void 0;
+const child_process_1 = require("child_process");
 const express_1 = require("express");
 const zod_1 = require("zod");
 const env_1 = require("../../config/env");
+const db_1 = require("../../lib/db");
 const logger_1 = require("../../lib/logger");
 const store_1 = require("../../lib/store");
 const auth_1 = require("../../middleware/auth");
@@ -73,6 +75,7 @@ exports.feedbackRouter.get("/external", auth_1.requireAdminOrFeedbackReadToken, 
 const adminListSchema = zod_1.z.object({
     type: zod_1.z.enum(["bug", "ux", "content", "other"]).optional(),
     status: zod_1.z.string().optional(),
+    search: zod_1.z.string().trim().optional(),
     startAt: zod_1.z.string().datetime({ offset: true }).optional(),
     endAt: zod_1.z.string().datetime({ offset: true }).optional(),
     page: zod_1.z.coerce.number().int().min(1).default(1),
@@ -138,6 +141,41 @@ exports.feedbackRouter.get("/admin", auth_1.requireFeedbackReader, async (reques
             error,
         });
         response.status(500).json({ message: "反馈查询失败" });
+    }
+});
+const myListSchema = zod_1.z.object({
+    page: zod_1.z.coerce.number().int().min(1).default(1),
+    pageSize: zod_1.z.coerce.number().int().min(1).max(50).default(20),
+});
+exports.feedbackRouter.get("/my", auth_1.requireAuth, async (request, response) => {
+    const parsed = myListSchema.safeParse(request.query);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    const userId = request.session.user?.id ?? (env_1.env.devAuthBypass ? "dev-mock-id" : undefined);
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    try {
+        const result = await store_1.feedbackStore.list({
+            userId,
+            page: parsed.data.page,
+            pageSize: parsed.data.pageSize,
+        });
+        response.json({
+            items: result.items,
+            pagination: {
+                page: parsed.data.page,
+                pageSize: parsed.data.pageSize,
+                total: result.total,
+            },
+        });
+    }
+    catch (error) {
+        logger_1.logger.error("feedback.my.list.failed", { userId, stage: "my_list", error });
+        response.status(500).json({ message: "查询失败" });
     }
 });
 exports.feedbackRouter.post("/", auth_1.requireAuth, async (request, response) => {
@@ -217,7 +255,51 @@ exports.feedbackRouter.patch("/admin/:id", auth_1.requireFeedbackReader, async (
         res.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
         return;
     }
-    const updated = await store_1.feedbackStore.update(req.params.id, parsed.data);
+    const feedbackId = req.params.id;
+    const { status, adminNote } = parsed.data;
+    // When approving, look up AI evaluation to determine next action
+    if (status === "approved") {
+        try {
+            const evalResult = await (0, db_1.query)(`SELECT suggested_action, suggestion FROM feedback_evaluations WHERE feedback_id = $1 ORDER BY evaluated_at DESC LIMIT 1`, [feedbackId]);
+            if (evalResult.rows.length > 0) {
+                const ev = evalResult.rows[0];
+                if (ev.suggested_action === "auto_fix") {
+                    // auto_fix → transition to in_progress and dispatch to cc-ai-web
+                    const updated = await store_1.feedbackStore.update(feedbackId, { status: "in_progress", adminNote });
+                    if (!updated) {
+                        res.status(404).json({ message: "反馈记录不存在" });
+                        return;
+                    }
+                    const safeSuggestion = (ev.suggestion || "见评估详情").replace(/'/g, "'\\''");
+                    const dispatchMsg = `任务ID: auto-fix-${feedbackId.slice(0, 8)} 请修复反馈 #${feedbackId.slice(0, 8)}: ${safeSuggestion}`;
+                    (0, child_process_1.exec)(`/opt/hermes/scripts/cc-send.sh cc-ai-web '${dispatchMsg}'`, (err) => {
+                        if (err) {
+                            logger_1.logger.error("feedback.dispatch.failed", { feedbackId, session: "cc-ai-web", error: err.message, stage: "dispatch" });
+                        }
+                        else {
+                            logger_1.logger.info("feedback.dispatch.sent", { feedbackId, session: "cc-ai-web", stage: "dispatch" });
+                        }
+                    });
+                    logger_1.logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve" });
+                    res.json(updated);
+                    return;
+                }
+                // batch_review / human_gate → keep "approved" (frontend groups them correctly)
+                logger_1.logger.info("feedback.approve.success", { feedbackId, suggestedAction: ev.suggested_action, stage: "approve" });
+            }
+        }
+        catch (error) {
+            logger_1.logger.error("feedback.approve.eval_lookup.failed", { feedbackId, error, stage: "approve" });
+            // Fall through to default update
+        }
+    }
+    // Default update path (non-approved statuses, or approval without evaluation)
+    const updateInput = {};
+    if (status)
+        updateInput.status = status;
+    if (adminNote !== undefined)
+        updateInput.adminNote = adminNote;
+    const updated = await store_1.feedbackStore.update(feedbackId, updateInput);
     if (!updated) {
         res.status(404).json({ message: "反馈记录不存在" });
         return;
@@ -279,5 +361,98 @@ exports.feedbackRouter.delete("/public/:id/like", auth_1.requireAuth, async (req
     catch (error) {
         logger_1.logger.error("feedback.public.unlike.failed", { error });
         response.status(500).json({ message: "取消点赞失败" });
+    }
+});
+// --- Internal API (feedback pipeline) ---
+const internalEvaluationSchema = zod_1.z.object({
+    evaluations: zod_1.z.array(zod_1.z.object({
+        feedback_id: zod_1.z.string().uuid(),
+        eval_type: zod_1.z.string().min(1),
+        severity: zod_1.z.string().min(1),
+        fix_scope: zod_1.z.string().min(1),
+        alignment: zod_1.z.string().min(1),
+        suggested_action: zod_1.z.string().min(1),
+        suggestion: zod_1.z.string().optional(),
+    })).min(1),
+});
+exports.feedbackRouter.post("/internal/evaluations", auth_1.requireAdminOrFeedbackWriteToken, async (request, response) => {
+    const parsed = internalEvaluationSchema.safeParse(request.body);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    logger_1.logger.info("feedback.internal.evaluations.start", {
+        count: parsed.data.evaluations.length,
+        stage: "internal_evaluate",
+    });
+    try {
+        const result = await (0, db_1.withTransaction)(async (client) => {
+            let inserted = 0;
+            let statusUpdated = 0;
+            for (const item of parsed.data.evaluations) {
+                await client.query(`INSERT INTO feedback_evaluations (feedback_id, eval_type, severity, fix_scope, alignment, suggested_action, suggestion)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (feedback_id) DO UPDATE SET
+               eval_type = EXCLUDED.eval_type,
+               severity = EXCLUDED.severity,
+               fix_scope = EXCLUDED.fix_scope,
+               alignment = EXCLUDED.alignment,
+               suggested_action = EXCLUDED.suggested_action,
+               suggestion = EXCLUDED.suggestion,
+               evaluated_at = NOW()`, [item.feedback_id, item.eval_type, item.severity, item.fix_scope, item.alignment, item.suggested_action, item.suggestion ?? null]);
+                inserted++;
+                const updateResult = await client.query(`UPDATE feedback_entries SET status = 'evaluating' WHERE id = $1 AND status = 'pending'`, [item.feedback_id]);
+                if ((updateResult.rowCount ?? 0) > 0) {
+                    statusUpdated++;
+                }
+            }
+            return { inserted, statusUpdated };
+        });
+        logger_1.logger.info("feedback.internal.evaluations.success", {
+            inserted: result.inserted,
+            statusUpdated: result.statusUpdated,
+            stage: "internal_evaluate",
+        });
+        response.json({ ok: true, ...result });
+    }
+    catch (error) {
+        logger_1.logger.error("feedback.internal.evaluations.failed", { stage: "internal_evaluate", error });
+        response.status(500).json({ message: "评估写入失败" });
+    }
+});
+const batchStatusSchema = zod_1.z.object({
+    items: zod_1.z.array(zod_1.z.object({
+        id: zod_1.z.string().uuid(),
+        status: zod_1.z.enum(["fixed", "deployed", "wontfix"]),
+    })).min(1),
+});
+exports.feedbackRouter.patch("/internal/batch-status", auth_1.requireAdminOrFeedbackWriteToken, async (request, response) => {
+    const parsed = batchStatusSchema.safeParse(request.body);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    logger_1.logger.info("feedback.internal.batch-status.start", {
+        count: parsed.data.items.length,
+        stage: "internal_batch_status",
+    });
+    try {
+        const updated = await (0, db_1.withTransaction)(async (client) => {
+            let count = 0;
+            for (const item of parsed.data.items) {
+                const result = await client.query(`UPDATE feedback_entries SET status = $1 WHERE id = $2`, [item.status, item.id]);
+                count += result.rowCount ?? 0;
+            }
+            return count;
+        });
+        logger_1.logger.info("feedback.internal.batch-status.success", {
+            updated,
+            stage: "internal_batch_status",
+        });
+        response.json({ ok: true, updated });
+    }
+    catch (error) {
+        logger_1.logger.error("feedback.internal.batch-status.failed", { stage: "internal_batch_status", error });
+        response.status(500).json({ message: "状态更新失败" });
     }
 });

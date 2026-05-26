@@ -20,10 +20,16 @@ import {
   getBirthdayBlessing,
   updateBirthdayBlessing,
   searchBirthdayUsers,
+  getCurrentUser,
+  canAccessAdminViews,
   type BirthdayPushLogItem,
   type BirthdayPushResult,
   type SearchUserItem,
 } from "../services/api";
+
+// --- Access control ---
+const accessDenied = ref(false);
+const currentUserId = ref("");
 
 // --- Push history ---
 const logsLoading = ref(false);
@@ -207,7 +213,22 @@ const saveBlessingTemplate = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      accessDenied.value = true;
+      return;
+    }
+    currentUserId.value = user.id?.trim() || user.username?.trim() || "";
+    if (!canAccessAdminViews(user)) {
+      accessDenied.value = true;
+      return;
+    }
+  } catch {
+    accessDenied.value = true;
+    return;
+  }
   void loadLogs();
   void loadBlessingTemplate();
 });
@@ -215,6 +236,14 @@ onMounted(() => {
 
 <template>
   <div class="max-w-6xl mx-auto space-y-8">
+    <section v-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
+      <h2 class="text-lg font-semibold text-[#0f4069]">无权限访问</h2>
+      <p class="mt-2 text-[#4f6b8a]">
+        当前账号（{{ currentUserId || "未知用户" }}）无权限访问生日推送管理。
+      </p>
+    </section>
+
+    <template v-else>
     <div class="flex items-center justify-between gap-3">
       <div>
         <h1 class="text-3xl font-bold text-[#0f4069] flex items-center gap-3">
@@ -477,5 +506,6 @@ onMounted(() => {
         </div>
       </div>
     </section>
+    </template>
   </div>
 </template>

@@ -240,9 +240,11 @@ interface AnalyticsEventRow {
 
 interface FeedbackListFilters {
   type?: FeedbackType;
+  userId?: string;
   startAt?: string;
   endAt?: string;
   status?: string;
+  search?: string;
   page: number;
   pageSize: number;
   includeEval?: boolean;
@@ -1844,6 +1846,15 @@ export const feedbackStore = {
         values.push(statuses);
         conditions.push(`status = ANY($${values.length}::text[])`);
       }
+    }
+    if (filters.userId) {
+      values.push(filters.userId);
+      conditions.push(`user_id = $${values.length}`);
+    }
+    if (filters.search) {
+      values.push(`%${filters.search}%`);
+      const p = values.length;
+      conditions.push(`(content ILIKE $${p} OR page_title ILIKE $${p} OR page_route ILIKE $${p})`);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { Star, History, MessageSquare, ArrowLeft, Clock } from "lucide-vue-next";
+import { Star, History, MessageSquare, ArrowLeft, Clock, MessageCircle } from "lucide-vue-next";
 import {
   getFavorites,
   removeFavorite,
   getReadingHistory,
+  getMyFeedback,
   listPageAgentConversations,
   getPageAgentConversationMessages,
   type FavoriteItem,
   type ReadingHistoryItem,
   type PaginatedResponse,
+  type FeedbackListItem,
 } from "../services/api";
 import type { PageAgentConversation, PageAgentMessage } from "../page_agent/types";
 
 const router = useRouter();
-const activeTab = ref<"favorites" | "history" | "conversations">("favorites");
+const activeTab = ref<"favorites" | "history" | "feedback" | "conversations">("favorites");
 
 // Favorites
 const favorites = ref<FavoriteItem[]>([]);
@@ -32,6 +34,11 @@ const conversations = ref<PageAgentConversation[]>([]);
 const conversationMessages = ref<Record<string, PageAgentMessage[]>>({});
 const conversationsLoading = ref(false);
 const expandedConvId = ref<string | null>(null);
+
+// My feedback
+const feedback = ref<FeedbackListItem[]>([]);
+const feedbackPagination = ref({ page: 1, pageSize: 20, total: 0 });
+const feedbackLoading = ref(false);
 
 const loadFavorites = async (page = 1): Promise<void> => {
   favoritesLoading.value = true;
@@ -76,6 +83,19 @@ const loadConversations = async (): Promise<void> => {
     conversations.value = [];
   } finally {
     conversationsLoading.value = false;
+  }
+};
+
+const loadFeedback = async (page = 1): Promise<void> => {
+  feedbackLoading.value = true;
+  try {
+    const result = await getMyFeedback({ page, pageSize: 20 });
+    feedback.value = result.items;
+    feedbackPagination.value = result.pagination;
+  } catch {
+    feedback.value = [];
+  } finally {
+    feedbackLoading.value = false;
   }
 };
 
@@ -142,12 +162,13 @@ onMounted(() => {
         v-for="tab in ([
           { key: 'favorites', label: '我的收藏', icon: Star },
           { key: 'history', label: '浏览历史', icon: History },
+          { key: 'feedback', label: '我的反馈', icon: MessageCircle },
           { key: 'conversations', label: '对话历史', icon: MessageSquare },
         ] as const)"
         :key="tab.key"
         class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex-1 justify-center"
         :class="activeTab === tab.key ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border border-[#0288d1]/25' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] border border-transparent'"
-        @click="activeTab = tab.key; tab.key === 'history' ? loadHistory() : tab.key === 'conversations' ? loadConversations() : undefined"
+        @click="activeTab = tab.key; tab.key === 'history' ? loadHistory() : tab.key === 'feedback' ? loadFeedback() : tab.key === 'conversations' ? loadConversations() : undefined"
       >
         <component :is="tab.icon" class="w-4 h-4" />
         {{ tab.label }}
@@ -256,6 +277,73 @@ onMounted(() => {
             :disabled="historyPagination.page >= Math.ceil(historyPagination.total / historyPagination.pageSize)"
             class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
             @click="loadHistory(historyPagination.page + 1)"
+          >
+            下一页
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Tab -->
+    <div v-if="activeTab === 'feedback'" class="space-y-4">
+      <div v-if="feedbackLoading" class="flex items-center justify-center py-16">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1]"></div>
+      </div>
+      <div v-else-if="feedback.length === 0" class="glass-panel rounded-3xl p-12 text-center border shadow-sm">
+        <MessageCircle class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc]" />
+        <h3 class="text-lg font-medium text-[#4f6b8a]">还没有反馈记录</h3>
+        <p class="text-sm text-[#8aa3bc] mt-1">在任意页面提交反馈后，记录将出现在这里</p>
+      </div>
+      <div v-else class="space-y-3">
+        <div
+          v-for="item in feedback"
+          :key="item.id"
+          class="glass-panel rounded-2xl p-4 border shadow-sm"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="{
+                    'bg-[#ffebee] text-[#c62828]': item.type === 'bug',
+                    'bg-[#e1f5fe] text-[#0277bd]': item.type === 'ux',
+                    'bg-[#f3e5f5] text-[#6a1b9a]': item.type === 'content',
+                    'bg-[#e8f5e9] text-[#2e7d32]': item.type === 'other',
+                  }"
+                >
+                  {{ { bug: '问题', ux: '体验', content: '内容', other: '其他' }[item.type] || item.type }}
+                </span>
+                <span class="rounded-full px-2 py-0.5 text-xs"
+                  :class="{
+                    'bg-[#fff3e0] text-[#e65100]': item.status === 'pending',
+                    'bg-[#e8f5e9] text-[#2e7d32]': ['approved','verified','deployed'].includes(item.status),
+                    'bg-[#f5f5f5] text-[#616161]': ['wontfix','snoozed'].includes(item.status),
+                  }"
+                >
+                  {{ { pending: '待处理', evaluating: '评估中', approved: '已批准', wontfix: '暂缓', snoozed: '已搁置', in_progress: '处理中', testing: '测试中', verified: '已验证', deployed: '已上线', failed_testing: '测试未过', reverted: '已回退', duplicate: '重复提交' }[item.status] || item.status }}
+                </span>
+              </div>
+              <p class="mt-2 text-sm text-[#4f6b8a] break-words">{{ item.content }}</p>
+              <div class="mt-2 flex items-center gap-3 text-xs text-[#8aa3bc]">
+                <span>{{ formatDate(item.createdAt) }}</span>
+                <span>{{ item.pageTitle }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="feedbackPagination.total > feedbackPagination.pageSize" class="flex items-center justify-center gap-2 pt-4">
+          <button
+            :disabled="feedbackPagination.page <= 1"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            @click="loadFeedback(feedbackPagination.page - 1)"
+          >
+            上一页
+          </button>
+          <span class="text-sm text-[#8aa3bc]">{{ feedbackPagination.page }} / {{ Math.ceil(feedbackPagination.total / feedbackPagination.pageSize) }}</span>
+          <button
+            :disabled="feedbackPagination.page >= Math.ceil(feedbackPagination.total / feedbackPagination.pageSize)"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            @click="loadFeedback(feedbackPagination.page + 1)"
           >
             下一页
           </button>

@@ -492,7 +492,7 @@ export const getFavorites = async (page = 1): Promise<PaginatedResponse<Favorite
   return result.data;
 };
 
-export const getReadingHistory = async (page = 1, pageSize = 100): Promise<PaginatedResponse<ReadingHistoryItem>> => {
+export const getReadingHistory = async (page = 1, pageSize = 50): Promise<PaginatedResponse<ReadingHistoryItem>> => {
   const result = await request.get<PaginatedResponse<ReadingHistoryItem>>("/profile/history", {
     params: { page, pageSize },
   });
@@ -618,6 +618,7 @@ export const updateFeedbackStatus = async (
 
 export const getAdminFeedbackEvalList = async (params: {
   status?: string;
+  search?: string;
   page?: number;
   pageSize?: number;
 }): Promise<FeedbackListResponse> => {
@@ -627,6 +628,13 @@ export const getAdminFeedbackEvalList = async (params: {
   return result.data;
 };
 
+export const getMyFeedback = async (params: {
+  page?: number;
+  pageSize?: number;
+}): Promise<FeedbackListResponse> => {
+  const result = await request.get<FeedbackListResponse>("/feedback/my", { params });
+  return result.data;
+};
 
 // --- Feedback public wall ---
 

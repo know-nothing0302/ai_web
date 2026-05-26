@@ -1,11 +1,14 @@
+import { exec } from "child_process";
 import { Router } from "express";
 import { z } from "zod";
 
 import { env } from "../../config/env";
+import { query, withTransaction } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { feedbackLikeStore, feedbackStore, recordAnalyticsEventSafely } from "../../lib/store";
 import {
   requireAdminOrFeedbackReadToken,
+  requireAdminOrFeedbackWriteToken,
   requireAuth,
   requireFeedbackReader,
 } from "../../middleware/auth";
@@ -86,6 +89,7 @@ feedbackRouter.get(
 const adminListSchema = z.object({
   type: z.enum(["bug", "ux", "content", "other"]).optional(),
   status: z.string().optional(),
+  search: z.string().trim().optional(),
   startAt: z.string().datetime({ offset: true }).optional(),
   endAt: z.string().datetime({ offset: true }).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -153,6 +157,43 @@ feedbackRouter.get("/admin", requireFeedbackReader, async (request, response) =>
       error,
     });
     response.status(500).json({ message: "反馈查询失败" });
+  }
+});
+
+const myListSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+feedbackRouter.get("/my", requireAuth, async (request, response) => {
+  const parsed = myListSchema.safeParse(request.query);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+  const userId = request.session.user?.id ?? (env.devAuthBypass ? "dev-mock-id" : undefined);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+
+  try {
+    const result = await feedbackStore.list({
+      userId,
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+    });
+    response.json({
+      items: result.items,
+      pagination: {
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+        total: result.total,
+      },
+    });
+  } catch (error) {
+    logger.error("feedback.my.list.failed", { userId, stage: "my_list", error });
+    response.status(500).json({ message: "查询失败" });
   }
 });
 
@@ -236,7 +277,59 @@ feedbackRouter.patch("/admin/:id", requireFeedbackReader, async (req, res) => {
     res.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
     return;
   }
-  const updated = await feedbackStore.update(req.params.id as string, parsed.data as { status?: FeedbackStatus; adminNote?: string });
+
+  const feedbackId = req.params.id;
+  const { status, adminNote } = parsed.data;
+
+  // When approving, look up AI evaluation to determine next action
+  if (status === "approved") {
+    try {
+      const evalResult = await query<{ suggested_action: string; suggestion: string }>(
+        `SELECT suggested_action, suggestion FROM feedback_evaluations WHERE feedback_id = $1 ORDER BY evaluated_at DESC LIMIT 1`,
+        [feedbackId]
+      );
+
+      if (evalResult.rows.length > 0) {
+        const ev = evalResult.rows[0];
+
+        if (ev.suggested_action === "auto_fix") {
+          // auto_fix → transition to in_progress and dispatch to cc-ai-web
+          const updated = await feedbackStore.update(feedbackId, { status: "in_progress", adminNote });
+          if (!updated) {
+            res.status(404).json({ message: "反馈记录不存在" });
+            return;
+          }
+
+          const safeSuggestion = (ev.suggestion || "见评估详情").replace(/'/g, "'\\''");
+          const dispatchMsg = `任务ID: auto-fix-${feedbackId.slice(0, 8)} 请修复反馈 #${feedbackId.slice(0, 8)}: ${safeSuggestion}`;
+          exec(`/opt/hermes/scripts/cc-send.sh cc-ai-web '${dispatchMsg}'`, (err) => {
+            if (err) {
+              logger.error("feedback.dispatch.failed", { feedbackId, session: "cc-ai-web", error: err.message, stage: "dispatch" });
+            } else {
+              logger.info("feedback.dispatch.sent", { feedbackId, session: "cc-ai-web", stage: "dispatch" });
+            }
+          });
+
+          logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve" });
+          res.json(updated);
+          return;
+        }
+
+        // batch_review / human_gate → keep "approved" (frontend groups them correctly)
+        logger.info("feedback.approve.success", { feedbackId, suggestedAction: ev.suggested_action, stage: "approve" });
+      }
+    } catch (error) {
+      logger.error("feedback.approve.eval_lookup.failed", { feedbackId, error, stage: "approve" });
+      // Fall through to default update
+    }
+  }
+
+  // Default update path (non-approved statuses, or approval without evaluation)
+  const updateInput: Record<string, unknown> = {};
+  if (status) updateInput.status = status;
+  if (adminNote !== undefined) updateInput.adminNote = adminNote;
+
+  const updated = await feedbackStore.update(feedbackId, updateInput as { status?: FeedbackStatus; adminNote?: string });
   if (!updated) {
     res.status(404).json({ message: "反馈记录不存在" });
     return;
@@ -304,3 +397,129 @@ feedbackRouter.delete("/public/:id/like", requireAuth, async (request, response)
     response.status(500).json({ message: "取消点赞失败" });
   }
 });
+
+// --- Internal API (feedback pipeline) ---
+
+const internalEvaluationSchema = z.object({
+  evaluations: z.array(z.object({
+    feedback_id: z.string().uuid(),
+    eval_type: z.string().min(1),
+    severity: z.string().min(1),
+    fix_scope: z.string().min(1),
+    alignment: z.string().min(1),
+    suggested_action: z.string().min(1),
+    suggestion: z.string().optional(),
+  })).min(1),
+});
+
+feedbackRouter.post(
+  "/internal/evaluations",
+  requireAdminOrFeedbackWriteToken,
+  async (request, response) => {
+    const parsed = internalEvaluationSchema.safeParse(request.body);
+    if (!parsed.success) {
+      response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+      return;
+    }
+
+    logger.info("feedback.internal.evaluations.start", {
+      count: parsed.data.evaluations.length,
+      stage: "internal_evaluate",
+    });
+
+    try {
+      const result = await withTransaction(async (client) => {
+        let inserted = 0;
+        let statusUpdated = 0;
+
+        for (const item of parsed.data.evaluations) {
+          await client.query(
+            `INSERT INTO feedback_evaluations (feedback_id, eval_type, severity, fix_scope, alignment, suggested_action, suggestion)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (feedback_id) DO UPDATE SET
+               eval_type = EXCLUDED.eval_type,
+               severity = EXCLUDED.severity,
+               fix_scope = EXCLUDED.fix_scope,
+               alignment = EXCLUDED.alignment,
+               suggested_action = EXCLUDED.suggested_action,
+               suggestion = EXCLUDED.suggestion,
+               evaluated_at = NOW()`,
+            [item.feedback_id, item.eval_type, item.severity, item.fix_scope, item.alignment, item.suggested_action, item.suggestion ?? null]
+          );
+          inserted++;
+
+          const updateResult = await client.query(
+            `UPDATE feedback_entries SET status = 'evaluating' WHERE id = $1 AND status = 'pending'`,
+            [item.feedback_id]
+          );
+          if ((updateResult.rowCount ?? 0) > 0) {
+            statusUpdated++;
+          }
+        }
+
+        return { inserted, statusUpdated };
+      });
+
+      logger.info("feedback.internal.evaluations.success", {
+        inserted: result.inserted,
+        statusUpdated: result.statusUpdated,
+        stage: "internal_evaluate",
+      });
+
+      response.json({ ok: true, ...result });
+    } catch (error) {
+      logger.error("feedback.internal.evaluations.failed", { stage: "internal_evaluate", error });
+      response.status(500).json({ message: "评估写入失败" });
+    }
+  }
+);
+
+const batchStatusSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().uuid(),
+    status: z.enum(["fixed", "deployed", "wontfix"]),
+  })).min(1),
+});
+
+feedbackRouter.patch(
+  "/internal/batch-status",
+  requireAdminOrFeedbackWriteToken,
+  async (request, response) => {
+    const parsed = batchStatusSchema.safeParse(request.body);
+    if (!parsed.success) {
+      response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+      return;
+    }
+
+    logger.info("feedback.internal.batch-status.start", {
+      count: parsed.data.items.length,
+      stage: "internal_batch_status",
+    });
+
+    try {
+      const updated = await withTransaction(async (client) => {
+        let count = 0;
+
+        for (const item of parsed.data.items) {
+          const result = await client.query(
+            `UPDATE feedback_entries SET status = $1 WHERE id = $2`,
+            [item.status, item.id]
+          );
+          count += result.rowCount ?? 0;
+        }
+
+        return count;
+      });
+
+      logger.info("feedback.internal.batch-status.success", {
+        updated,
+        stage: "internal_batch_status",
+      });
+
+      response.json({ ok: true, updated });
+    } catch (error) {
+      logger.error("feedback.internal.batch-status.failed", { stage: "internal_batch_status", error });
+      response.status(500).json({ message: "状态更新失败" });
+    }
+  }
+);

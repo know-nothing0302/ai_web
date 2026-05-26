@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, Cake, ClipboardCheck, MessageSquare } from "lucide-vue-next";
+import { useAuthStore } from "./stores/auth";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare } from "lucide-vue-next";
 
 import FeedbackPanel from "./components/FeedbackPanel.vue";
 import NeuralBackground from "./components/NeuralBackground.vue";
@@ -18,7 +19,6 @@ import {
   askPageAgent,
   canAccessAdminViews,
   createPageAgentConversation,
-  getCurrentUser,
   getPageAgentConversationMessages,
   listPageAgentConversations,
   submitFeedback,
@@ -41,22 +41,16 @@ const appMessage = ref("");
 const appBase = import.meta.env.BASE_URL;
 const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
 const currentPageTitle = computed(() => document.title || "当前页面");
-const currentUser = ref<Awaited<ReturnType<typeof getCurrentUser>>>(null);
+const auth = useAuthStore();
 
 const triggerAgent = (): void => {
   pageAgentOpen.value = true;
 };
 
-onMounted(async () => {
+onMounted(() => {
   window.setTimeout(() => {
     pageAgentIntroActive.value = false;
   }, 1800);
-
-  try {
-    currentUser.value = await getCurrentUser();
-  } catch {
-    currentUser.value = null;
-  }
 });
 
 const openFeedback = (): void => {
@@ -282,15 +276,14 @@ const navItems = computed(() => {
     { path: "/subscription", name: "智能订阅", icon: Bell },
   ];
 
-  if (currentUser.value) {
+  if (auth.user) {
     items.push({ path: "/admin/stats", name: "统计信息", icon: BarChart3 });
   }
 
-  if (canAccessAdminViews(currentUser.value)) {
+  if (canAccessAdminViews(auth.user)) {
     items.push(
       { path: "/ai-lab", name: "AI 试验场", icon: Zap },
       { path: "/admin/publish", name: "内容发布", icon: Settings },
-      { path: "/admin/birthday", name: "生日推送", icon: Cake },
       { path: "/admin/feedback-review", name: "反馈审批", icon: ClipboardCheck }
     );
   }
@@ -342,9 +335,9 @@ const navItems = computed(() => {
               title="个人中心"
             >
               <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#0288d1] to-[#01579b] flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
-                {{ currentUser?.displayName?.charAt(0) || "U" }}
+                {{ auth.user?.displayName?.charAt(0) || "U" }}
               </div>
-              <span class="hidden sm:inline max-w-[6rem] truncate">{{ currentUser?.displayName || "个人中心" }}</span>
+              <span class="hidden sm:inline max-w-[6rem] truncate">{{ auth.user?.displayName || "个人中心" }}</span>
             </router-link>
             <button @click="logout" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" title="退出登录">
               <LogOut class="w-5 h-5" />

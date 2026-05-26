@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
+defineOptions({ name: "ArticlesPage" });
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import {
   Search,

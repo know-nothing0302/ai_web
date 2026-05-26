@@ -20,6 +20,9 @@ const expandedId = ref<string | null>(null);
 const rejectModal = ref<{ id: string; reason: string } | null>(null);
 const currentUser = ref<Awaited<ReturnType<typeof getCurrentUser>>>(null);
 
+const searchKeyword = ref("");
+const pagination = ref({ page: 1, pageSize: 100, total: 0 });
+
 const showMessage = (text: string) => {
   message.value = text;
   window.setTimeout(() => { message.value = ""; }, 2500);
@@ -126,17 +129,26 @@ const allBatchSelected = computed(() => {
   return batchReviewItems.length > 0 && batchReviewItems.every((item) => selectedIds.value.has(item.id));
 });
 
-const loadList = async () => {
+const loadList = async (page = 1) => {
   loading.value = true;
   try {
-    const result = await getAdminFeedbackEvalList({ page: 1, pageSize: 100 });
+    const params: { page: number; pageSize: number; search?: string } = { page, pageSize: 100 };
+    if (searchKeyword.value.trim()) {
+      params.search = searchKeyword.value.trim();
+    }
+    const result = await getAdminFeedbackEvalList(params);
     items.value = result.items;
+    pagination.value = result.pagination;
   } catch {
     items.value = [];
     showMessage("加载失败");
   } finally {
     loading.value = false;
   }
+};
+
+const handleSearch = () => {
+  loadList(1);
 };
 
 const batchApprove = async () => {
@@ -228,6 +240,8 @@ onMounted(async () => {
   }
   await loadList();
 });
+
+const totalPages = computed(() => Math.max(1, Math.ceil(pagination.value.total / pagination.value.pageSize)));
 </script>
 
 <template>
@@ -241,6 +255,11 @@ onMounted(async () => {
       <section class="glass-panel rounded-3xl border p-6 shadow-sm md:p-8">
         <div class="flex items-center justify-between gap-4">
           <div>
+            <div class="flex items-center gap-2 text-xs text-[#6e89a3] mb-2">
+              <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5 text-[#0277bd]">管理</span>
+              <span class="text-[#b3e5fc]">/</span>
+              <span>反馈审批</span>
+            </div>
             <h1 class="flex items-center gap-3 text-3xl font-bold text-[#0f4069]">
               <ClipboardCheck class="h-8 w-8 text-[#0288d1]" />
               AI徐医反馈审批
@@ -249,13 +268,31 @@ onMounted(async () => {
               {{ today }} · 共 {{ totalCount }} 条
             </p>
           </div>
-          <button
-            type="button"
-            class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:border-[#4fc3f7]"
-            @click="loadList"
-          >
-            刷新
-          </button>
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="搜索反馈内容..."
+                class="input-ai w-48 rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] placeholder:text-[#8aa3bc] focus:border-[#4fc3f7] focus:outline-none"
+                @keyup.enter="handleSearch"
+              />
+            </div>
+            <button
+              type="button"
+              class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe]"
+              @click="handleSearch"
+            >
+              搜索
+            </button>
+            <button
+              type="button"
+              class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:border-[#4fc3f7]"
+              @click="loadList(1)"
+            >
+              刷新
+            </button>
+          </div>
         </div>
       </section>
 
@@ -284,7 +321,15 @@ onMounted(async () => {
                     <span class="text-sm font-medium text-[#355878]">#{{ item.id.slice(0, 8) }}</span>
                     <span class="truncate text-sm text-[#0f4069]">{{ item.pageTitle || item.pageRoute }}</span>
                   </div>
-                  <p class="mt-1 line-clamp-2 text-sm text-[#4f6b8a]">{{ item.content }}</p>
+                  <p class="mt-1 line-clamp-2 text-sm text-[#4f6b8a] break-words">{{ item.content }}</p>
+                  <button
+                    v-if="item.content.length > 100"
+                    type="button"
+                    class="mt-1 text-xs text-[#0288d1] hover:text-[#01579b]"
+                    @click.stop="toggleExpand(item.id)"
+                  >
+                    {{ expandedId === item.id ? '收起' : '展开全文' }}
+                  </button>
                   <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e89a3]">
                     <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5">
                       {{ severityLabel(item.evaluation?.severity) }}
@@ -374,7 +419,18 @@ onMounted(async () => {
                     <span class="text-sm font-medium text-[#355878]">#{{ item.id.slice(0, 8) }}</span>
                     <span class="truncate text-sm text-[#0f4069]">{{ item.pageTitle || item.pageRoute }}</span>
                   </div>
-                  <p class="mt-1 line-clamp-2 text-sm text-[#4f6b8a]">{{ item.content }}</p>
+                  <p
+                    class="mt-1 text-sm text-[#4f6b8a] break-words"
+                    :class="expandedId === item.id ? '' : 'line-clamp-2'"
+                  >{{ item.content }}</p>
+                  <button
+                    v-if="item.content.length > 100"
+                    type="button"
+                    class="mt-1 text-xs text-[#0288d1] hover:text-[#01579b]"
+                    @click.stop="toggleExpand(item.id)"
+                  >
+                    {{ expandedId === item.id ? '收起' : '展开全文' }}
+                  </button>
                   <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e89a3]">
                     <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5">{{ severityLabel(item.evaluation?.severity) }}</span>
                     <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5">{{ fixScopeLabel(item.evaluation?.fixScope) }}</span>
@@ -430,7 +486,18 @@ onMounted(async () => {
                     <span class="text-sm font-medium text-[#355878]">#{{ item.id.slice(0, 8) }}</span>
                     <span class="truncate text-sm text-[#0f4069]">{{ item.pageTitle || item.pageRoute }}</span>
                   </div>
-                  <p class="mt-1 line-clamp-2 text-sm text-[#4f6b8a]">{{ item.content }}</p>
+                  <p
+                    class="mt-1 text-sm text-[#4f6b8a] break-words"
+                    :class="expandedId === item.id ? '' : 'line-clamp-2'"
+                  >{{ item.content }}</p>
+                  <button
+                    v-if="item.content.length > 100"
+                    type="button"
+                    class="mt-1 text-xs text-[#0288d1] hover:text-[#01579b]"
+                    @click.stop="toggleExpand(item.id)"
+                  >
+                    {{ expandedId === item.id ? '收起' : '展开全文' }}
+                  </button>
                   <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e89a3]">
                     <span v-if="item.evaluation?.severity" class="rounded-full bg-[#e1f5fe] px-2 py-0.5">{{ severityLabel(item.evaluation.severity) }}</span>
                     <span v-if="item.evaluation?.fixScope" class="rounded-full bg-[#e1f5fe] px-2 py-0.5">{{ fixScopeLabel(item.evaluation.fixScope) }}</span>
@@ -519,13 +586,33 @@ onMounted(async () => {
                     <span class="truncate text-sm text-[#0f4069]">{{ item.pageTitle || item.pageRoute }}</span>
                     <span class="rounded-full bg-[#e8f5e9] px-2 py-0.5 text-xs text-[#2e7d32]">{{ item.status }}</span>
                   </div>
-                  <p class="mt-1 line-clamp-2 text-sm text-[#4f6b8a]">{{ item.content }}</p>
+                  <p class="mt-1 line-clamp-2 text-sm text-[#4f6b8a] break-words">{{ item.content }}</p>
                   <p class="mt-1 text-xs text-[#6e89a3]">{{ formatDateTime(item.createdAt) }}</p>
                 </div>
               </div>
             </div>
           </div>
         </section>
+
+        <div v-if="pagination.total > pagination.pageSize" class="flex items-center justify-center gap-3 pt-2 pb-4">
+          <button
+            :disabled="pagination.page <= 1"
+            class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe] disabled:opacity-40 disabled:cursor-not-allowed"
+            @click="loadList(pagination.page - 1)"
+          >
+            上一页
+          </button>
+          <span class="text-sm text-[#8aa3bc]">
+            {{ pagination.page }} / {{ totalPages }}
+          </span>
+          <button
+            :disabled="pagination.page >= totalPages"
+            class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe] disabled:opacity-40 disabled:cursor-not-allowed"
+            @click="loadList(pagination.page + 1)"
+          >
+            下一页
+          </button>
+        </div>
 
         <div
           v-if="items.length === 0"

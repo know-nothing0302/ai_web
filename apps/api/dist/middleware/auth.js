@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireAdminOrStatsExternalReadToken = exports.requireInternalToken = exports.requireAdminOrFeedbackReadToken = exports.requireAdminOrInternalToken = exports.requireFeedbackReader = exports.requireStatsReader = exports.requireContentHubOperator = exports.requireAdmin = exports.requireAuth = void 0;
+exports.requireAdminOrStatsExternalReadToken = exports.requireInternalToken = exports.requireAdminOrFeedbackReadToken = exports.requireAdminOrFeedbackWriteToken = exports.requireAdminOrInternalToken = exports.requireFeedbackReader = exports.requireStatsReader = exports.requireContentHubOperator = exports.requireAdmin = exports.requireAuth = void 0;
 const env_1 = require("../config/env");
 const store_1 = require("../lib/store");
 const getRequestUser = (request) => {
@@ -96,6 +96,24 @@ const requireAdminOrInternalToken = async (request, response, next) => {
     next();
 };
 exports.requireAdminOrInternalToken = requireAdminOrInternalToken;
+const requireAdminOrFeedbackWriteToken = (request, response, next) => {
+    const user = getRequestUser(request);
+    if (user?.role === "admin") {
+        next();
+        return;
+    }
+    const requestToken = extractInternalAuthToken(request);
+    if (!requestToken) {
+        response.status(401).json({ message: "未登录，且缺少反馈写入令牌" });
+        return;
+    }
+    if (!env_1.env.feedbackInternalWriteToken || requestToken !== env_1.env.feedbackInternalWriteToken) {
+        response.status(403).json({ message: "反馈写入令牌无效" });
+        return;
+    }
+    next();
+};
+exports.requireAdminOrFeedbackWriteToken = requireAdminOrFeedbackWriteToken;
 const requireAdminOrFeedbackReadToken = (request, response, next) => {
     const user = getRequestUser(request);
     if (user?.role === "admin") {

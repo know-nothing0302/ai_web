@@ -330,6 +330,35 @@ const handleSaveFeedback = async () => {
     savingFeedback.value = false;
   }
 };
+
+// --- Draggable dialog ---
+const dialogPos = ref({ x: 0, y: 0 });
+const dragging = ref(false);
+const dragOffset = ref({ x: 0, y: 0 });
+
+const startDrag = (e: MouseEvent) => {
+  dragging.value = true;
+  dragOffset.value = {
+    x: e.clientX - dialogPos.value.x,
+    y: e.clientY - dialogPos.value.y,
+  };
+  document.addEventListener("mousemove", onDrag);
+  document.addEventListener("mouseup", stopDrag);
+};
+
+const onDrag = (e: MouseEvent) => {
+  if (!dragging.value) return;
+  dialogPos.value = {
+    x: e.clientX - dragOffset.value.x,
+    y: e.clientY - dragOffset.value.y,
+  };
+};
+
+const stopDrag = () => {
+  dragging.value = false;
+  document.removeEventListener("mousemove", onDrag);
+  document.removeEventListener("mouseup", stopDrag);
+};
 </script>
 
 <template>
@@ -345,6 +374,11 @@ const handleSaveFeedback = async () => {
       <section class="glass-panel rounded-3xl border p-6 shadow-sm md:p-8">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
+            <div class="flex items-center gap-2 text-xs text-[#6e89a3] mb-2">
+              <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5 text-[#0277bd]">管理</span>
+              <span class="text-[#b3e5fc]">/</span>
+              <span>统计信息</span>
+            </div>
             <h1 class="flex items-center gap-3 text-3xl font-bold text-[#0f4069]">
               <BarChart3 class="h-8 w-8 text-[#0288d1]" />
               统计信息
@@ -587,12 +621,12 @@ const handleSaveFeedback = async () => {
           <table class="min-w-full text-sm text-[#355878]">
             <thead>
               <tr class="border-b border-[#e1f5fe] text-left text-[#4f6b8a]">
-                <th class="px-2 py-2">提交时间</th>
-                <th class="px-2 py-2">类型</th>
-                <th class="px-2 py-2">状态</th>
-                <th class="px-2 py-2">页面</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[140px]">提交时间</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[80px]">类型</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[80px]">状态</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[120px]">页面</th>
                 <th class="px-2 py-2">内容摘要</th>
-                <th class="px-2 py-2 text-right">操作</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[80px] text-right">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -627,13 +661,23 @@ const handleSaveFeedback = async () => {
 
       <div
         v-if="selectedFeedback"
-        class="fixed inset-0 z-[70] flex items-center justify-center bg-[#0f4069]/18 px-4"
+        class="fixed inset-0 z-[70] flex items-start justify-center pt-[10vh] bg-[#0f4069]/18 px-4"
+        :style="dragging ? { pointerEvents: 'none' } : {}"
       >
         <section
           class="w-full max-w-2xl rounded-3xl border border-[#b3e5fc] bg-white p-6 shadow-xl"
+          :style="{ transform: `translate(${dialogPos.x}px, ${dialogPos.y}px)` }"
         >
-          <div class="flex items-start justify-between gap-4">
+          <div
+            class="flex items-start justify-between gap-4 cursor-grab active:cursor-grabbing select-none"
+            @mousedown="startDrag"
+          >
             <div>
+              <div class="flex items-center gap-2 text-xs text-[#6e89a3] mb-1">
+                <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5 text-[#0277bd]">统计</span>
+                <span class="text-[#b3e5fc]">/</span>
+                <span>反馈详情</span>
+              </div>
               <h3 class="text-lg font-semibold text-[#0f4069]">反馈详情</h3>
               <p class="mt-1 text-sm text-[#6e89a3]">
                 {{ formatFeedbackType(selectedFeedback.type) }} ·

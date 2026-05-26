@@ -7,8 +7,12 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
+    "outDir": "dist-patch",
     "rootDir": "src"
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/config/env.ts",
+    "src/middleware/auth.ts",
+    "src/modules/feedback/routes.ts"
+  ]
 }

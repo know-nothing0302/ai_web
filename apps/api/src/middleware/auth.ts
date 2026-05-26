@@ -120,6 +120,31 @@ export const requireAdminOrInternalToken = async (
   next();
 };
 
+export const requireAdminOrFeedbackWriteToken = (
+  request: Request,
+  response: Response,
+  next: NextFunction
+): void => {
+  const user = getRequestUser(request);
+  if (user?.role === "admin") {
+    next();
+    return;
+  }
+
+  const requestToken = extractInternalAuthToken(request);
+  if (!requestToken) {
+    response.status(401).json({ message: "未登录，且缺少反馈写入令牌" });
+    return;
+  }
+
+  if (!env.feedbackInternalWriteToken || requestToken !== env.feedbackInternalWriteToken) {
+    response.status(403).json({ message: "反馈写入令牌无效" });
+    return;
+  }
+
+  next();
+};
+
 export const requireAdminOrFeedbackReadToken = (
   request: Request,
   response: Response,
