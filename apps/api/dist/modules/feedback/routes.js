@@ -255,7 +255,7 @@ exports.feedbackRouter.patch("/admin/:id", auth_1.requireFeedbackReader, async (
         res.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
         return;
     }
-    const feedbackId = req.params.id;
+    const feedbackId = String(req.params.id);
     const { status, adminNote } = parsed.data;
     // When approving, look up AI evaluation to determine next action
     if (status === "approved") {
@@ -338,8 +338,9 @@ exports.feedbackRouter.post("/public/:id/like", auth_1.requireAuth, async (reque
         return;
     }
     try {
-        await store_1.feedbackLikeStore.like(request.params.id, userId);
-        const likeCount = await store_1.feedbackLikeStore.getLikeCount(request.params.id);
+        const feedbackId = String(request.params.id);
+        await store_1.feedbackLikeStore.like(feedbackId, userId);
+        const likeCount = await store_1.feedbackLikeStore.getLikeCount(feedbackId);
         response.json({ likedByMe: true, likeCount });
     }
     catch (error) {
@@ -354,8 +355,9 @@ exports.feedbackRouter.delete("/public/:id/like", auth_1.requireAuth, async (req
         return;
     }
     try {
-        await store_1.feedbackLikeStore.unlike(request.params.id, userId);
-        const likeCount = await store_1.feedbackLikeStore.getLikeCount(request.params.id);
+        const feedbackId = String(request.params.id);
+        await store_1.feedbackLikeStore.unlike(feedbackId, userId);
+        const likeCount = await store_1.feedbackLikeStore.getLikeCount(feedbackId);
         response.json({ likedByMe: false, likeCount });
     }
     catch (error) {

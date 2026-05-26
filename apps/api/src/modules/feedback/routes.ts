@@ -278,7 +278,7 @@ feedbackRouter.patch("/admin/:id", requireFeedbackReader, async (req, res) => {
     return;
   }
 
-  const feedbackId = req.params.id;
+  const feedbackId = String(req.params.id);
   const { status, adminNote } = parsed.data;
 
   // When approving, look up AI evaluation to determine next action
@@ -373,8 +373,9 @@ feedbackRouter.post("/public/:id/like", requireAuth, async (request, response) =
     return;
   }
   try {
-    await feedbackLikeStore.like(request.params.id, userId);
-    const likeCount = await feedbackLikeStore.getLikeCount(request.params.id);
+    const feedbackId = String(request.params.id);
+    await feedbackLikeStore.like(feedbackId, userId);
+    const likeCount = await feedbackLikeStore.getLikeCount(feedbackId);
     response.json({ likedByMe: true, likeCount });
   } catch (error) {
     logger.error("feedback.public.like.failed", { error });
@@ -389,8 +390,9 @@ feedbackRouter.delete("/public/:id/like", requireAuth, async (request, response)
     return;
   }
   try {
-    await feedbackLikeStore.unlike(request.params.id, userId);
-    const likeCount = await feedbackLikeStore.getLikeCount(request.params.id);
+    const feedbackId = String(request.params.id);
+    await feedbackLikeStore.unlike(feedbackId, userId);
+    const likeCount = await feedbackLikeStore.getLikeCount(feedbackId);
     response.json({ likedByMe: false, likeCount });
   } catch (error) {
     logger.error("feedback.public.unlike.failed", { error });

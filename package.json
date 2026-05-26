@@ -13,7 +13,9 @@
     "typecheck:api": "npm --prefix apps/api run typecheck"
   },
   "devDependencies": {
+    "@types/node": "^25.9.1",
     "@types/pg": "^8.20.0",
-    "pg-mem": "^3.0.14"
+    "pg-mem": "^3.0.14",
+    "typescript": "^6.0.3"
   }
 }
