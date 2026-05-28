@@ -336,6 +336,15 @@ onErrorCaptured((err, _instance, info) => {
 watch(pageError, (newVal) => {
   console.log("[AIWEB] App pageError 状态变更", { pageError: newVal });
 });
+
+// 诊断：监控 router-view 渲染条件
+watch(
+  () => ({ path: route.path, pageError: pageError.value }),
+  (val) => {
+    console.log("[AIWEB] App 渲染条件", val);
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -409,6 +418,7 @@ watch(pageError, (newVal) => {
         </button>
       </div>
       <router-view v-slot="{ Component }" v-else>
+        {{ console.log("[AIWEB] App router-view Component", { name: (Component as any)?.__name || "undefined", path: route.path }) }}
         <transition name="fade" mode="out-in">
           <KeepAlive include="ArticlesPage">
             <component :is="Component" />
