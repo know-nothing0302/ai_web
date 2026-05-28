@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, Clock, User, Hash, Sparkles, Link } from "lucide-vue-next";
+import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Share2, Copy, Check } from "lucide-vue-next";
 
 import { buildArticleDetailContext, setPageAgentContext } from "../page_agent/context";
 import {
@@ -86,6 +86,34 @@ const formatDate = (isoString?: string) => {
   });
 };
 
+const linkCopied = ref(false);
+
+const copyLink = async (): Promise<void> => {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    linkCopied.value = true;
+    setTimeout(() => { linkCopied.value = false; }, 2000);
+  } catch {
+    // silent
+  }
+};
+
+const shareArticle = async (): Promise<void> => {
+  if (navigator.share && item.value) {
+    try {
+      await navigator.share({
+        title: item.value.title,
+        text: item.value.summary || item.value.title,
+        url: window.location.href,
+      });
+    } catch {
+      // user cancelled or error — silent
+    }
+  } else {
+    await copyLink();
+  }
+};
+
 onMounted(() => {
   load();
 });
@@ -143,6 +171,24 @@ onBeforeUnmount(() => {
           >
             <svg v-if="isFavorited" class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <svg v-else class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2zm0 2.46L9.91 9.23 5.13 10.08l4.07 3.97-.96 5.6L12 17.29l3.76 1.98-.96-5.6 4.07-3.97-4.78-.85L12 4.46z"/></svg>
+          </button>
+          <button
+            type="button"
+            class="shrink-0 rounded-xl p-2 text-[#b3e5fc] hover:text-[#0288d1] hover:bg-[#e1f5fe]/60 transition-all duration-300"
+            title="分享"
+            @click="shareArticle"
+          >
+            <Share2 class="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            class="shrink-0 rounded-xl p-2 transition-all duration-300"
+            :class="linkCopied ? 'text-green-600 bg-green-50' : 'text-[#b3e5fc] hover:text-[#0288d1] hover:bg-[#e1f5fe]/60'"
+            :title="linkCopied ? '已复制' : '复制链接'"
+            @click="copyLink"
+          >
+            <Copy v-if="!linkCopied" class="w-5 h-5" />
+            <Check v-else class="w-5 h-5" />
           </button>
         </div>
         

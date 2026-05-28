@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { canAccessAdminViews, getCurrentUser } from "../services/api";
 
+const loading = ref(true);
 const accessDenied = ref(false);
 const router = useRouter();
 
@@ -14,8 +15,11 @@ onMounted(async () => {
     }
   } catch {
     accessDenied.value = true;
+  } finally {
+    loading.value = false;
   }
 });
+
 const cards = [
   { icon: "🤖", title: "智能问答" },
   { icon: "📄", title: "文档助手" },
@@ -26,7 +30,11 @@ const cards = [
 </script>
 
 <template>
-  <section v-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
+  <div v-if="loading" class="flex items-center justify-center py-32">
+    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0288d1]"></div>
+  </div>
+
+  <section v-else-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
     <h2 class="text-lg font-semibold text-[#0f4069]">无权限访问</h2>
     <p class="mt-2 text-[#4f6b8a]">
       当前账号不在 AI 试验场允许名单内。

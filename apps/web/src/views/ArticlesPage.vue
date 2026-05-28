@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
 defineOptions({ name: "ArticlesPage" });
-import { RouterLink, useRoute, useRouter } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
 import {
   Search,
   Filter,
@@ -36,7 +36,6 @@ const keyword = ref("");
 const category = ref("");
 const channelCode = ref("");
 const route = useRoute();
-const router = useRouter();
 const loading = ref(false);
 const items = ref<Article[]>([]);
 const activeChannel = ref("");
@@ -103,7 +102,9 @@ function syncSearchParamsToUrl(): void {
   if (category.value) query.category = category.value;
   if (channelCode.value) query.channelCode = channelCode.value;
   if (currentPage.value > 1) query.page = String(currentPage.value);
-  void router.replace({ query });
+  const qs = new URLSearchParams(query).toString();
+  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+  history.replaceState(null, "", newUrl);
 }
 
 const handleSearch = (): void => {
@@ -245,6 +246,7 @@ onMounted(async () => {
 
   await loadChannels();
   await load();
+  await fetchReadArticleIds();
 });
 
 onBeforeUnmount(() => {
@@ -492,5 +494,7 @@ watchEffect(() => {
 .bg-read {
   background: #f3f7fb;
   border-color: rgba(2, 119, 189, 0.12);
+  border-left: 3px solid rgba(2, 119, 189, 0.2);
+  opacity: 0.82;
 }
 </style>

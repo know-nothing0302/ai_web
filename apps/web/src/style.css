@@ -112,3 +112,53 @@
     color: var(--color-ai-text-muted);
   }
 }
+
+/* Dark mode overrides */
+.dark body,
+:root.dark {
+  --color-ai-surface: rgba(15, 23, 42, 0.88);
+  --color-ai-surface-strong: rgba(15, 23, 42, 0.94);
+  --color-ai-border: rgba(56, 189, 248, 0.2);
+  --color-ai-shadow: rgba(0, 0, 0, 0.36);
+  --color-ai-text: #e2e8f0;
+  --color-ai-text-muted: #94a3b8;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #0b1120;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.08) 0%, transparent 36%),
+    radial-gradient(circle at 88% 12%, rgba(14, 165, 233, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(15, 23, 42, 0.98) 0%, rgba(11, 17, 32, 0.98) 62%);
+}
+
+.dark .glass-panel,
+.dark .glass-card {
+  backdrop-filter: blur(24px);
+}
+
+.dark .btn-secondary {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(56, 189, 248, 0.25);
+  color: #e2e8f0;
+}
+
+.dark .input-ai {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(56, 189, 248, 0.2);
+  color: #e2e8f0;
+}
+
+.dark .input-ai::placeholder {
+  color: #64748b;
+}
+
+.dark .badge-ai {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8));
+  border-color: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+}

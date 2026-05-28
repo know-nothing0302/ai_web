@@ -650,7 +650,7 @@ const stopDrag = () => {
                     class="rounded-full border border-[#b3e5fc] px-3 py-1 text-xs text-[#0277bd] transition-colors hover:border-[#4fc3f7] hover:bg-[#e1f5fe]"
                     @click="selectedFeedback = item"
                   >
-                    查看详情
+                    详情
                   </button>
                 </td>
               </tr>

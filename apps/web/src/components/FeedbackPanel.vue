@@ -18,7 +18,8 @@ const feedbackType = ref<"bug" | "ux" | "content" | "other">("ux");
 const content = ref("");
 const contact = ref("");
 
-const canSubmit = computed(() => content.value.trim().length > 0 && !props.submitting);
+/** 10 字下限校验 */
+const canSubmit = computed(() => content.value.trim().length >= 10 && !props.submitting);
 
 watch(
   () => props.visible,
@@ -41,17 +42,58 @@ const handleSubmit = (): void => {
     contact: contact.value.trim() || undefined,
   });
 };
+
+// --- Draggable dialog ---
+const dialogPos = ref({ x: 0, y: 0 });
+const dragging = ref(false);
+const dragOffset = ref({ x: 0, y: 0 });
+
+const startDrag = (e: MouseEvent) => {
+  // Only drag from header area
+  const target = e.target as HTMLElement;
+  if (!target.closest('.feedback-drag-handle')) return;
+  dragging.value = true;
+  dragOffset.value = {
+    x: e.clientX - dialogPos.value.x,
+    y: e.clientY - dialogPos.value.y,
+  };
+  document.addEventListener("mousemove", onDrag);
+  document.addEventListener("mouseup", stopDrag);
+};
+
+const onDrag = (e: MouseEvent) => {
+  if (!dragging.value) return;
+  dialogPos.value = {
+    x: e.clientX - dragOffset.value.x,
+    y: e.clientY - dragOffset.value.y,
+  };
+};
+
+const stopDrag = () => {
+  dragging.value = false;
+  document.removeEventListener("mousemove", onDrag);
+  document.removeEventListener("mouseup", stopDrag);
+};
 </script>
 
 <template>
   <div
     v-if="visible"
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-[#0f4069]/18 px-4"
+    class="fixed inset-0 z-[70] flex items-start justify-center pt-[12vh] bg-[#0f4069]/18 px-4"
+    :style="dragging ? { pointerEvents: 'none' } : {}"
   >
-    <section class="w-full max-w-lg rounded-3xl border border-[#b3e5fc] bg-white p-6 shadow-xl">
-      <header class="mb-4 flex items-center justify-between">
+    <section
+      class="w-full max-w-lg rounded-3xl border border-[#b3e5fc] bg-white p-6 shadow-xl"
+      :style="{ transform: `translate(${dialogPos.x}px, ${dialogPos.y}px)` }"
+    >
+      <header
+        class="feedback-drag-handle mb-4 flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+        @mousedown="startDrag"
+      >
         <div>
-          <h2 class="text-lg font-semibold text-[#0f4069]">意见反馈</h2>
+          <h2 class="text-lg font-semibold text-[#0f4069]">
+            {{ pageTitle === 'AI徐医' ? '意见反馈' : `反馈 - ${pageTitle}` }}
+          </h2>
           <p class="mt-1 text-sm text-[#6e89a3]">提交问题或建议，便于后续持续优化。</p>
         </div>
         <button
@@ -74,8 +116,11 @@ const handleSubmit = (): void => {
           v-model="content"
           rows="6"
           class="input-ai resize-none"
-          placeholder="请描述你的问题或建议"
+          placeholder="请描述你的问题或建议（10字以上）"
         ></textarea>
+        <p v-if="content.trim().length > 0 && content.trim().length < 10" class="text-xs text-amber-600">
+          至少输入 10 个字（当前 {{ content.trim().length }} 字）
+        </p>
         <input
           v-model="contact"
           class="input-ai"

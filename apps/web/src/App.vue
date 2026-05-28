@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "./stores/auth";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare } from "lucide-vue-next";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun } from "lucide-vue-next";
 
 import FeedbackPanel from "./components/FeedbackPanel.vue";
 import NeuralBackground from "./components/NeuralBackground.vue";
@@ -24,6 +24,9 @@ import {
   submitFeedback,
 } from "./services/api";
 
+import { useDarkMode } from "./composables/useDarkMode";
+
+const { isDark, toggle: toggleDark } = useDarkMode();
 const route = useRoute();
 const isAgentHovered = ref(false);
 const pageAgentOpen = ref(false);
@@ -339,6 +342,9 @@ const navItems = computed(() => {
               </div>
               <span class="hidden sm:inline max-w-[6rem] truncate">{{ auth.user?.displayName || "个人中心" }}</span>
             </router-link>
+            <button @click="toggleDark" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" :title="isDark ? '浅色模式' : '深色模式'">
+              <component :is="isDark ? Moon : Sun" class="w-5 h-5" />
+            </button>
             <button @click="logout" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" title="退出登录">
               <LogOut class="w-5 h-5" />
             </button>

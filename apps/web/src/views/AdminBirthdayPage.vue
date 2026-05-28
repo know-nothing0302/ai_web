@@ -28,6 +28,7 @@ import {
 } from "../services/api";
 
 // --- Access control ---
+const loading = ref(true);
 const accessDenied = ref(false);
 const currentUserId = ref("");
 
@@ -228,6 +229,8 @@ onMounted(async () => {
   } catch {
     accessDenied.value = true;
     return;
+  } finally {
+    loading.value = false;
   }
   void loadLogs();
   void loadBlessingTemplate();
@@ -236,7 +239,10 @@ onMounted(async () => {
 
 <template>
   <div class="max-w-6xl mx-auto space-y-8">
-    <section v-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
+    <div v-if="loading" class="flex items-center justify-center py-32">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0288d1]"></div>
+    </div>
+    <section v-else-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
       <h2 class="text-lg font-semibold text-[#0f4069]">无权限访问</h2>
       <p class="mt-2 text-[#4f6b8a]">
         当前账号（{{ currentUserId || "未知用户" }}）无权限访问生日推送管理。
