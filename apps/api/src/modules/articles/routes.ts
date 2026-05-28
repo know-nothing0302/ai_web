@@ -167,7 +167,7 @@ const categoryToChannelCode: Record<string, string> = {
   每日AI摘要: "daily-ai-summary",
   "AI政策与伦理": "policy-ethics",
   医学AI前沿: "medical-frontier",
-  校内AI动态: "campus-news",
+  高校AI动态: "campus-news",
   "AI+医学教育": "edu-plus-ai",
   工具与应用推荐: "tools-recommend",
   "学生专栏": "student-zone",

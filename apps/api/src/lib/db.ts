@@ -396,7 +396,7 @@ VALUES
   ('daily-ai-summary', '每日AI摘要', '每日核心进展与摘要整理', 10, TRUE),
   ('policy-ethics', 'AI政策与伦理', '政策法规、治理框架与伦理边界', 20, TRUE),
   ('medical-frontier', '医学AI前沿', '医疗模型、临床辅助与科研创新', 30, TRUE),
-  ('campus-news', '校内AI动态', '校内项目、通知公告与实践活动', 40, TRUE),
+  ('campus-news', '高校AI动态', '校内项目、通知公告与实践活动', 40, TRUE),
   ('edu-plus-ai', 'AI+医学教育', '课程改革、教学场景与学习路径', 50, TRUE),
   ('tools-recommend', '工具与应用推荐', '高价值工具清单与落地案例', 60, TRUE),
   ('student-zone', '学生专栏', '竞赛信息、学习资源与经验复盘', 70, TRUE)
