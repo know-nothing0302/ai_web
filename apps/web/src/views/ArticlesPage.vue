@@ -136,7 +136,7 @@ const goNextPage = (): void => {
 };
 
 const load = async (): Promise<void> => {
-  console.info("[ArticlesPage] 开始加载资讯列表", {
+  console.info("[AIWEB] ArticlesPage 开始加载资讯列表", {
     keyword: keyword.value || "",
     category: category.value || "",
     channelCode: channelCode.value || "",
@@ -153,9 +153,9 @@ const load = async (): Promise<void> => {
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value;
     }
-    console.info("[ArticlesPage] 资讯列表加载完成", { count: items.value.length });
+    console.info("[AIWEB] ArticlesPage 资讯列表加载完成", { count: items.value.length });
   } catch (err) {
-    console.error("[ArticlesPage] 加载文章列表失败", err);
+    console.error("[AIWEB] ArticlesPage 加载文章列表失败", err);
     items.value = [];
   } finally {
     loading.value = false;
@@ -174,11 +174,11 @@ const openChannel = (channel: ChannelItem | null): void => {
   if (channel) {
     activeChannel.value = channel.key;
     channelCode.value = channel.key;
-    console.info("[ArticlesPage] 切换栏目", { channel: channel.label });
+    console.info("[AIWEB] ArticlesPage 切换栏目", { channel: channel.label });
   } else {
     activeChannel.value = "";
     channelCode.value = "";
-    console.info("[ArticlesPage] 切换栏目", { channel: "全部" });
+    console.info("[AIWEB] ArticlesPage 切换栏目", { channel: "全部" });
   }
   resetToFirstPage();
   syncSearchParamsToUrl();
@@ -237,11 +237,14 @@ const loadChannels = async (): Promise<void> => {
       tip: item.description || "栏目内容聚合",
     }));
   } catch (err) {
-    console.error("[ArticlesPage] 频道列表加载失败", err);
+    console.error("[AIWEB] ArticlesPage 频道列表加载失败", err);
   }
 };
 
 onMounted(async () => {
+  console.group("[AIWEB] ArticlesPage");
+  console.log("[AIWEB] ArticlesPage onMounted 入口", { hasKeyword: !!route.query.keyword, hasCategory: !!route.query.category, hasChannelCode: !!route.query.channelCode, page: route.query.page });
+
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleDocumentKeydown);
 
@@ -251,9 +254,15 @@ onMounted(async () => {
   if (route.query.channelCode) channelCode.value = route.query.channelCode as string;
   if (route.query.page) currentPage.value = Math.max(1, parseInt(route.query.page as string, 10) || 1);
 
+  console.log("[AIWEB] ArticlesPage loadChannels 开始");
   await loadChannels();
+  console.log("[AIWEB] ArticlesPage loadChannels 完成", { channelCount: channels.value.length });
+  console.log("[AIWEB] ArticlesPage load 开始", { page: currentPage.value, pageSize, channelCode: channelCode.value, keyword: keyword.value });
   await load();
+  console.log("[AIWEB] ArticlesPage fetchReadArticleIds 开始");
   await fetchReadArticleIds();
+  console.log("[AIWEB] ArticlesPage fetchReadArticleIds 完成", { count: readArticleIds.value.size });
+  console.groupEnd();
 });
 
 onBeforeUnmount(() => {
@@ -263,10 +272,12 @@ onBeforeUnmount(() => {
 });
 
 onActivated(async () => {
+  console.log("[AIWEB] ArticlesPage onActivated 入口", { itemsLength: items.value.length, loading: loading.value });
   syncSearchParamsToUrl();
   fetchReadArticleIds();
   if (items.value.length === 0) {
-    try { await load(); } catch (err) { console.error("[ArticlesPage] onActivated load 失败", err); }
+    console.log("[AIWEB] ArticlesPage onActivated items为空，触发 load");
+    try { await load(); } catch (err) { console.error("[AIWEB] ArticlesPage onActivated load 失败", err); }
   }
 });
 

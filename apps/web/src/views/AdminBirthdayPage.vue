@@ -65,6 +65,7 @@ const blessingMessage = ref("");
 const totalLogPages = ref(0);
 
 const loadLogs = async () => {
+  console.log("[AIWEB] AdminBirthdayPage loadLogs 开始", { page: logPage.value, pageSize: logPageSize, keyword: logKeyword.value || "" });
   logsLoading.value = true;
   try {
     const result = await getBirthdayLogs({
@@ -72,6 +73,7 @@ const loadLogs = async () => {
       pageSize: logPageSize,
       keyword: logKeyword.value || undefined,
     });
+    console.log("[AIWEB] AdminBirthdayPage loadLogs 成功", { count: result.items.length, total: result.pagination.total });
     logs.value = result.items.map((item) => ({
       ...item,
       pushedAt: new Date(item.pushedAt).toLocaleString("zh-CN", {
@@ -87,7 +89,7 @@ const loadLogs = async () => {
   } catch (err: any) {
     logs.value = [];
     errorMessage.value = err.response?.data?.message || "推送历史加载失败";
-    console.error("[AdminBirthdayPage] 推送历史加载失败", err);
+    console.error("[AIWEB] AdminBirthdayPage 推送历史加载失败", err);
   } finally {
     logsLoading.value = false;
   }
@@ -126,7 +128,8 @@ const handleSearchInput = () => {
     searchLoading.value = true;
     try {
       searchResults.value = await searchBirthdayUsers(kw);
-    } catch {
+    } catch (err) {
+      console.error("[AIWEB] AdminBirthdayPage 用户搜索失败", err);
       searchResults.value = [];
     } finally {
       searchLoading.value = false;
@@ -162,6 +165,7 @@ const handlePreview = async () => {
     });
     previewBase64.value = result.cardBase64;
   } catch (error: any) {
+    console.error("[AIWEB] AdminBirthdayPage 预览生成失败", error);
     previewError.value = error.response?.data?.message || "预览生成失败";
   } finally {
     previewLoading.value = false;
@@ -180,6 +184,7 @@ const handleResend = async () => {
     pushResult.value = { status: "success", name: result.name, pushedTo: result.pushedTo || ["100002013029"] };
     await loadLogs();
   } catch (error: any) {
+    console.error("[AIWEB] AdminBirthdayPage 手动推送失败", error);
     pushResult.value = {
       status: "failed",
       name: selectedUser.value?.xm || "未知",
@@ -192,14 +197,16 @@ const handleResend = async () => {
 
 // --- Blessing template ---
 const loadBlessingTemplate = async () => {
+  console.log("[AIWEB] AdminBirthdayPage loadBlessingTemplate 开始");
   blessingLoading.value = true;
   try {
     const result = await getBirthdayBlessing();
+    console.log("[AIWEB] AdminBirthdayPage loadBlessingTemplate 成功");
     blessingTemplate.value = result.blessingTemplate;
   } catch (err: any) {
     blessingTemplate.value = "";
     errorMessage.value = err.response?.data?.message || "祝福语模板加载失败";
-    console.error("[AdminBirthdayPage] 祝福语模板加载失败", err);
+    console.error("[AIWEB] AdminBirthdayPage 祝福语模板加载失败", err);
   } finally {
     blessingLoading.value = false;
   }
@@ -214,6 +221,7 @@ const saveBlessingTemplate = async () => {
     blessingMessage.value = "祝福语模板已更新";
     setTimeout(() => (blessingMessage.value = ""), 3000);
   } catch (error: any) {
+    console.error("[AIWEB] AdminBirthdayPage 保存模板失败", error);
     blessingMessage.value = error.response?.data?.message || "保存失败";
     setTimeout(() => (blessingMessage.value = ""), 3000);
   } finally {
@@ -222,25 +230,31 @@ const saveBlessingTemplate = async () => {
 };
 
 onMounted(async () => {
+  console.log("[AIWEB] AdminBirthdayPage onMounted 入口");
   try {
     const user = await getCurrentUser();
     if (!user) {
       accessDenied.value = true;
+      console.log("[AIWEB] AdminBirthdayPage getCurrentUser 结果为空，拒绝访问");
       return;
     }
+    console.log("[AIWEB] AdminBirthdayPage getCurrentUser", { userId: user.id, userRole: (user as any).role });
     currentUserId.value = user.id?.trim() || user.username?.trim() || "";
-    if (!canAccessAdminViews(user)) {
+    const canAccess = canAccessAdminViews(user);
+    console.log("[AIWEB] AdminBirthdayPage canAccessAdminViews", { result: canAccess });
+    if (!canAccess) {
       accessDenied.value = true;
       return;
     }
   } catch (err: any) {
     accessDenied.value = true;
     errorMessage.value = err.response?.data?.message || "用户信息加载失败";
-    console.error("[AdminBirthdayPage] 用户信息加载失败", err);
+    console.error("[AIWEB] AdminBirthdayPage 用户信息加载失败", err);
     return;
   } finally {
     loading.value = false;
   }
+  console.log("[AIWEB] AdminBirthdayPage loadLogs 开始");
   void loadLogs();
   void loadBlessingTemplate();
 });

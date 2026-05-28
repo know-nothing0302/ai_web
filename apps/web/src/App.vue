@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onErrorCaptured, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onActivated, onDeactivated, onErrorCaptured, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "./stores/auth";
 import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun } from "lucide-vue-next";
 
@@ -48,6 +48,11 @@ const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
 const currentPageTitle = computed(() => document.title || "当前页面");
 const auth = useAuthStore();
 
+const routerInstance = useRouter();
+routerInstance.beforeEach((to) => {
+  console.log("[AIWEB] App 路由导航", { to: to.path, hasUser: !!auth.user });
+});
+
 const triggerAgent = (): void => {
   pageAgentOpen.value = true;
 };
@@ -56,6 +61,14 @@ onMounted(() => {
   window.setTimeout(() => {
     pageAgentIntroActive.value = false;
   }, 1800);
+});
+
+onActivated(() => {
+  console.log("[AIWEB] App KeepAlive 激活", { route: route.path });
+});
+
+onDeactivated(() => {
+  console.log("[AIWEB] App KeepAlive 失活", { route: route.path });
 });
 
 const openFeedback = (): void => {
@@ -314,9 +327,14 @@ const reloadPage = (): void => {
 };
 
 onErrorCaptured((err, _instance, info) => {
+  console.log("[AIWEB] App onErrorCaptured", { message: (err as Error).message || String(err), info, instanceType: (_instance as any)?.$options?.name || "unknown" });
   console.error("[App] 全局错误捕获:", err, info);
   pageError.value = true;
   return false;
+});
+
+watch(pageError, (newVal) => {
+  console.log("[AIWEB] App pageError 状态变更", { pageError: newVal });
 });
 </script>
 

@@ -34,7 +34,7 @@ const parsedSummary = computed(() => {
 });
 
 const load = async (): Promise<void> => {
-  console.info("[ArticleDetailPage] 加载文章详情", { id: route.params.id?.toString() ?? "" });
+  console.info("[AIWEB] ArticleDetailPage 加载文章详情", { id: route.params.id?.toString() ?? "" });
   loading.value = true;
   try {
     const articleId = route.params.id.toString();
@@ -104,7 +104,9 @@ const copyLink = async (): Promise<void> => {
 };
 
 onMounted(() => {
+  console.log("[AIWEB] ArticleDetailPage onMounted", { articleId: route.params.id?.toString() ?? "" });
   load();
+  window.addEventListener("popstate", handleBrowserBack);
 });
 
 watchEffect(() => {
@@ -120,7 +122,12 @@ watchEffect(() => {
   );
 });
 
+const handleBrowserBack = (): void => {
+  console.log("[AIWEB] ArticleDetailPage 浏览器返回", { from: route.fullPath });
+};
+
 onBeforeUnmount(() => {
+  window.removeEventListener("popstate", handleBrowserBack);
   setPageAgentContext(null);
 });
 </script>

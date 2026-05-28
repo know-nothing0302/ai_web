@@ -146,4 +146,5 @@ source: cc-ai-web
 | 2026-05-28 | v4 修复 | 已完成 | 回滚 transition mode="out-in" 修复布局回归、移除 fallback 重复 load、浏览历史去重（DELETE+INSERT 事务） |
 | 2026-05-28 | v5 修复 | 已完成 | loadChannels try/catch 隔离、全局 401 拦截器（session 过期跳 CAS）、auth store clearUser() |
 | 2026-05-28 | v6 修复 | 已完成 | onActivated await load() + try/catch、load() catch 块 + items 回退、onErrorCaptured 恢复全错误显示、getReadingHistory pageSize 200→50 |
+| 2026-05-28 | trace-logging | 已完成 | App.vue/ArticlesPage/ArticleDetailPage/AdminBirthdayPage 全生命周期 [AIWEB] 日志链，覆盖路由导航、KeepAlive、数据加载、错误捕获 |
 
