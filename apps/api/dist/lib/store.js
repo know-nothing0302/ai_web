@@ -683,6 +683,13 @@ exports.pageAgentConversationStore = {
       WHERE id = $1
       `, [id]);
     },
+    async updateTitle(id, title) {
+        await (0, db_1.query)(`
+      UPDATE page_agent_conversations
+      SET title = $1, updated_at = NOW()
+      WHERE id = $2
+      `, [title, id]);
+    },
 };
 exports.pageAgentMessageStore = {
     async create(input) {

@@ -87,6 +87,26 @@ exports.pageAgentRouter.post("/conversations", auth_1.requireAuth, async (reques
     });
     response.json(conversation);
 });
+exports.pageAgentRouter.patch("/conversations/:id", auth_1.requireAuth, async (request, response) => {
+    const userId = getAuthenticatedUserId(request);
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    const conversationId = String(request.params.id);
+    const conversation = await store_1.pageAgentConversationStore.getById(conversationId);
+    if (!conversation || conversation.userId !== userId) {
+        response.status(404).json({ message: "会话不存在" });
+        return;
+    }
+    const { title } = request.body;
+    if (!title || typeof title !== "string" || title.trim().length === 0) {
+        response.status(400).json({ message: "标题不能为空" });
+        return;
+    }
+    await store_1.pageAgentConversationStore.updateTitle(conversationId, title.trim().slice(0, 100));
+    response.json({ success: true });
+});
 exports.pageAgentRouter.get("/conversations", auth_1.requireAuth, async (request, response) => {
     const userId = getAuthenticatedUserId(request);
     if (!userId) {

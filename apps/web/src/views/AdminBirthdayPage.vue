@@ -84,9 +84,10 @@ const loadLogs = async () => {
     }));
     totalLogs.value = result.pagination.total;
     totalLogPages.value = Math.ceil(totalLogs.value / logPageSize);
-  } catch {
+  } catch (err: any) {
     logs.value = [];
-    errorMessage.value = "推送历史加载失败，请稍后重试";
+    errorMessage.value = err.response?.data?.message || "推送历史加载失败";
+    console.error("[AdminBirthdayPage] 推送历史加载失败", err);
   } finally {
     logsLoading.value = false;
   }
@@ -195,9 +196,10 @@ const loadBlessingTemplate = async () => {
   try {
     const result = await getBirthdayBlessing();
     blessingTemplate.value = result.blessingTemplate;
-  } catch {
+  } catch (err: any) {
     blessingTemplate.value = "";
-    errorMessage.value = "祝福语模板加载失败";
+    errorMessage.value = err.response?.data?.message || "祝福语模板加载失败";
+    console.error("[AdminBirthdayPage] 祝福语模板加载失败", err);
   } finally {
     blessingLoading.value = false;
   }
@@ -231,8 +233,10 @@ onMounted(async () => {
       accessDenied.value = true;
       return;
     }
-  } catch {
+  } catch (err: any) {
     accessDenied.value = true;
+    errorMessage.value = err.response?.data?.message || "用户信息加载失败";
+    console.error("[AdminBirthdayPage] 用户信息加载失败", err);
     return;
   } finally {
     loading.value = false;

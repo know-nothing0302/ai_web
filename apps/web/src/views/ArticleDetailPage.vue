@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Share2, Copy, Check } from "lucide-vue-next";
+import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Copy, Check } from "lucide-vue-next";
 
 import { buildArticleDetailContext, setPageAgentContext } from "../page_agent/context";
 import {
@@ -89,7 +89,6 @@ const formatDate = (isoString?: string) => {
 const linkCopied = ref(false);
 const linkCopyMessage = ref("");
 const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
-const showWeChatGuide = ref(false);
 
 const copyLink = async (): Promise<void> => {
   try {
@@ -101,26 +100,6 @@ const copyLink = async (): Promise<void> => {
     setTimeout(() => { linkCopied.value = false; linkCopyMessage.value = ""; }, 2500);
   } catch {
     // silent
-  }
-};
-
-const shareArticle = async (): Promise<void> => {
-  if (isWeChat) {
-    showWeChatGuide.value = true;
-    return;
-  }
-  if (navigator.share && item.value) {
-    try {
-      await navigator.share({
-        title: item.value.title,
-        text: item.value.summary || item.value.title,
-        url: window.location.href,
-      });
-    } catch {
-      // user cancelled or error — silent
-    }
-  } else {
-    await copyLink();
   }
 };
 
@@ -167,8 +146,8 @@ onBeforeUnmount(() => {
           <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
         </div>
         
-        <div class="flex items-center justify-center gap-3 mb-5">
-          <h1 class="text-3xl md:text-4xl font-bold text-[#0f4069] leading-tight tracking-tight font-serif">
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
+          <h1 class="text-xl sm:text-2xl font-bold text-[#0f4069] leading-tight tracking-tight font-serif text-center sm:text-left">
             {{ item.title }}
           </h1>
           <button
@@ -181,14 +160,6 @@ onBeforeUnmount(() => {
           >
             <svg v-if="isFavorited" class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <svg v-else class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2zm0 2.46L9.91 9.23 5.13 10.08l4.07 3.97-.96 5.6L12 17.29l3.76 1.98-.96-5.6 4.07-3.97-4.78-.85L12 4.46z"/></svg>
-          </button>
-          <button
-            type="button"
-            class="shrink-0 rounded-xl p-2 text-[#b3e5fc] hover:text-[#0288d1] hover:bg-[#e1f5fe]/60 transition-all duration-300"
-            title="分享"
-            @click="shareArticle"
-          >
-            <Share2 class="w-5 h-5" />
           </button>
           <button
             type="button"
@@ -276,37 +247,6 @@ onBeforeUnmount(() => {
   </div>
 
   <BackToTop />
-
-  <!-- WeChat share guide overlay -->
-  <div
-    v-if="showWeChatGuide"
-    class="fixed inset-0 z-[90] bg-black/60 flex flex-col items-center justify-start pt-[15vh] px-6"
-    @click="showWeChatGuide = false"
-  >
-    <div class="relative w-full max-w-xs">
-      <div class="absolute -top-1 right-0 text-white animate-bounce">
-        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
-        </svg>
-      </div>
-      <p class="text-white text-center text-lg font-semibold mt-16">
-        点击右上角 <span class="inline-block px-2 py-0.5 rounded bg-white/20">...</span><br/>
-        选择「分享到朋友圈」或「发送给朋友」
-      </p>
-      <p class="text-white/70 text-center text-sm mt-4">
-        或使用下方「复制链接」分享
-      </p>
-      <div class="mt-6 flex justify-center">
-        <button
-          type="button"
-          class="rounded-full bg-white px-6 py-2 text-sm font-medium text-[#0f4069] shadow-lg"
-          @click.stop="showWeChatGuide = false; void copyLink()"
-        >
-          复制链接
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- Copy toast -->
   <div

@@ -180,7 +180,7 @@ const submitPageAgentQuestion = async (): Promise<void> => {
       pageAgentTitleSet.value = true;
       const title = text.slice(0, 30);
       updatePageAgentConversationTitle(pageAgentConversationId.value, title)
-        .catch(() => undefined);
+        .catch((err) => console.error("标题更新失败", err));
     }
   } catch (error) {
     logPageAgentClient("answer.request.failed", {
@@ -313,10 +313,13 @@ const reloadPage = (): void => {
   window.location.reload();
 };
 
-onErrorCaptured((err) => {
-  console.error("[App] 全局错误捕获:", err);
-  pageError.value = true;
-  return false; // 阻止错误继续传播
+onErrorCaptured((err, _instance, info) => {
+  console.error("[App] 全局错误捕获:", err, info);
+  // 只对渲染异常设为致命，非致命错误（如异步组件加载）由各页面自行处理
+  if (typeof info === "string" && info.includes("render")) {
+    pageError.value = true;
+  }
+  return false;
 });
 </script>
 
@@ -391,7 +394,7 @@ onErrorCaptured((err) => {
         </button>
       </div>
       <router-view v-slot="{ Component }" v-else>
-        <transition name="fade" mode="out-in">
+        <transition name="fade" mode="in-out">
           <KeepAlive include="ArticlesPage">
             <component :is="Component" />
           </KeepAlive>

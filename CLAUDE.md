@@ -138,3 +138,9 @@ CC_TASK_ID=<TASK> cc-notify failed "<失败原因>"
 source: cc-ai-web
 通知规范见 `~/.claude/CLAUDE.md § CC 子 Agent 通知`。
 
+## Development Progress
+
+| 日期 | 版本 | 状态 | 变更 |
+|------|------|------|------|
+| 2026-05-28 | v3 修复 | 已完成 | 删除微信分享按钮、拖拽 TouchEvent 支持+阈值 5px、手机标题响应式、对话标题 console.error、路由空白 fallback load + transition in-out + 错误分级、生日页具体错误提示 |
+
