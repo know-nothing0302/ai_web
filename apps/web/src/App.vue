@@ -394,7 +394,7 @@ onErrorCaptured((err, _instance, info) => {
         </button>
       </div>
       <router-view v-slot="{ Component }" v-else>
-        <transition name="fade" mode="in-out">
+        <transition name="fade" mode="out-in">
           <KeepAlive include="ArticlesPage">
             <component :is="Component" />
           </KeepAlive>

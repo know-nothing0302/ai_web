@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { query } from "../../lib/db";
+import { query, withTransaction } from "../../lib/db";
 import { requireAuth } from "../../middleware/auth";
 
 interface FavoriteRow {
@@ -147,10 +147,17 @@ profileRouter.post("/history", async (request, response) => {
   const userId = request.session.user!.id;
   const { articleId } = parsed.data;
   try {
-    await query(
-      "INSERT INTO reading_history (user_id, article_id) VALUES ($1, $2)",
-      [userId, articleId]
-    );
+    await withTransaction(async (client) => {
+      // 去重：删除同一用户同一文章的旧记录，保留最新
+      await client.query(
+        "DELETE FROM reading_history WHERE user_id = $1 AND article_id = $2",
+        [userId, articleId]
+      );
+      await client.query(
+        "INSERT INTO reading_history (user_id, article_id) VALUES ($1, $2)",
+        [userId, articleId]
+      );
+    });
     response.status(204).send();
   } catch (error) {
     response.status(500).json({ message: "记录失败" });

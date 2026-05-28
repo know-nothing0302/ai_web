@@ -247,12 +247,6 @@ onMounted(async () => {
   await loadChannels();
   await load();
   await fetchReadArticleIds();
-
-  // Fallback: KeepAlive 缓存失效导致 items 为空时补加载
-  if (!route.query.keyword && !route.query.category && !route.query.channelCode && items.value.length === 0) {
-    console.warn("[ArticlesPage] 首次加载后 items 为空，执行重试");
-    await load();
-  }
 });
 
 onBeforeUnmount(() => {

@@ -97,7 +97,11 @@ exports.profileRouter.post("/history", async (request, response) => {
     const userId = request.session.user.id;
     const { articleId } = parsed.data;
     try {
-        await (0, db_1.query)("INSERT INTO reading_history (user_id, article_id) VALUES ($1, $2)", [userId, articleId]);
+        await (0, db_1.withTransaction)(async (client) => {
+            // 去重：删除同一用户同一文章的旧记录，保留最新
+            await client.query("DELETE FROM reading_history WHERE user_id = $1 AND article_id = $2", [userId, articleId]);
+            await client.query("INSERT INTO reading_history (user_id, article_id) VALUES ($1, $2)", [userId, articleId]);
+        });
         response.status(204).send();
     }
     catch (error) {
