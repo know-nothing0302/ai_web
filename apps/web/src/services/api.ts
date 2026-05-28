@@ -220,6 +220,22 @@ const request = axios.create({
   withCredentials: true,
 });
 
+request.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const url: string = error.config?.url ?? "";
+      if (!url.includes("/auth/cas/") && !url.includes("/auth/me")) {
+        import("../stores/auth").then(({ useAuthStore }) => {
+          useAuthStore().clearUser();
+          window.location.href = `${apiBase}/auth/cas/login?redirect=${encodeURIComponent(window.location.href)}`;
+        });
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const getCurrentUser = async (): Promise<User | null> => {
   const result = await request.get<{ user: User | null }>("/auth/me");
   return result.data.user;

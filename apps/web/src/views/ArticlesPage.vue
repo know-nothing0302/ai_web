@@ -221,17 +221,21 @@ const handleDocumentKeydown = (event: KeyboardEvent): void => {
 };
 
 const loadChannels = async (): Promise<void> => {
-  const data = await listChannels();
-  categories.value = [
-    { value: "", label: "全部栏目" },
-    ...data.map((item) => ({ value: item.name, label: item.name })),
-  ];
-  channels.value = data.map((item) => ({
-    key: item.code,
-    label: item.name,
-    icon: channelIconMap[item.code] ?? Newspaper,
-    tip: item.description || "栏目内容聚合",
-  }));
+  try {
+    const data = await listChannels();
+    categories.value = [
+      { value: "", label: "全部栏目" },
+      ...data.map((item) => ({ value: item.name, label: item.name })),
+    ];
+    channels.value = data.map((item) => ({
+      key: item.code,
+      label: item.name,
+      icon: channelIconMap[item.code] ?? Newspaper,
+      tip: item.description || "栏目内容聚合",
+    }));
+  } catch (err) {
+    console.error("[ArticlesPage] 频道列表加载失败", err);
+  }
 };
 
 onMounted(async () => {

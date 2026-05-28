@@ -28,5 +28,10 @@ export const useAuthStore = defineStore("auth", () => {
     return pendingPromise;
   }
 
-  return { user, loading, initialized, ensureInitialized };
+  function clearUser(): void {
+    user.value = null;
+    initialized.value = false;
+  }
+
+  return { user, loading, initialized, ensureInitialized, clearUser };
 });
