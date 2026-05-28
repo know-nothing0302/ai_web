@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { ThumbsUp, MessageSquare, Bug, Sparkles, FileText, HelpCircle, Loader2 } from "lucide-vue-next";
 import {
   getFeedbackPublicList,
@@ -12,10 +12,16 @@ const loading = ref(true);
 const items = ref<FeedbackPublicItem[]>([]);
 const total = ref(0);
 const sortMode = ref<"recent" | "popular">("recent");
+const statusFilter = ref<"all" | "replied" | "resolved" | "deferred">("all");
 const liking = ref<Set<string>>(new Set());
 const message = ref("");
 
-const pageSize = 20;
+const statusFilters = [
+  { key: "all" as const, label: "全部" },
+  { key: "replied" as const, label: "已回复" },
+  { key: "resolved" as const, label: "已解决" },
+  { key: "deferred" as const, label: "待定" },
+];
 
 const showMessage = (text: string) => {
   message.value = text;
@@ -77,10 +83,25 @@ const formatDate = (value: string): string => {
   });
 };
 
+const filterStatusSet = (filter: typeof statusFilter.value): Set<string> => {
+  switch (filter) {
+    case "replied": return new Set(["approved"]);
+    case "resolved": return new Set(["verified", "deployed"]);
+    case "deferred": return new Set(["wontfix", "reverted"]);
+    default: return new Set(["approved", "verified", "deployed", "wontfix", "reverted"]);
+  }
+};
+
+const filteredItems = computed(() => {
+  if (statusFilter.value === "all") return items.value;
+  const allowed = filterStatusSet(statusFilter.value);
+  return items.value.filter((item) => allowed.has(item.status));
+});
+
 const loadList = async () => {
   loading.value = true;
   try {
-    const result = await getFeedbackPublicList({ page: 1, pageSize, sort: sortMode.value });
+    const result = await getFeedbackPublicList({ page: 1, pageSize: 100, sort: sortMode.value });
     items.value = result.items;
     total.value = result.total;
   } catch {
@@ -138,8 +159,8 @@ onMounted(() => {
       </div>
     </section>
 
-    <!-- Sort tabs -->
-    <div class="flex items-center gap-2">
+    <!-- Sort + Filter tabs -->
+    <div class="flex items-center gap-2 flex-wrap">
       <button
         class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
         :class="sortMode === 'recent' ? 'bg-[#0288d1] text-white' : 'bg-white/80 border border-[#b3e5fc] text-[#4f6b8a] hover:bg-[#e1f5fe]'"
@@ -154,6 +175,16 @@ onMounted(() => {
       >
         最热
       </button>
+      <span class="mx-1 text-[#b3e5fc]">|</span>
+      <template v-for="f in statusFilters" :key="f.key">
+        <button
+          class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+          :class="statusFilter === f.key ? 'bg-[#0288d1] text-white' : 'bg-white/80 border border-[#b3e5fc] text-[#4f6b8a] hover:bg-[#e1f5fe]'"
+          @click="statusFilter = f.key"
+        >
+          {{ f.label }}
+        </button>
+      </template>
     </div>
 
     <div v-if="loading" class="glass-panel rounded-3xl border p-12 text-center text-sm text-[#6e89a3]">
@@ -161,13 +192,13 @@ onMounted(() => {
     </div>
 
     <template v-else>
-      <div v-if="items.length === 0" class="glass-panel rounded-3xl border p-12 text-center text-sm text-[#6e89a3]">
+      <div v-if="filteredItems.length === 0" class="glass-panel rounded-3xl border p-12 text-center text-sm text-[#6e89a3]">
         暂无已处理的反馈
       </div>
 
       <div class="space-y-4">
         <div
-          v-for="item in items"
+          v-for="item in filteredItems"
           :key="item.id"
           class="glass-panel rounded-2xl border border-[#d8edf9] bg-white/85 p-5 transition-all duration-200 hover:border-[#b3e5fc] hover:shadow-sm"
         >
@@ -217,10 +248,10 @@ onMounted(() => {
       </div>
 
       <div
-        v-if="items.length > 0 && items.length < total"
+        v-if="filteredItems.length < total && items.length >= 100"
         class="text-center text-sm text-[#6e89a3] py-4"
       >
-        仅展示最近 {{ pageSize }} 条
+        仅展示最近 100 条
       </div>
     </template>
 
