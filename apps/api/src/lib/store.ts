@@ -1038,6 +1038,16 @@ export const pageAgentConversationStore = {
       [id]
     );
   },
+  async updateTitle(id: string, title: string): Promise<void> {
+    await query(
+      `
+      UPDATE page_agent_conversations
+      SET title = $1, updated_at = NOW()
+      WHERE id = $2
+      `,
+      [title, id]
+    );
+  },
 };
 
 export const pageAgentMessageStore = {

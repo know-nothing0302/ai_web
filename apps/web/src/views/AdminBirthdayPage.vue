@@ -32,6 +32,9 @@ const loading = ref(true);
 const accessDenied = ref(false);
 const currentUserId = ref("");
 
+// --- Error handling ---
+const errorMessage = ref("");
+
 // --- Push history ---
 const logsLoading = ref(false);
 const logs = ref<BirthdayPushLogItem[]>([]);
@@ -83,6 +86,7 @@ const loadLogs = async () => {
     totalLogPages.value = Math.ceil(totalLogs.value / logPageSize);
   } catch {
     logs.value = [];
+    errorMessage.value = "推送历史加载失败，请稍后重试";
   } finally {
     logsLoading.value = false;
   }
@@ -193,6 +197,7 @@ const loadBlessingTemplate = async () => {
     blessingTemplate.value = result.blessingTemplate;
   } catch {
     blessingTemplate.value = "";
+    errorMessage.value = "祝福语模板加载失败";
   } finally {
     blessingLoading.value = false;
   }
@@ -250,6 +255,13 @@ onMounted(async () => {
     </section>
 
     <template v-else>
+    <div
+      v-if="errorMessage"
+      class="rounded-2xl border border-[#ffd6d6] bg-[#fff7f7] px-4 py-3 text-sm text-[#b54747]"
+    >
+      {{ errorMessage }}
+    </div>
+
     <div class="flex items-center justify-between gap-3">
       <div>
         <h1 class="text-3xl font-bold text-[#0f4069] flex items-center gap-3">

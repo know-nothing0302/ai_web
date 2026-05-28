@@ -121,7 +121,7 @@ const formatTime = (iso: string): string => {
             class="w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-[#eaf7ff]"
             @click="emit('select-conversation', conv.id)"
           >
-            <span class="line-clamp-1 text-[#0f4069]">{{ conv.pageTitle || "未命名对话" }}</span>
+            <span class="line-clamp-1 text-[#0f4069]">{{ conv.title || conv.pageTitle || "未命名对话" }}</span>
             <span class="mt-0.5 block text-[11px] text-[#8aa3bc]">{{ formatTime(conv.createdAt) }}</span>
           </button>
         </div>

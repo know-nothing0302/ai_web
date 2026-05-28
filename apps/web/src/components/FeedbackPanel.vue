@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { X } from "lucide-vue-next";
+import { useDraggable } from "../composables/useDraggable";
 
 const props = defineProps<{
   visible: boolean;
@@ -43,37 +44,7 @@ const handleSubmit = (): void => {
   });
 };
 
-// --- Draggable dialog ---
-const dialogPos = ref({ x: 0, y: 0 });
-const dragging = ref(false);
-const dragOffset = ref({ x: 0, y: 0 });
-
-const startDrag = (e: MouseEvent) => {
-  // Only drag from header area
-  const target = e.target as HTMLElement;
-  if (!target.closest('.feedback-drag-handle')) return;
-  dragging.value = true;
-  dragOffset.value = {
-    x: e.clientX - dialogPos.value.x,
-    y: e.clientY - dialogPos.value.y,
-  };
-  document.addEventListener("mousemove", onDrag);
-  document.addEventListener("mouseup", stopDrag);
-};
-
-const onDrag = (e: MouseEvent) => {
-  if (!dragging.value) return;
-  dialogPos.value = {
-    x: e.clientX - dragOffset.value.x,
-    y: e.clientY - dragOffset.value.y,
-  };
-};
-
-const stopDrag = () => {
-  dragging.value = false;
-  document.removeEventListener("mousemove", onDrag);
-  document.removeEventListener("mouseup", stopDrag);
-};
+const { dialogPos, dragging, startDrag } = useDraggable();
 </script>
 
 <template>

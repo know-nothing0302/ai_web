@@ -19,6 +19,7 @@ export interface PageAgentRequestPayload extends PageAgentContextPayload {
 
 export interface PageAgentConversation {
   id: string;
+  title?: string;
   pageType?: string;
   route?: string;
   pageTitle?: string;

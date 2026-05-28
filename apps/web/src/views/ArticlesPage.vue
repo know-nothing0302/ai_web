@@ -256,10 +256,11 @@ onBeforeUnmount(() => {
 });
 
 onActivated(() => {
-  // When KeepAlive reactivates this component (e.g. navigating back from article detail),
-  // ensure URL reflects the current search state
   syncSearchParamsToUrl();
   fetchReadArticleIds();
+  if (items.value.length === 0) {
+    load();
+  }
 });
 
 watchEffect(() => {

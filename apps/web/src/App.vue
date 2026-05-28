@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onErrorCaptured, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "./stores/auth";
 import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun } from "lucide-vue-next";
@@ -22,6 +22,7 @@ import {
   getPageAgentConversationMessages,
   listPageAgentConversations,
   submitFeedback,
+  updatePageAgentConversationTitle,
 } from "./services/api";
 
 import { useDarkMode } from "./composables/useDarkMode";
@@ -38,6 +39,7 @@ const pageAgentConversationId = ref("");
 const pageAgentIntroActive = ref(true);
 const pageAgentConversations = ref<PageAgentConversation[]>([]);
 const pageAgentConversationsLoading = ref(false);
+const pageAgentTitleSet = ref(false);
 const feedbackOpen = ref(false);
 const feedbackSubmitting = ref(false);
 const appMessage = ref("");
@@ -173,6 +175,13 @@ const submitPageAgentQuestion = async (): Promise<void> => {
       usedSiteSearch: result.meta.usedSiteSearch,
     });
     appendAssistantMessage(result);
+    // Auto-set conversation title from first user question
+    if (!pageAgentTitleSet.value) {
+      pageAgentTitleSet.value = true;
+      const title = text.slice(0, 30);
+      updatePageAgentConversationTitle(pageAgentConversationId.value, title)
+        .catch(() => undefined);
+    }
   } catch (error) {
     logPageAgentClient("answer.request.failed", {
       error,
@@ -242,6 +251,7 @@ const resetPageAgentConversation = (): void => {
   pageAgentQuestion.value = "";
   pageAgentRequestToken.value = Date.now();
   pageAgentLoading.value = false;
+  pageAgentTitleSet.value = false;
 };
 
 watch(
@@ -256,6 +266,7 @@ watch(
     pageAgentConversationId.value = "";
     pageAgentRequestToken.value = Date.now();
     pageAgentLoading.value = false;
+    pageAgentTitleSet.value = false;
   }
 );
 
@@ -294,6 +305,18 @@ const navItems = computed(() => {
   items.push({ path: "/feedback-public", name: "反馈墙", icon: MessageSquare });
 
   return items;
+});
+
+const pageError = ref(false);
+
+const reloadPage = (): void => {
+  window.location.reload();
+};
+
+onErrorCaptured((err) => {
+  console.error("[App] 全局错误捕获:", err);
+  pageError.value = true;
+  return false; // 阻止错误继续传播
 });
 </script>
 
@@ -356,7 +379,18 @@ const navItems = computed(() => {
 
     <!-- 主内容区 -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10 relative">
-      <router-view v-slot="{ Component }">
+      <div v-if="pageError" class="glass-panel rounded-2xl border p-8 text-center">
+        <h2 class="text-lg font-semibold text-[#0f4069]">页面加载异常</h2>
+        <p class="mt-2 text-[#4f6b8a]">遇到意外错误，请刷新页面重试。</p>
+        <button
+          type="button"
+          class="btn-primary mt-4"
+          @click="pageError = false; reloadPage()"
+        >
+          刷新页面
+        </button>
+      </div>
+      <router-view v-slot="{ Component }" v-else>
         <transition name="fade" mode="out-in">
           <KeepAlive include="ArticlesPage">
             <component :is="Component" />

@@ -87,18 +87,28 @@ const formatDate = (isoString?: string) => {
 };
 
 const linkCopied = ref(false);
+const linkCopyMessage = ref("");
+const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+const showWeChatGuide = ref(false);
 
 const copyLink = async (): Promise<void> => {
   try {
     await navigator.clipboard.writeText(window.location.href);
     linkCopied.value = true;
-    setTimeout(() => { linkCopied.value = false; }, 2000);
+    if (isWeChat) {
+      linkCopyMessage.value = "链接已复制，请在微信中粘贴发送给朋友";
+    }
+    setTimeout(() => { linkCopied.value = false; linkCopyMessage.value = ""; }, 2500);
   } catch {
     // silent
   }
 };
 
 const shareArticle = async (): Promise<void> => {
+  if (isWeChat) {
+    showWeChatGuide.value = true;
+    return;
+  }
   if (navigator.share && item.value) {
     try {
       await navigator.share({
@@ -138,7 +148,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="max-w-4xl mx-auto space-y-6 pb-12">
-    <button @click="router.back()" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] transition-colors">
+    <button @click="router.push('/')" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] transition-colors">
       <ArrowLeft class="w-4 h-4" />
       返回列表
     </button>
@@ -266,4 +276,43 @@ onBeforeUnmount(() => {
   </div>
 
   <BackToTop />
+
+  <!-- WeChat share guide overlay -->
+  <div
+    v-if="showWeChatGuide"
+    class="fixed inset-0 z-[90] bg-black/60 flex flex-col items-center justify-start pt-[15vh] px-6"
+    @click="showWeChatGuide = false"
+  >
+    <div class="relative w-full max-w-xs">
+      <div class="absolute -top-1 right-0 text-white animate-bounce">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
+        </svg>
+      </div>
+      <p class="text-white text-center text-lg font-semibold mt-16">
+        点击右上角 <span class="inline-block px-2 py-0.5 rounded bg-white/20">...</span><br/>
+        选择「分享到朋友圈」或「发送给朋友」
+      </p>
+      <p class="text-white/70 text-center text-sm mt-4">
+        或使用下方「复制链接」分享
+      </p>
+      <div class="mt-6 flex justify-center">
+        <button
+          type="button"
+          class="rounded-full bg-white px-6 py-2 text-sm font-medium text-[#0f4069] shadow-lg"
+          @click.stop="showWeChatGuide = false; void copyLink()"
+        >
+          复制链接
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy toast -->
+  <div
+    v-if="linkCopyMessage"
+    class="fixed bottom-8 left-1/2 z-[80] -translate-x-1/2 rounded-full bg-black/75 px-5 py-2.5 text-sm text-white shadow-lg"
+  >
+    {{ linkCopyMessage }}
+  </div>
 </template>

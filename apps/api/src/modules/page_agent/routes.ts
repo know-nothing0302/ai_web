@@ -100,6 +100,27 @@ pageAgentRouter.post("/conversations", requireAuth, async (request, response) =>
   response.json(conversation);
 });
 
+pageAgentRouter.patch("/conversations/:id", requireAuth, async (request, response) => {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+  const conversationId = String(request.params.id);
+  const conversation = await pageAgentConversationStore.getById(conversationId);
+  if (!conversation || conversation.userId !== userId) {
+    response.status(404).json({ message: "会话不存在" });
+    return;
+  }
+  const { title } = request.body;
+  if (!title || typeof title !== "string" || title.trim().length === 0) {
+    response.status(400).json({ message: "标题不能为空" });
+    return;
+  }
+  await pageAgentConversationStore.updateTitle(conversationId, title.trim().slice(0, 100));
+  response.json({ success: true });
+});
+
 pageAgentRouter.get("/conversations", requireAuth, async (request, response) => {
   const userId = getAuthenticatedUserId(request);
   if (!userId) {

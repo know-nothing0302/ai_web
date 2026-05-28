@@ -430,6 +430,13 @@ export const listPageAgentConversations = async (): Promise<PageAgentConversatio
   return result.data.items;
 };
 
+export const updatePageAgentConversationTitle = async (
+  id: string,
+  title: string
+): Promise<void> => {
+  await request.patch(`/page-agent/conversations/${id}`, { title });
+};
+
 interface BackendPageAgentMessage {
   id: string;
   role: "user" | "assistant";
