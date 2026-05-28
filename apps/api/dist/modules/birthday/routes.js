@@ -104,7 +104,7 @@ const previewSchema = zod_1.z.object({
     csrq: zod_1.z.string().trim().min(1),
     blessing: zod_1.z.string().trim().min(1).max(500),
 });
-exports.birthdayRouter.post("/preview", auth_1.requireAdmin, async (req, res) => {
+exports.birthdayRouter.post("/preview", auth_1.requireContentHubOperator, async (req, res) => {
     try {
         const parsed = previewSchema.safeParse(req.body);
         if (!parsed.success) {

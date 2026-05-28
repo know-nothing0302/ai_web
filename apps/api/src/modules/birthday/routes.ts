@@ -131,7 +131,7 @@ const previewSchema = z.object({
   blessing: z.string().trim().min(1).max(500),
 });
 
-birthdayRouter.post("/preview", requireAdmin, async (req, res) => {
+birthdayRouter.post("/preview", requireContentHubOperator, async (req, res) => {
   try {
     const parsed = previewSchema.safeParse(req.body);
     if (!parsed.success) {

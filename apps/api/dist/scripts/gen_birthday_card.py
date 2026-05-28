@@ -169,17 +169,7 @@ def generate(input_data: dict) -> None:
         blessing_params["justification"],
     )
 
-    # Render date
-    date_text = calculate_date(csrq)
-    _render_text(
-        draw,
-        date_text,
-        date_center[0],
-        date_center[1],
-        font_regular,
-        date_params["color"],
-        date_params["justification"],
-    )
+		# Date range rendering removed — no longer displayed on card
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     img.save(output_path, "PNG")
