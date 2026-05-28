@@ -145,4 +145,5 @@ source: cc-ai-web
 | 2026-05-28 | v3 修复 | 已完成 | 删除微信分享按钮、拖拽 TouchEvent 支持+阈值 5px、手机标题响应式、对话标题 console.error、路由空白 fallback load + transition in-out + 错误分级、生日页具体错误提示 |
 | 2026-05-28 | v4 修复 | 已完成 | 回滚 transition mode="out-in" 修复布局回归、移除 fallback 重复 load、浏览历史去重（DELETE+INSERT 事务） |
 | 2026-05-28 | v5 修复 | 已完成 | loadChannels try/catch 隔离、全局 401 拦截器（session 过期跳 CAS）、auth store clearUser() |
+| 2026-05-28 | v6 修复 | 已完成 | onActivated await load() + try/catch、load() catch 块 + items 回退、onErrorCaptured 恢复全错误显示、getReadingHistory pageSize 200→50 |
 

@@ -315,10 +315,7 @@ const reloadPage = (): void => {
 
 onErrorCaptured((err, _instance, info) => {
   console.error("[App] 全局错误捕获:", err, info);
-  // 只对渲染异常设为致命，非致命错误（如异步组件加载）由各页面自行处理
-  if (typeof info === "string" && info.includes("render")) {
-    pageError.value = true;
-  }
+  pageError.value = true;
   return false;
 });
 </script>

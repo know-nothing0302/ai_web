@@ -47,7 +47,7 @@ const readArticleIds = ref<Set<string>>(new Set());
 
 const fetchReadArticleIds = async (): Promise<void> => {
   try {
-    const result = await getReadingHistory(1, 200);
+    const result = await getReadingHistory(1, 50);
     readArticleIds.value = new Set(result.items.map((h) => h.articleId));
   } catch {
     // not critical — fails silently
@@ -154,6 +154,9 @@ const load = async (): Promise<void> => {
       currentPage.value = totalPages.value;
     }
     console.info("[ArticlesPage] 资讯列表加载完成", { count: items.value.length });
+  } catch (err) {
+    console.error("[ArticlesPage] 加载文章列表失败", err);
+    items.value = [];
   } finally {
     loading.value = false;
   }
@@ -259,11 +262,11 @@ onBeforeUnmount(() => {
   setPageAgentContext(null);
 });
 
-onActivated(() => {
+onActivated(async () => {
   syncSearchParamsToUrl();
   fetchReadArticleIds();
   if (items.value.length === 0) {
-    load();
+    try { await load(); } catch (err) { console.error("[ArticlesPage] onActivated load 失败", err); }
   }
 });
 
