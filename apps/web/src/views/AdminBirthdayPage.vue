@@ -510,7 +510,7 @@ onMounted(async () => {
                   {{ item.status === "success" ? "成功" : "失败" }}
                 </span>
               </td>
-              <td class="px-3 py-3 text-[#8aa3bc]">{{ item.pushedTo.join(", ") || "--" }}</td>
+              <td class="px-3 py-3 text-[#8aa3bc]">{{ (item.pushedTo || []).join(", ") || "--" }}</td>
             </tr>
           </tbody>
         </table>
