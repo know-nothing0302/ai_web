@@ -99,12 +99,15 @@ const filteredItems = computed(() => {
 });
 
 const loadList = async () => {
+  console.log("[AIWEB] FeedbackPublicPage loadList 开始", { sort: sortMode.value, statusFilter: statusFilter.value });
   loading.value = true;
   try {
     const result = await getFeedbackPublicList({ page: 1, pageSize: 100, sort: sortMode.value });
+    console.log("[AIWEB] FeedbackPublicPage loadList 成功", { total: result.total, items: result.items.length });
     items.value = result.items;
     total.value = result.total;
-  } catch {
+  } catch (err) {
+    console.error("[AIWEB] FeedbackPublicPage loadList 失败", err);
     items.value = [];
     showMessage("加载失败");
   } finally {
@@ -141,6 +144,7 @@ const switchSort = (mode: "recent" | "popular") => {
 };
 
 onMounted(() => {
+  console.log("[AIWEB] FeedbackPublicPage onMounted 入口");
   loadList();
 });
 </script>
