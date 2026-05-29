@@ -2039,7 +2039,7 @@ export const feedbackLikeStore = {
     if (params.currentUserId && items.length > 0) {
       const feedbackIds = items.map((i: Record<string, unknown>) => i.id);
       const likesResult = await query<{ feedback_id: string }>(
-        `SELECT feedback_id FROM feedback_likes WHERE feedback_id = ANY($1::text[]) AND user_id = $2`,
+        `SELECT feedback_id FROM feedback_likes WHERE feedback_id = ANY($1::uuid[]) AND user_id = $2`,
         [feedbackIds, params.currentUserId]
       );
       const likedSet = new Set(likesResult.rows.map((r: { feedback_id: string }) => r.feedback_id));

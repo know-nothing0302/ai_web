@@ -1459,7 +1459,7 @@ exports.feedbackLikeStore = {
         }));
         if (params.currentUserId && items.length > 0) {
             const feedbackIds = items.map((i) => i.id);
-            const likesResult = await (0, db_1.query)(`SELECT feedback_id FROM feedback_likes WHERE feedback_id = ANY($1::text[]) AND user_id = $2`, [feedbackIds, params.currentUserId]);
+            const likesResult = await (0, db_1.query)(`SELECT feedback_id FROM feedback_likes WHERE feedback_id = ANY($1::uuid[]) AND user_id = $2`, [feedbackIds, params.currentUserId]);
             const likedSet = new Set(likesResult.rows.map((r) => r.feedback_id));
             for (const item of items) {
                 item.likedByMe = likedSet.has(item.id);
