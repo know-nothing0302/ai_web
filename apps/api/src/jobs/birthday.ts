@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import cron from "node-cron";
 import { env } from "../config/env";
@@ -13,12 +13,18 @@ const CARD_OUTPUT_DIR = "/tmp/birthday-cards";
 const spawnPython = (scriptPath: string, input: string): Promise<void> =>
   new Promise((resolve, reject) => {
     const child = spawn("python3", [scriptPath]);
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error("python3 timeout after 30s"));
+    }, 30_000);
+
     let stderr = "";
     let stdout = "";
     child.stdout?.on("data", (d) => (stdout += d.toString()));
     child.stderr?.on("data", (d) => (stderr += d.toString()));
-    child.on("error", reject);
+    child.on("error", (err) => { clearTimeout(timer); reject(err); });
     child.on("exit", (code: number | null) => {
+      clearTimeout(timer);
       if (code === 0) resolve();
       else reject(new Error(`python3 exit ${code}: stdout=${stdout.trim()} stderr=${stderr.trim()}`));
     });
@@ -38,7 +44,15 @@ const getBirthdayUsers = async (): Promise<BirthdayUser[]> => {
   const result = await query<BirthdayUser>(
     `SELECT xh, xm, TO_CHAR(csrq, 'YYYY-MM-DD') AS csrq
      FROM users
-     WHERE TO_CHAR(csrq, 'MM-DD') = TO_CHAR(NOW() AT TIME ZONE 'Asia/Shanghai', 'MM-DD')`
+     WHERE (
+       TO_CHAR(csrq, 'MM-DD') = TO_CHAR(NOW() AT TIME ZONE 'Asia/Shanghai', 'MM-DD')
+       OR (
+         -- 非闰年2月28日，同时推送2月29日出生者
+         TO_CHAR(NOW() AT TIME ZONE 'Asia/Shanghai', 'MM-DD') = '02-28'
+         AND TO_CHAR(csrq, 'MM-DD') = '02-29'
+         AND EXTRACT(YEAR FROM NOW() AT TIME ZONE 'Asia/Shanghai') % 4 != 0
+       )
+     )`
   );
   return result.rows;
 };
@@ -90,6 +104,29 @@ export const generateCard = async (xm: string, csrq: string): Promise<string> =>
 };
 
 export const runBirthdayPush = async (): Promise<{ total: number; sent: number; failed: number }> => {
+  // 检查 users 表同步是否新鲜
+  const syncCheck = await query<{ synced_at: string }>(
+    "SELECT MAX(synced_at) AS synced_at FROM users WHERE synced_at IS NOT NULL"
+  );
+  const lastSync = syncCheck.rows[0]?.synced_at;
+  if (!lastSync || new Date(lastSync).toDateString() !== new Date().toDateString()) {
+    logger.warn("birthday.job.stale_sync", { lastSync, action: "skipping push — users table not synced today" });
+    return { total: 0, sent: 0, failed: 0 };
+  }
+
+  // 检查今日是否已执行
+  const todayCheck = await query<{ cnt: string }>(
+    "SELECT COUNT(*) AS cnt FROM birthday_push_log WHERE pushed_at::date = CURRENT_DATE AND status = 'success'"
+  );
+  if (parseInt(todayCheck.rows[0]?.cnt ?? "0") > 0) {
+    logger.info("birthday.job.already_executed_today", { skip: true });
+    return { total: 0, sent: 0, failed: 0 };
+  }
+
+  // 清理上次残留的卡片文件
+  await rm(CARD_OUTPUT_DIR, { recursive: true, force: true });
+  await mkdir(CARD_OUTPUT_DIR, { recursive: true });
+
   const users = await getBirthdayUsers();
   logger.info("birthday.job.users_found", { count: users.length });
 
@@ -110,10 +147,20 @@ export const runBirthdayPush = async (): Promise<{ total: number; sent: number; 
       const targetUserId =
         env.birthdayPushMode === "production" ? user.xh : TEST_USER_ID;
 
-      // Send blessing text + card image
       const blessingText = blessingTemplate.replace("{name}", user.xm);
-      await wecomClient.sendTextMessage({ touser: targetUserId, content: blessingText });
-      await wecomClient.sendImageMessage({ touser: targetUserId, mediaId });
+
+      // 先发图片（核心），再发文字
+      const imgResult = await wecomClient.sendImageMessage({ touser: targetUserId, mediaId });
+      const textResult = await wecomClient.sendTextMessage({ touser: targetUserId, content: blessingText });
+
+      const invalidUsers = [
+        ...(textResult.invalidUserIds ?? []),
+        ...(imgResult.invalidUserIds ?? []),
+      ];
+
+      if (invalidUsers.length > 0) {
+        logger.warn("birthday.job.invalid_users", { xh: user.xh, invalidUsers });
+      }
 
       if (env.birthdayPushMode !== "production") {
         logger.info("birthday.job.test_mode", {
@@ -122,6 +169,9 @@ export const runBirthdayPush = async (): Promise<{ total: number; sent: number; 
           sendTo: TEST_USER_ID,
         });
       }
+
+      // 成功后删临时文件
+      await unlink(cardPath);
 
       // Log success
       await insertPushLog(user.xh, user.xm, user.csrq, cardPath, blessingText, "success", [targetUserId]);

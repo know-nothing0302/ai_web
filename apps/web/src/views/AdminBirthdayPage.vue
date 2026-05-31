@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  ExternalLink,
   Eye,
   CheckCircle,
   XCircle,
@@ -141,8 +140,12 @@ const selectUser = (user: SearchUserItem) => {
   selectedUser.value = user;
   searchKeyword.value = `${user.xm} (${user.xh})`;
   searchResults.value = [];
-  // Set default blessing
-  blessingText.value = `亲爱的${user.xm}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！`;
+  // Auto-fill blessing from template, fallback to default
+  if (blessingTemplate.value) {
+    blessingText.value = blessingTemplate.value.replace(/\{name\}/g, user.xm);
+  } else {
+    blessingText.value = `亲爱的${user.xm}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！`;
+  }
 };
 
 const clearSelectedUser = () => {
@@ -488,19 +491,10 @@ onMounted(async () => {
               <td class="px-3 py-3 text-[#8aa3bc]">{{ item.userXh }}</td>
               <td class="px-3 py-3 text-[#8aa3bc]">{{ item.csrq || "--" }}</td>
               <td class="px-3 py-3 max-w-[200px] truncate" :title="item.blessingText || ''">
-                {{ item.blessingText || "--" }}
+                {{ item.blessingText ? (item.blessingText.length > 20 ? item.blessingText.slice(0, 20) + '...' : item.blessingText) : '--' }}
               </td>
-              <td class="px-3 py-3">
-                <a
-                  v-if="item.cardPath"
-                  :href="item.cardPath"
-                  target="_blank"
-                  class="text-[#0288d1] hover:text-[#01579b] flex items-center gap-1"
-                >
-                  <ExternalLink class="w-3 h-3" />
-                  预览
-                </a>
-                <span v-else class="text-[#8aa3bc]">--</span>
+              <td class="px-3 py-3 text-[#8aa3bc]">
+                {{ item.cardPath?.split('/').pop()?.slice(-6) || '--' }}
               </td>
               <td class="px-3 py-3">
                 <span

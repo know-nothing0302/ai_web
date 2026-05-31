@@ -217,17 +217,17 @@ birthdayRouter.get("/logs", requireContentHubOperator, async (req, res) => {
 
     const itemsResult = await query<{
       id: string;
-      user_xh: string;
+      userXh: string;
       xm: string;
       csrq: string | null;
-      card_path: string | null;
-      blessing_text: string | null;
-      pushed_at: string;
+      cardPath: string | null;
+      blessingText: string | null;
+      pushedAt: string;
       status: string;
-      pushed_to: string[];
-      error_message: string | null;
+      pushedTo: string[];
+      errorMessage: string | null;
     }>(
-      `SELECT id, user_xh, xm, csrq, card_path, blessing_text, pushed_at, status, pushed_to, error_message
+      `SELECT id, user_xh AS "userXh", xm, TO_CHAR(csrq, 'YYYY-MM-DD') AS csrq, card_path AS "cardPath", blessing_text AS "blessingText", pushed_at AS "pushedAt", status, pushed_to AS "pushedTo", error_message AS "errorMessage"
        FROM birthday_push_log ${whereSql}
        ORDER BY pushed_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,

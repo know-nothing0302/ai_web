@@ -26,6 +26,10 @@ CREATE INDEX IF NOT EXISTS idx_birthday_push_log_pushed_at ON birthday_push_log(
 CREATE INDEX IF NOT EXISTS idx_birthday_push_log_status ON birthday_push_log(status);
 CREATE INDEX IF NOT EXISTS idx_birthday_push_log_user_xh ON birthday_push_log(user_xh);
 
+ALTER TABLE birthday_push_log
+ADD CONSTRAINT IF NOT EXISTS birthday_push_log_user_date_unique
+UNIQUE (user_xh, (pushed_at::date));
+
 INSERT INTO birthday_config (blessing_template)
 VALUES ('亲爱的{name}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！')
 ON CONFLICT DO NOTHING;
