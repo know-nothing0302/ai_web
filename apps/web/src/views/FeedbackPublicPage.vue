@@ -15,6 +15,10 @@ const sortMode = ref<"recent" | "popular">("recent");
 const statusFilter = ref<"all" | "replied" | "resolved" | "deferred">("all");
 const liking = ref<Set<string>>(new Set());
 const message = ref("");
+const currentPage = ref(1);
+const pageSize = ref(20);
+const PAGE_SIZES = [20, 50, 100];
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 
 const statusFilters = [
   { key: "all" as const, label: "全部" },
@@ -98,11 +102,12 @@ const filteredItems = computed(() => {
   return items.value.filter((item) => allowed.has(item.status));
 });
 
-const loadList = async () => {
-  console.log("[AIWEB] FeedbackPublicPage loadList 开始", { sort: sortMode.value, statusFilter: statusFilter.value });
+const loadList = async (page?: number) => {
+  if (page !== undefined) currentPage.value = page;
+  console.log("[AIWEB] FeedbackPublicPage loadList 开始", { sort: sortMode.value, statusFilter: statusFilter.value, page: currentPage.value, pageSize: pageSize.value });
   loading.value = true;
   try {
-    const result = await getFeedbackPublicList({ page: 1, pageSize: 100, sort: sortMode.value });
+    const result = await getFeedbackPublicList({ page: currentPage.value, pageSize: pageSize.value, sort: sortMode.value });
     console.log("[AIWEB] FeedbackPublicPage loadList 成功", { total: result.total, items: result.items.length });
     items.value = result.items;
     total.value = result.total;
@@ -140,7 +145,12 @@ const toggleLike = async (item: FeedbackPublicItem) => {
 const switchSort = (mode: "recent" | "popular") => {
   if (sortMode.value === mode) return;
   sortMode.value = mode;
-  loadList();
+  loadList(1);
+};
+
+const handlePageSizeChange = (e: Event) => {
+  pageSize.value = Number((e.target as HTMLSelectElement).value);
+  loadList(1);
 };
 
 onMounted(() => {
@@ -251,11 +261,35 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Pagination -->
       <div
-        v-if="filteredItems.length < total && items.length >= 100"
-        class="text-center text-sm text-[#6e89a3] py-4"
+        v-if="total > pageSize"
+        class="flex items-center justify-center gap-3 pt-6"
       >
-        仅展示最近 100 条
+        <select
+          :value="pageSize"
+          class="rounded-lg border border-[#b3e5fc] px-2 py-1.5 text-sm text-[#4f6b8a] bg-white focus:outline-none focus:border-[#4fc3f7]"
+          @change="handlePageSizeChange"
+        >
+          <option v-for="ps in PAGE_SIZES" :key="ps" :value="ps">{{ ps }}条/页</option>
+        </select>
+        <button
+          :disabled="currentPage <= 1"
+          class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe] disabled:opacity-40 disabled:cursor-not-allowed"
+          @click="loadList(currentPage - 1)"
+        >
+          上一页
+        </button>
+        <span class="text-sm text-[#8aa3bc]">
+          {{ currentPage }} / {{ totalPages }}（共 {{ total }} 条）
+        </span>
+        <button
+          :disabled="currentPage >= totalPages"
+          class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe] disabled:opacity-40 disabled:cursor-not-allowed"
+          @click="loadList(currentPage + 1)"
+        >
+          下一页
+        </button>
       </div>
     </template>
 
