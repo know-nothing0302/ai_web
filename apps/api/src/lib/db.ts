@@ -388,6 +388,8 @@ CREATE TABLE IF NOT EXISTS birthday_config (
 INSERT INTO birthday_config (blessing_template)
 SELECT '亲爱的{name}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！'
 WHERE NOT EXISTS (SELECT 1 FROM birthday_config);
+
+ALTER TABLE birthday_config ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN NOT NULL DEFAULT true;
 `;
 
 const seedSql = `
