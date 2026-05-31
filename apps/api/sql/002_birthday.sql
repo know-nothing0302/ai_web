@@ -33,3 +33,5 @@ UNIQUE (user_xh, (pushed_at::date));
 INSERT INTO birthday_config (blessing_template)
 VALUES ('亲爱的{name}，祝您生日快乐！愿您在新的一岁里，身体健康，工作顺利，阖家幸福！')
 ON CONFLICT DO NOTHING;
+
+ALTER TABLE birthday_config ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN NOT NULL DEFAULT true;

@@ -21,6 +21,8 @@ import {
   searchBirthdayUsers,
   getCurrentUser,
   canAccessAdminViews,
+  getBirthdayPushToggle,
+  updateBirthdayPushToggle,
   type BirthdayPushLogItem,
   type BirthdayPushResult,
   type SearchUserItem,
@@ -59,6 +61,32 @@ const blessingTemplate = ref("");
 const blessingLoading = ref(false);
 const blessingSaving = ref(false);
 const blessingMessage = ref("");
+
+// --- Push toggle ---
+const pushEnabled = ref(true);
+const pushToggleLoading = ref(false);
+
+const loadPushToggle = async () => {
+  try {
+    const result = await getBirthdayPushToggle();
+    pushEnabled.value = result.enabled;
+  } catch (err) {
+    console.error("[AIWEB] 加载推送开关失败", err);
+  }
+};
+
+const togglePush = async () => {
+  if (pushToggleLoading.value) return;
+  pushToggleLoading.value = true;
+  try {
+    const result = await updateBirthdayPushToggle({ enabled: !pushEnabled.value });
+    pushEnabled.value = result.enabled;
+  } catch (err: any) {
+    errorMessage.value = err.response?.data?.message || "切换失败";
+  } finally {
+    pushToggleLoading.value = false;
+  }
+};
 
 // --- Computed pagination ---
 const totalLogPages = ref(0);
@@ -260,6 +288,7 @@ onMounted(async () => {
   console.log("[AIWEB] AdminBirthdayPage loadLogs 开始");
   void loadLogs();
   void loadBlessingTemplate();
+  void loadPushToggle();
 });
 </script>
 
@@ -290,6 +319,20 @@ onMounted(async () => {
           生日推送管理
         </h1>
         <p class="text-[#4f6b8a] mt-2">管理生日贺卡推送，查看推送历史，手动触发测试推送</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-[#4f6b8a]">{{ pushEnabled ? '推送已开启' : '推送已关闭' }}</span>
+        <button
+          type="button"
+          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+          :class="pushEnabled ? 'bg-green-500' : 'bg-gray-300'"
+          @click="togglePush"
+        >
+          <span
+            class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+            :class="pushEnabled ? 'translate-x-6' : 'translate-x-1'"
+          />
+        </button>
       </div>
     </div>
 

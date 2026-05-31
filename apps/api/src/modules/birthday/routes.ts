@@ -316,6 +316,29 @@ birthdayRouter.get("/blessing", requireContentHubOperator, async (req, res) => {
   }
 });
 
+// --- GET /push-toggle — read push enabled status ---
+birthdayRouter.get("/push-toggle", requireContentHubOperator, async (req, res) => {
+  const result = await query<{ push_enabled: boolean }>(
+    "SELECT push_enabled FROM birthday_config LIMIT 1"
+  );
+  res.json({ enabled: result.rows[0]?.push_enabled ?? true });
+});
+
+// --- PUT /push-toggle — update push enabled status ---
+birthdayRouter.put("/push-toggle", requireContentHubOperator, async (req, res) => {
+  const { enabled } = req.body;
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ message: "enabled 必须是布尔值" });
+    return;
+  }
+  await query(
+    "UPDATE birthday_config SET push_enabled = $1, updated_at = NOW() WHERE id = (SELECT id FROM birthday_config LIMIT 1)",
+    [enabled]
+  );
+  logger.info("birthday.push_toggle.updated", { enabled });
+  res.json({ enabled });
+});
+
 // --- PUT /blessing — update blessing template ---
 const blessingSchema = z.object({
   blessingTemplate: z.string().trim().min(1).max(500),

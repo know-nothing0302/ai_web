@@ -689,6 +689,17 @@ export const getFeedbackPublicList = async (params: {
   return result.data;
 };
 
+// --- Birthday push toggle ---
+export const getBirthdayPushToggle = async () => {
+  const result = await request.get<{ enabled: boolean }>("/internal/birthday/push-toggle");
+  return result.data;
+};
+
+export const updateBirthdayPushToggle = async (payload: { enabled: boolean }) => {
+  const result = await request.put<{ enabled: boolean }>("/internal/birthday/push-toggle", payload);
+  return result.data;
+};
+
 export const likeFeedback = async (id: string): Promise<{ likedByMe: boolean; likeCount: number }> => {
   const result = await request.post<{ likedByMe: boolean; likeCount: number }>(`/feedback/public/${id}/like`);
   return result.data;

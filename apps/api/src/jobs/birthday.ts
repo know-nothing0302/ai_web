@@ -90,6 +90,14 @@ export const generateCard = async (xm: string, csrq: string): Promise<string> =>
 };
 
 export const runBirthdayPush = async (): Promise<{ total: number; sent: number; failed: number }> => {
+  const toggleCheck = await query<{ push_enabled: boolean }>(
+    "SELECT push_enabled FROM birthday_config LIMIT 1"
+  );
+  if (toggleCheck.rows[0]?.push_enabled === false) {
+    logger.info("birthday.job.push_disabled", { skip: true });
+    return { total: 0, sent: 0, failed: 0 };
+  }
+
   const users = await getBirthdayUsers();
   logger.info("birthday.job.users_found", { count: users.length });
 
