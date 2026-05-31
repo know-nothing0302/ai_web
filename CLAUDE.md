@@ -125,18 +125,56 @@ npm run build:web   # 前端编译（vue-tsc + vite build）
 docker compose up   # 完整开发环境一键启动
 ```
 
-## CC 子 Agent 通知
+## Pipeline 任务约束（feedback 自动化流水线）
 
-项目专用 CC：`cc-ai-web`。完成后通知 Hermes：
+以下约束在 feedback 流水线派发任务时生效。任务文档由 fb-dispatch.sh 生成，指令通过 tmux send-keys 送达。
 
-```bash
-CC_TASK_ID=<TASK> cc-notify done "<简述>"
-CC_TASK_ID=<TASK> cc-notify blocked "<原因>"
-CC_TASK_ID=<TASK> cc-notify failed "<失败原因>"
-```
+### 硬约束
+- ⛔ 禁止修改任务文档未列出的文件
+- ⛔ 禁止重命名任何已有 API 路由或函数
+- ⛔ 禁止添加任务文档未要求的"优化"或"加固"
+- ✅ 只做任务文档明确列出的修改项
 
-source: cc-ai-web
-通知规范见 `~/.claude/CLAUDE.md § CC 子 Agent 通知`。
+### 完成后必须
+1. **写 inbox 文件（不可跳过）：**
+
+   ```bash
+   mkdir -p /home/ubuntu/hermes-cc-cowork/inbox
+   cat > /home/ubuntu/hermes-cc-cowork/inbox/{任务ID}.done.json << 'EOF'
+   {
+     "task_id": "{任务ID}",
+     "feedback_ids": ["uuid-1", "uuid-2"],
+     "status": "fixed",
+     "summary": "<一句话描述做了什么改动>",
+     "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+   }
+   EOF
+   ```
+
+2. **输出格式化状态块**（让 `capture-pane` 一目了然）：
+
+   ```
+   ╔══════════════════════════════════════════════╗
+   ║  ✅ TASK COMPLETE — {任务ID}                 ║
+   ╠══════════════════════════════════════════════╣
+   ║  修复: N 条 feedback                        ║
+   ║  状态: fixed → inbox 已写入                  ║
+   ║  改动的文件:                                 ║
+   ║    • path/to/file.tsx                        ║
+   ║  耗时: Xmin                                  ║
+   ║  git diff: +N -M (K files)                   ║
+   ╠══════════════════════════════════════════════╣
+   ║  ⏳ 等待新任务中...                           ║
+   ╚══════════════════════════════════════════════╝
+   ```
+
+### 通信方式
+- cron 通过 `tmux send-keys` 派发任务，**不使用 `cc-notify`**
+- **完成信号是 inbox 文件**，不是 cc-notify 命令
+- 任务文档中不会出现 `CC_TASK_ID=... cc-notify done` 指令——忽略它如果出现
+
+source: feedback-pipeline
+通知规范见 `/opt/hermes/docs/superpowers/specs/2026-05-31-feedback-pipeline-design.md`
 
 ## Development Progress
 

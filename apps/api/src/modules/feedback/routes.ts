@@ -479,7 +479,7 @@ feedbackRouter.post(
 const batchStatusSchema = z.object({
   items: z.array(z.object({
     id: z.string().uuid(),
-    status: z.enum(["fixed", "deployed", "wontfix"]),
+    status: z.enum(["in_progress", "testing", "fixed", "deployed", "failed_testing", "wontfix"]),
   })).min(1),
 });
 
