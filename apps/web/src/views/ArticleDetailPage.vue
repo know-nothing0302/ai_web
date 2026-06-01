@@ -74,8 +74,8 @@ const toggleFavorite = async (): Promise<void> => {
       await addFavorite(item.value.id);
       isFavorited.value = true;
     }
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[annotations]', e);
   } finally {
     favoriting.value = false;
   }
@@ -163,8 +163,8 @@ const highlightAnnotation = async (color: string): Promise<void> => {
     annotations.value.push(anno);
     await nextTick();
     applyHighlights();
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[annotations]', e);
   } finally {
     showAnnoToolbar.value = false;
     currentSelection.value = null;
@@ -187,8 +187,8 @@ const addNoteToSelection = async (): Promise<void> => {
     annotations.value.push(anno);
     await nextTick();
     applyHighlights();
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[annotations]', e);
   } finally {
     showAnnoToolbar.value = false;
     currentSelection.value = null;
@@ -204,8 +204,8 @@ const saveNote = async (): Promise<void> => {
     });
     const idx = annotations.value.findIndex((a) => a.id === updated.id);
     if (idx !== -1) annotations.value[idx] = updated;
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[annotations]', e);
   }
   showNoteEditor.value = false;
   editingAnnotation.value = null;
@@ -218,8 +218,8 @@ const removeAnnotation = async (): Promise<void> => {
     annotations.value = annotations.value.filter((a) => a.id !== editingAnnotation.value!.id);
     await nextTick();
     applyHighlights();
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[annotations]', e);
   }
   showNoteEditor.value = false;
   editingAnnotation.value = null;
@@ -231,7 +231,8 @@ const loadAnnotations = async (): Promise<void> => {
     annotations.value = await getAnnotations(item.value.id);
     await nextTick();
     applyHighlights();
-  } catch {
+  } catch (e) {
+    console.error('[annotations] apply highlights failed:', e);
     annotations.value = [];
   }
 };
@@ -295,7 +296,8 @@ const applySingleHighlight = (container: HTMLElement, anno: UserAnnotation): voi
         anno.color === "pink" ? "background-color: #fbcfe8" : "",
       ].filter(Boolean).join("; ");
       range.surroundContents(mark);
-    } catch {
+    } catch (e) {
+      console.error('[annotations] surroundContents failed:', e);
       // Skip if surrounding fails (e.g., partial selection across elements)
     }
   }
@@ -352,8 +354,8 @@ const copyLink = async (): Promise<void> => {
       linkCopyMessage.value = "链接已复制，请在微信中粘贴发送给朋友";
     }
     setTimeout(() => { linkCopied.value = false; linkCopyMessage.value = ""; }, 2500);
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[annotations]', e);
   }
 };
 
