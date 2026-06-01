@@ -20,6 +20,7 @@ import {
   Subscription,
   TagSyncStatus,
   TodayPushedArticle,
+  UserAnnotation,
   UserProfile,
   UserProfileAnalysisJob,
   UserProfileAnalysisJobStatus,
@@ -2399,6 +2400,86 @@ export const analyticsEventStore = {
       totalEvents: Number(result.rows[0]?.total_events ?? 0),
       todayEventCount: Number(result.rows[0]?.today_event_count ?? 0),
     };
+  },
+};
+
+interface UserAnnotationRow {
+  id: string;
+  user_id: string;
+  article_id: string;
+  selected_text: string;
+  note: string | null;
+  color: string;
+  start_offset: number;
+  end_offset: number;
+  created_at: string;
+  updated_at: string;
+}
+
+const mapUserAnnotation = (row: UserAnnotationRow): UserAnnotation => ({
+  id: row.id,
+  userId: row.user_id,
+  articleId: row.article_id,
+  selectedText: row.selected_text,
+  note: row.note ?? undefined,
+  color: row.color,
+  startOffset: row.start_offset,
+  endOffset: row.end_offset,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export const annotationStore = {
+  async listByArticle(userId: string, articleId: string): Promise<UserAnnotation[]> {
+    const result = await query<UserAnnotationRow>(
+      `SELECT * FROM user_annotations WHERE user_id = $1 AND article_id = $2 ORDER BY start_offset ASC`,
+      [userId, articleId]
+    );
+    return result.rows.map(mapUserAnnotation);
+  },
+  async create(input: {
+    userId: string;
+    articleId: string;
+    selectedText: string;
+    note?: string;
+    color?: string;
+    startOffset: number;
+    endOffset: number;
+  }): Promise<UserAnnotation> {
+    const result = await query<UserAnnotationRow>(
+      `INSERT INTO user_annotations (user_id, article_id, selected_text, note, color, start_offset, end_offset)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [input.userId, input.articleId, input.selectedText, input.note ?? null, input.color ?? "yellow", input.startOffset, input.endOffset]
+    );
+    return mapUserAnnotation(result.rows[0]);
+  },
+  async update(id: string, userId: string, input: { note?: string; color?: string }): Promise<UserAnnotation | undefined> {
+    const sets: string[] = [];
+    const values: unknown[] = [id, userId];
+    if (input.note !== undefined) {
+      values.push(input.note);
+      sets.push(`note = $${values.length}`);
+    }
+    if (input.color !== undefined) {
+      values.push(input.color);
+      sets.push(`color = $${values.length}`);
+    }
+    if (sets.length === 0) return undefined;
+    sets.push(`updated_at = NOW()`);
+    const result = await query<UserAnnotationRow>(
+      `UPDATE user_annotations SET ${sets.join(", ")} WHERE id = $1 AND user_id = $2 RETURNING *`,
+      values
+    );
+    if (result.rows.length === 0) return undefined;
+    return mapUserAnnotation(result.rows[0]);
+  },
+  async remove(id: string, userId: string): Promise<boolean> {
+    const result = await query(
+      `DELETE FROM user_annotations WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    return (result.rowCount ?? 0) > 0;
   },
 };
 

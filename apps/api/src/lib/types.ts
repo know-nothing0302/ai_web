@@ -331,3 +331,16 @@ export interface StatsStatus {
   totalEvents: number;
   todayEventCount: number;
 }
+
+export interface UserAnnotation {
+  id: string;
+  userId: string;
+  articleId: string;
+  selectedText: string;
+  note?: string;
+  color: string;
+  startOffset: number;
+  endOffset: number;
+  createdAt: string;
+  updatedAt: string;
+}

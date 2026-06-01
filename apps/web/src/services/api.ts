@@ -709,3 +709,50 @@ export const unlikeFeedback = async (id: string): Promise<{ likedByMe: boolean; 
   const result = await request.delete<{ likedByMe: boolean; likeCount: number }>(`/feedback/public/${id}/like`);
   return result.data;
 };
+
+// --- User annotations (文本标注) ---
+
+export interface UserAnnotation {
+  id: string;
+  userId: string;
+  articleId: string;
+  selectedText: string;
+  note?: string;
+  color: string;
+  startOffset: number;
+  endOffset: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getAnnotations = async (articleId: string): Promise<UserAnnotation[]> => {
+  const result = await request.get<{ items: UserAnnotation[] }>(`/articles/${articleId}/annotations`);
+  return result.data.items;
+};
+
+export const createAnnotation = async (
+  articleId: string,
+  payload: {
+    selectedText: string;
+    note?: string;
+    color?: string;
+    startOffset: number;
+    endOffset: number;
+  }
+): Promise<UserAnnotation> => {
+  const result = await request.post<UserAnnotation>(`/articles/${articleId}/annotations`, payload);
+  return result.data;
+};
+
+export const updateAnnotation = async (
+  articleId: string,
+  annotationId: string,
+  payload: { note?: string; color?: string }
+): Promise<UserAnnotation> => {
+  const result = await request.patch<UserAnnotation>(`/articles/${articleId}/annotations/${annotationId}`, payload);
+  return result.data;
+};
+
+export const deleteAnnotation = async (articleId: string, annotationId: string): Promise<void> => {
+  await request.delete(`/articles/${articleId}/annotations/${annotationId}`);
+};

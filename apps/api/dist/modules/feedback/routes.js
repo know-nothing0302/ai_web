@@ -22,6 +22,11 @@ const listSchema = zod_1.z.object({
     endAt: zod_1.z.string().datetime({ offset: true }).optional(),
     page: zod_1.z.coerce.number().int().min(1).default(1),
     pageSize: zod_1.z.coerce.number().int().min(1).max(100).default(20),
+    includeEval: zod_1.z
+        .union([zod_1.z.literal("true"), zod_1.z.literal("false"), zod_1.z.boolean()])
+        .transform((v) => v === true || v === "true")
+        .optional()
+        .default(false),
 });
 exports.feedbackRouter = (0, express_1.Router)();
 exports.feedbackRouter.get("/external", auth_1.requireAdminOrFeedbackReadToken, async (request, response) => {
@@ -425,7 +430,7 @@ exports.feedbackRouter.post("/internal/evaluations", auth_1.requireAdminOrFeedba
 const batchStatusSchema = zod_1.z.object({
     items: zod_1.z.array(zod_1.z.object({
         id: zod_1.z.string().uuid(),
-        status: zod_1.z.enum(["fixed", "deployed", "wontfix"]),
+        status: zod_1.z.enum(["in_progress", "testing", "fixed", "deployed", "failed_testing", "wontfix"]),
     })).min(1),
 });
 exports.feedbackRouter.patch("/internal/batch-status", auth_1.requireAdminOrFeedbackWriteToken, async (request, response) => {

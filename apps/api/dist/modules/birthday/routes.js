@@ -172,7 +172,7 @@ exports.birthdayRouter.get("/logs", auth_1.requireContentHubOperator, async (req
         }
         const countResult = await (0, db_1.query)(`SELECT COUNT(*)::int AS total FROM birthday_push_log ${whereSql}`, params);
         const total = countResult.rows[0]?.total ?? 0;
-        const itemsResult = await (0, db_1.query)(`SELECT id, user_xh, xm, csrq, card_path, blessing_text, pushed_at, status, pushed_to, error_message
+        const itemsResult = await (0, db_1.query)(`SELECT id, user_xh AS "userXh", xm, TO_CHAR(csrq, 'YYYY-MM-DD') AS csrq, card_path AS "cardPath", blessing_text AS "blessingText", pushed_at AS "pushedAt", status, pushed_to AS "pushedTo", error_message AS "errorMessage"
        FROM birthday_push_log ${whereSql}
        ORDER BY pushed_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, String(pageSize), String(offset)]);
@@ -240,6 +240,22 @@ exports.birthdayRouter.get("/blessing", auth_1.requireContentHubOperator, async 
         logger_1.logger.error("birthday.blessing.get.failed", { error: error.message });
         res.status(500).json({ message: "获取祝福语模板失败", detail: error.message });
     }
+});
+// --- GET /push-toggle — read push enabled status ---
+exports.birthdayRouter.get("/push-toggle", auth_1.requireContentHubOperator, async (req, res) => {
+    const result = await (0, db_1.query)("SELECT push_enabled FROM birthday_config LIMIT 1");
+    res.json({ enabled: result.rows[0]?.push_enabled ?? true });
+});
+// --- PUT /push-toggle — update push enabled status ---
+exports.birthdayRouter.put("/push-toggle", auth_1.requireContentHubOperator, async (req, res) => {
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+        res.status(400).json({ message: "enabled 必须是布尔值" });
+        return;
+    }
+    await (0, db_1.query)("UPDATE birthday_config SET push_enabled = $1, updated_at = NOW() WHERE id = (SELECT id FROM birthday_config LIMIT 1)", [enabled]);
+    logger_1.logger.info("birthday.push_toggle.updated", { enabled });
+    res.json({ enabled });
 });
 // --- PUT /blessing — update blessing template ---
 const blessingSchema = zod_1.z.object({

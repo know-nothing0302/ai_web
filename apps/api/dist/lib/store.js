@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.recordAnalyticsEventSafely = exports.analyticsEventStore = exports.feedbackLikeStore = exports.feedbackStore = exports.pushRecordStore = exports.wecomTagMappingStore = exports.wecomConfigStore = exports.userProfileAnalysisJobStore = exports.userProfileStore = exports.pageAgentMessageStore = exports.pageAgentConversationStore = exports.subscriptionStore = exports.articleStore = exports.articleChannelStore = void 0;
+exports.recordAnalyticsEventSafely = exports.annotationStore = exports.analyticsEventStore = exports.feedbackLikeStore = exports.feedbackStore = exports.pushRecordStore = exports.wecomTagMappingStore = exports.wecomConfigStore = exports.userProfileAnalysisJobStore = exports.userProfileStore = exports.pageAgentMessageStore = exports.pageAgentConversationStore = exports.subscriptionStore = exports.articleStore = exports.articleChannelStore = void 0;
 const db_1 = require("./db");
 const logger_1 = require("./logger");
 const mapArticle = (row) => ({
@@ -1700,6 +1700,53 @@ exports.analyticsEventStore = {
             totalEvents: Number(result.rows[0]?.total_events ?? 0),
             todayEventCount: Number(result.rows[0]?.today_event_count ?? 0),
         };
+    },
+};
+const mapUserAnnotation = (row) => ({
+    id: row.id,
+    userId: row.user_id,
+    articleId: row.article_id,
+    selectedText: row.selected_text,
+    note: row.note ?? undefined,
+    color: row.color,
+    startOffset: row.start_offset,
+    endOffset: row.end_offset,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+});
+exports.annotationStore = {
+    async listByArticle(userId, articleId) {
+        const result = await (0, db_1.query)(`SELECT * FROM user_annotations WHERE user_id = $1 AND article_id = $2 ORDER BY start_offset ASC`, [userId, articleId]);
+        return result.rows.map(mapUserAnnotation);
+    },
+    async create(input) {
+        const result = await (0, db_1.query)(`INSERT INTO user_annotations (user_id, article_id, selected_text, note, color, start_offset, end_offset)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`, [input.userId, input.articleId, input.selectedText, input.note ?? null, input.color ?? "yellow", input.startOffset, input.endOffset]);
+        return mapUserAnnotation(result.rows[0]);
+    },
+    async update(id, userId, input) {
+        const sets = [];
+        const values = [id, userId];
+        if (input.note !== undefined) {
+            values.push(input.note);
+            sets.push(`note = $${values.length}`);
+        }
+        if (input.color !== undefined) {
+            values.push(input.color);
+            sets.push(`color = $${values.length}`);
+        }
+        if (sets.length === 0)
+            return undefined;
+        sets.push(`updated_at = NOW()`);
+        const result = await (0, db_1.query)(`UPDATE user_annotations SET ${sets.join(", ")} WHERE id = $1 AND user_id = $2 RETURNING *`, values);
+        if (result.rows.length === 0)
+            return undefined;
+        return mapUserAnnotation(result.rows[0]);
+    },
+    async remove(id, userId) {
+        const result = await (0, db_1.query)(`DELETE FROM user_annotations WHERE id = $1 AND user_id = $2`, [id, userId]);
+        return (result.rowCount ?? 0) > 0;
     },
 };
 const recordAnalyticsEventSafely = async (input) => {

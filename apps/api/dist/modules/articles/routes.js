@@ -580,3 +580,75 @@ exports.articleRouter.delete("/:id", auth_1.requireContentHubOperator, async (re
     }
     response.status(204).send();
 });
+// --- 用户标注（高亮 + 笔记）---
+const createAnnotationSchema = zod_1.z.object({
+    selectedText: zod_1.z.string().min(1).max(5000),
+    note: zod_1.z.string().max(2000).optional(),
+    color: zod_1.z.enum(["yellow", "green", "blue", "pink"]).default("yellow"),
+    startOffset: zod_1.z.number().int().min(0),
+    endOffset: zod_1.z.number().int().min(0),
+});
+const updateAnnotationSchema = zod_1.z.object({
+    note: zod_1.z.string().max(2000).optional(),
+    color: zod_1.z.enum(["yellow", "green", "blue", "pink"]).optional(),
+});
+exports.articleRouter.get("/:id/annotations", auth_1.requireAuth, async (request, response) => {
+    const articleId = request.params.id.toString();
+    const userId = request.session.user?.id;
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    const items = await store_1.annotationStore.listByArticle(userId, articleId);
+    response.json({ items });
+});
+exports.articleRouter.post("/:id/annotations", auth_1.requireAuth, async (request, response) => {
+    const articleId = request.params.id.toString();
+    const userId = request.session.user?.id;
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    const parsed = createAnnotationSchema.safeParse(request.body);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    const item = await store_1.annotationStore.create({
+        userId,
+        articleId,
+        ...parsed.data,
+    });
+    response.status(201).json(item);
+});
+exports.articleRouter.patch("/:id/annotations/:annotationId", auth_1.requireAuth, async (request, response) => {
+    const userId = request.session.user?.id;
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    const parsed = updateAnnotationSchema.safeParse(request.body);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    const item = await store_1.annotationStore.update(request.params.annotationId.toString(), userId, parsed.data);
+    if (!item) {
+        response.status(404).json({ message: "标注不存在" });
+        return;
+    }
+    response.json(item);
+});
+exports.articleRouter.delete("/:id/annotations/:annotationId", auth_1.requireAuth, async (request, response) => {
+    const userId = request.session.user?.id;
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    const removed = await store_1.annotationStore.remove(request.params.annotationId.toString(), userId);
+    if (!removed) {
+        response.status(404).json({ message: "标注不存在" });
+        return;
+    }
+    response.status(204).send();
+});

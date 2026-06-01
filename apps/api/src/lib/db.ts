@@ -390,6 +390,20 @@ SELECT '亲爱的{name}，祝您生日快乐！愿您在新的一岁里，身体
 WHERE NOT EXISTS (SELECT 1 FROM birthday_config);
 
 ALTER TABLE birthday_config ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN NOT NULL DEFAULT true;
+
+CREATE TABLE IF NOT EXISTS user_annotations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR(64) NOT NULL,
+  article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  selected_text TEXT NOT NULL,
+  note TEXT,
+  color VARCHAR(20) NOT NULL DEFAULT 'yellow',
+  start_offset INT NOT NULL,
+  end_offset INT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_annotations_user_article ON user_annotations(user_id, article_id);
 `;
 
 const seedSql = `

@@ -67,6 +67,11 @@ const generateCard = async (xm, csrq) => {
 };
 exports.generateCard = generateCard;
 const runBirthdayPush = async () => {
+    const toggleCheck = await (0, db_1.query)("SELECT push_enabled FROM birthday_config LIMIT 1");
+    if (toggleCheck.rows[0]?.push_enabled === false) {
+        logger_1.logger.info("birthday.job.push_disabled", { skip: true });
+        return { total: 0, sent: 0, failed: 0 };
+    }
     const users = await getBirthdayUsers();
     logger_1.logger.info("birthday.job.users_found", { count: users.length });
     if (users.length === 0) {

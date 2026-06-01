@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watchEffect } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watchEffect, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Copy, Check } from "lucide-vue-next";
+import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Copy, Check, Highlighter, Trash2, X } from "lucide-vue-next";
 
 import { buildArticleDetailContext, setPageAgentContext } from "../page_agent/context";
 import {
@@ -11,7 +11,12 @@ import {
   addFavorite,
   removeFavorite,
   reportReadingHistory,
+  getAnnotations,
+  createAnnotation,
+  updateAnnotation,
+  deleteAnnotation,
   type Article,
+  type UserAnnotation,
 } from "../services/api";
 import { renderMarkdown } from "../shared/markdown";
 import BackToTop from "../components/BackToTop.vue";
@@ -51,6 +56,8 @@ const load = async (): Promise<void> => {
     checkFavorite(articleId).then((result) => {
       isFavorited.value = result.isFavorited;
     }).catch(() => undefined);
+    // 加载标注
+    loadAnnotations();
   } finally {
     loading.value = false;
   }
@@ -73,6 +80,253 @@ const toggleFavorite = async (): Promise<void> => {
     favoriting.value = false;
   }
 };
+
+// --- 文本标注（高亮 + 笔记）---
+
+const annotations = ref<UserAnnotation[]>([]);
+const showAnnoToolbar = ref(false);
+const annoToolbarStyle = ref<Record<string, string>>({});
+const currentSelection = ref<{ text: string; startOffset: number; endOffset: number } | null>(null);
+const editingAnnotation = ref<UserAnnotation | null>(null);
+const editingNote = ref("");
+const showNoteEditor = ref(false);
+const noteEditorStyle = ref<Record<string, string>>({});
+
+const HIGHLIGHT_COLORS = [
+  { key: "yellow", label: "黄色", bg: "bg-yellow-200", border: "border-yellow-400", text: "text-yellow-800" },
+  { key: "green", label: "绿色", bg: "bg-green-200", border: "border-green-400", text: "text-green-800" },
+  { key: "blue", label: "蓝色", bg: "bg-blue-200", border: "border-blue-400", text: "text-blue-800" },
+  { key: "pink", label: "粉色", bg: "bg-pink-200", border: "border-pink-400", text: "text-pink-800" },
+] as const;
+
+const getAnnoContainer = (): HTMLElement | null => {
+  return document.querySelector(".article-content-area") as HTMLElement | null;
+};
+
+const getSelectionOffsets = (container: HTMLElement): { text: string; startOffset: number; endOffset: number } | null => {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+  const range = sel.getRangeAt(0);
+  if (!container.contains(range.commonAncestorContainer)) return null;
+  const text = range.toString().trim();
+  if (!text) return null;
+  const preRange = document.createRange();
+  preRange.selectNodeContents(container);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  const startOffset = preRange.toString().length;
+  const endOffset = startOffset + text.length;
+  return { text, startOffset, endOffset };
+};
+
+const handleTextSelection = (event: MouseEvent): void => {
+  const container = getAnnoContainer();
+  if (!container) return;
+  const sel = getSelectionOffsets(container);
+  if (!sel) {
+    // Delay hiding to allow clicks on toolbar
+    setTimeout(() => {
+      if (!currentSelection.value) {
+        showAnnoToolbar.value = false;
+      }
+    }, 200);
+    return;
+  }
+  currentSelection.value = sel;
+  showAnnoToolbar.value = true;
+  annoToolbarStyle.value = {
+    left: `${event.clientX + window.scrollX}px`,
+    top: `${event.clientY + window.scrollY - 44}px`,
+  };
+};
+
+const handleAnnotationClick = (event: MouseEvent, annotation: UserAnnotation): void => {
+  event.stopPropagation();
+  editingAnnotation.value = annotation;
+  editingNote.value = annotation.note || "";
+  const rect = (event.target as HTMLElement).getBoundingClientRect();
+  noteEditorStyle.value = {
+    left: `${rect.left + window.scrollX}px`,
+    top: `${rect.bottom + window.scrollY + 4}px`,
+  };
+  showNoteEditor.value = true;
+};
+
+const highlightAnnotation = async (color: string): Promise<void> => {
+  if (!item.value || !currentSelection.value) return;
+  try {
+    const anno = await createAnnotation(item.value.id, {
+      selectedText: currentSelection.value.text,
+      startOffset: currentSelection.value.startOffset,
+      endOffset: currentSelection.value.endOffset,
+      color,
+    });
+    annotations.value.push(anno);
+    await nextTick();
+    applyHighlights();
+  } catch {
+    // silent
+  } finally {
+    showAnnoToolbar.value = false;
+    currentSelection.value = null;
+    window.getSelection()?.removeAllRanges();
+  }
+};
+
+const addNoteToSelection = async (): Promise<void> => {
+  if (!item.value || !currentSelection.value) return;
+  const note = prompt("请输入笔记内容：");
+  if (note === null) return;
+  try {
+    const anno = await createAnnotation(item.value.id, {
+      selectedText: currentSelection.value.text,
+      startOffset: currentSelection.value.startOffset,
+      endOffset: currentSelection.value.endOffset,
+      color: "yellow",
+      note: note || undefined,
+    });
+    annotations.value.push(anno);
+    await nextTick();
+    applyHighlights();
+  } catch {
+    // silent
+  } finally {
+    showAnnoToolbar.value = false;
+    currentSelection.value = null;
+    window.getSelection()?.removeAllRanges();
+  }
+};
+
+const saveNote = async (): Promise<void> => {
+  if (!item.value || !editingAnnotation.value) return;
+  try {
+    const updated = await updateAnnotation(item.value.id, editingAnnotation.value.id, {
+      note: editingNote.value || undefined,
+    });
+    const idx = annotations.value.findIndex((a) => a.id === updated.id);
+    if (idx !== -1) annotations.value[idx] = updated;
+  } catch {
+    // silent
+  }
+  showNoteEditor.value = false;
+  editingAnnotation.value = null;
+};
+
+const removeAnnotation = async (): Promise<void> => {
+  if (!item.value || !editingAnnotation.value) return;
+  try {
+    await deleteAnnotation(item.value.id, editingAnnotation.value.id);
+    annotations.value = annotations.value.filter((a) => a.id !== editingAnnotation.value!.id);
+    await nextTick();
+    applyHighlights();
+  } catch {
+    // silent
+  }
+  showNoteEditor.value = false;
+  editingAnnotation.value = null;
+};
+
+const loadAnnotations = async (): Promise<void> => {
+  if (!item.value) return;
+  try {
+    annotations.value = await getAnnotations(item.value.id);
+    await nextTick();
+    applyHighlights();
+  } catch {
+    annotations.value = [];
+  }
+};
+
+const applyHighlights = (): void => {
+  const container = getAnnoContainer();
+  if (!container || annotations.value.length === 0) return;
+  // Remove existing highlights first
+  container.querySelectorAll(".anno-highlight").forEach((el) => {
+    const parent = el.parentNode;
+    if (!parent) return;
+    while (el.firstChild) {
+      parent.insertBefore(el.firstChild, el);
+    }
+    parent.removeChild(el);
+  });
+  // Sort annotations by startOffset for sequential processing
+  const sorted = [...annotations.value].sort((a, b) => a.startOffset - b.startOffset);
+  for (const anno of sorted) {
+    applySingleHighlight(container, anno);
+  }
+};
+
+const applySingleHighlight = (container: HTMLElement, anno: UserAnnotation): void => {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const wrapperRanges: Array<{ node: Text; start: number; end: number }> = [];
+  let offset = 0;
+  let node = walker.nextNode() as Text | null;
+  while (node) {
+    const len = node.textContent?.length ?? 0;
+    const nodeStart = offset;
+    const nodeEnd = offset + len;
+    if (nodeEnd > anno.startOffset && nodeStart < anno.endOffset) {
+      const s = Math.max(0, anno.startOffset - nodeStart);
+      const e = Math.min(len, anno.endOffset - nodeStart);
+      if (s < e) {
+        wrapperRanges.push({ node, start: s, end: e });
+      }
+    }
+    if (nodeStart >= anno.endOffset) break;
+    offset = nodeEnd;
+    node = walker.nextNode() as Text | null;
+  }
+  // Wrap from last to first to preserve offsets
+  for (let i = wrapperRanges.length - 1; i >= 0; i--) {
+    const { node, start, end } = wrapperRanges[i];
+    try {
+      const range = document.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, end);
+      const mark = document.createElement("mark");
+      mark.className = `anno-highlight anno-${anno.color}`;
+      mark.dataset.annotationId = anno.id;
+      mark.title = anno.note ? `笔记: ${anno.note}` : "高亮标注";
+      mark.style.cssText = [
+        "cursor: pointer",
+        "border-radius: 2px",
+        anno.color === "yellow" ? "background-color: #fef08a" : "",
+        anno.color === "green" ? "background-color: #bbf7d0" : "",
+        anno.color === "blue" ? "background-color: #bfdbfe" : "",
+        anno.color === "pink" ? "background-color: #fbcfe8" : "",
+      ].filter(Boolean).join("; ");
+      range.surroundContents(mark);
+    } catch {
+      // Skip if surrounding fails (e.g., partial selection across elements)
+    }
+  }
+};
+
+const handleDocumentClick = (e: MouseEvent): void => {
+  const target = e.target as HTMLElement;
+
+  // Check if clicking on an annotation highlight
+  if (target.classList.contains("anno-highlight")) {
+    const id = target.dataset.annotationId;
+    const anno = annotations.value.find((a) => a.id === id);
+    if (anno) handleAnnotationClick(e, anno);
+    return;
+  }
+
+  // Close note editor if clicking outside
+  if (showNoteEditor.value) {
+    const editor = document.querySelector(".anno-note-editor");
+    if (editor && !editor.contains(target)) {
+      showNoteEditor.value = false;
+      editingAnnotation.value = null;
+    }
+  }
+};
+
+// Watch for content changes to re-apply highlights
+watch([parsedContent, () => annotations.value.length], async () => {
+  await nextTick();
+  applyHighlights();
+});
 
 const formatDate = (isoString?: string) => {
   if (!isoString) return "未提供";
@@ -107,6 +361,8 @@ onMounted(() => {
   console.log("[AIWEB] ArticleDetailPage onMounted", { articleId: route.params.id?.toString() ?? "" });
   load();
   window.addEventListener("popstate", handleBrowserBack);
+  document.addEventListener("mouseup", handleTextSelection as EventListener);
+  document.addEventListener("click", handleDocumentClick);
 });
 
 watchEffect(() => {
@@ -128,6 +384,8 @@ const handleBrowserBack = (): void => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("popstate", handleBrowserBack);
+  document.removeEventListener("mouseup", handleTextSelection as EventListener);
+  document.removeEventListener("click", handleDocumentClick);
   setPageAgentContext(null);
 });
 </script>
@@ -228,7 +486,7 @@ onBeforeUnmount(() => {
 
       <!-- Markdown Content rendering with tailwind typography styles manually applied for better fonts -->
       <div 
-        class="prose prose-slate prose-lg max-w-none text-[#355878] leading-loose font-serif
+        class="article-content-area prose prose-slate prose-lg max-w-none text-[#355878] leading-loose font-serif
                prose-headings:text-[#0f4069] prose-headings:font-bold prose-headings:tracking-tight
                prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:border-b prose-h2:border-[#b3e5fc]/30 prose-h2:pb-2
                prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-4
@@ -262,4 +520,84 @@ onBeforeUnmount(() => {
   >
     {{ linkCopyMessage }}
   </div>
+
+  <!-- 标注工具栏 -->
+  <Teleport to="body">
+    <div
+      v-if="showAnnoToolbar"
+      class="fixed z-[90] flex items-center gap-1 bg-white border border-gray-200 rounded-xl shadow-lg px-2 py-1.5"
+      :style="annoToolbarStyle"
+    >
+      <span class="text-xs text-gray-400 mr-1 flex items-center gap-1">
+        <Highlighter class="w-3.5 h-3.5" /> 标注
+      </span>
+      <button
+        v-for="c in HIGHLIGHT_COLORS"
+        :key="c.key"
+        :class="[c.bg, c.border, 'w-5 h-5 rounded border-2 hover:scale-110 transition-transform']"
+        :title="c.label"
+        @mousedown.prevent="highlightAnnotation(c.key)"
+      />
+      <button
+        class="flex items-center gap-1 text-xs text-[#0288d1] hover:text-[#01579b] border border-[#81d4fa] rounded-lg px-2 py-0.5 hover:bg-[#e1f5fe] transition-colors"
+        title="添加笔记"
+        @mousedown.prevent="addNoteToSelection"
+      >
+        笔记
+      </button>
+      <button
+        class="text-gray-400 hover:text-gray-600 ml-0.5"
+        @mousedown.prevent="showAnnoToolbar = false"
+      >
+        <X class="w-3.5 h-3.5" />
+      </button>
+    </div>
+  </Teleport>
+
+  <!-- 笔记编辑器 -->
+  <Teleport to="body">
+    <div
+      v-if="showNoteEditor && editingAnnotation"
+      class="anno-note-editor fixed z-[91] bg-white border border-gray-300 rounded-xl shadow-xl p-4 w-80"
+      :style="noteEditorStyle"
+      @click.stop
+    >
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-[#0f4069]">笔记</span>
+        <div class="flex items-center gap-1">
+          <button
+            class="text-red-400 hover:text-red-600 p-1 rounded transition-colors"
+            title="删除标注"
+            @click="removeAnnotation"
+          >
+            <Trash2 class="w-4 h-4" />
+          </button>
+          <button
+            class="text-gray-400 hover:text-gray-600 p-1 rounded transition-colors"
+            @click="showNoteEditor = false; editingAnnotation = null"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <p class="text-xs text-[#4f6b8a] bg-gray-50 rounded-lg p-2 mb-2 italic line-clamp-3">
+        "{{ editingAnnotation.selectedText }}"
+      </p>
+      <textarea
+        v-model="editingNote"
+        class="w-full border border-gray-200 rounded-lg p-2 text-sm resize-none focus:outline-none focus:border-[#0288d1] focus:ring-1 focus:ring-[#0288d1]/30"
+        rows="3"
+        placeholder="添加你的想法..."
+        @keydown.escape="showNoteEditor = false; editingAnnotation = null"
+      ></textarea>
+      <div class="flex justify-end mt-2">
+        <button
+          class="text-xs bg-[#0288d1] text-white px-4 py-1.5 rounded-lg hover:bg-[#01579b] transition-colors"
+          @click="saveNote"
+        >
+          保存
+        </button>
+      </div>
+    </div>
+  </Teleport>
 </template>

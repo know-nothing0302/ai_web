@@ -5,6 +5,7 @@ import { logger } from "../../lib/logger";
 import { type Article } from "../../lib/types";
 import { requireAuth, requireContentHubOperator } from "../../middleware/auth";
 import {
+  annotationStore,
   articleChannelStore,
   articleStore,
   pushRecordStore,
@@ -626,6 +627,85 @@ articleRouter.delete("/:id", requireContentHubOperator, async (request, response
   const removed = await articleStore.remove(id);
   if (!removed) {
     response.status(404).json({ message: "文章不存在" });
+    return;
+  }
+  response.status(204).send();
+});
+
+// --- 用户标注（高亮 + 笔记）---
+
+const createAnnotationSchema = z.object({
+  selectedText: z.string().min(1).max(5000),
+  note: z.string().max(2000).optional(),
+  color: z.enum(["yellow", "green", "blue", "pink"]).default("yellow"),
+  startOffset: z.number().int().min(0),
+  endOffset: z.number().int().min(0),
+});
+
+const updateAnnotationSchema = z.object({
+  note: z.string().max(2000).optional(),
+  color: z.enum(["yellow", "green", "blue", "pink"]).optional(),
+});
+
+articleRouter.get("/:id/annotations", requireAuth, async (request, response) => {
+  const articleId = request.params.id.toString();
+  const userId = request.session.user?.id;
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+  const items = await annotationStore.listByArticle(userId, articleId);
+  response.json({ items });
+});
+
+articleRouter.post("/:id/annotations", requireAuth, async (request, response) => {
+  const articleId = request.params.id.toString();
+  const userId = request.session.user?.id;
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+  const parsed = createAnnotationSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+  const item = await annotationStore.create({
+    userId,
+    articleId,
+    ...parsed.data,
+  });
+  response.status(201).json(item);
+});
+
+articleRouter.patch("/:id/annotations/:annotationId", requireAuth, async (request, response) => {
+  const userId = request.session.user?.id;
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+  const parsed = updateAnnotationSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+  const item = await annotationStore.update(request.params.annotationId.toString(), userId, parsed.data);
+  if (!item) {
+    response.status(404).json({ message: "标注不存在" });
+    return;
+  }
+  response.json(item);
+});
+
+articleRouter.delete("/:id/annotations/:annotationId", requireAuth, async (request, response) => {
+  const userId = request.session.user?.id;
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+  const removed = await annotationStore.remove(request.params.annotationId.toString(), userId);
+  if (!removed) {
+    response.status(404).json({ message: "标注不存在" });
     return;
   }
   response.status(204).send();
