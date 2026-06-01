@@ -596,11 +596,11 @@ const { dialogPos, dragging, startDrag } = useDraggable();
             <thead>
               <tr class="border-b border-[#e1f5fe] text-left text-[#4f6b8a]">
                 <th class="px-2 py-2 whitespace-nowrap w-[140px]">提交时间</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[80px]">类型</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[80px]">状态</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[120px]">页面</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[90px]">类型</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[100px]">状态</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[130px]">页面</th>
                 <th class="px-2 py-2">内容摘要</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[80px] text-right">操作</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[90px] text-right">操作</th>
               </tr>
             </thead>
             <tbody>

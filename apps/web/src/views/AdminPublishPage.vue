@@ -520,7 +520,7 @@ onBeforeUnmount(() => {
       <div class="flex flex-col md:flex-row gap-6">
         <div class="flex-1 space-y-5">
           <div class="space-y-2">
-            <label class="text-sm font-medium text-[#4f6b8a]">文章来源 URL</label>
+            <label class="text-sm font-medium text-[#4f6b8a]" title="URL：统一资源定位符（网页链接地址）">文章来源 URL</label>
             <div
               v-if="isEditing"
               class="flex items-center justify-between gap-3 rounded-2xl border border-[#81d4fa] bg-[#e1f5fe]/70 px-4 py-3 text-sm text-[#0f4069]"
@@ -576,7 +576,7 @@ onBeforeUnmount(() => {
               <div>
                 <p class="text-sm font-medium text-[#0f4069]">{{ contentPreviewTitle }}</p>
                 <p class="text-xs text-[#6e89a3]">
-                  这里显示当前正文的实际 Markdown 效果，便于检查标题层级和重点强化。
+                  这里显示当前正文的实际 <span title="Markdown：轻量级标记语言，用纯文本符号（如 ##、**）标记标题、加粗等格式">Markdown</span> 效果，便于检查标题层级和重点强化。
                 </p>
               </div>
             </div>

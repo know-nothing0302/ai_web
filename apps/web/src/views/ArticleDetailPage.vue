@@ -411,31 +411,33 @@ onBeforeUnmount(() => {
           <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
         </div>
         
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
-          <h1 class="text-xl sm:text-2xl font-bold text-[#0f4069] leading-tight tracking-tight font-serif text-center sm:text-left">
+        <div class="flex flex-col items-center justify-center gap-2 mb-5">
+          <h1 class="text-xl sm:text-2xl font-bold text-[#0f4069] leading-tight tracking-tight font-serif text-center px-2">
             {{ item.title }}
           </h1>
-          <button
-            type="button"
-            class="shrink-0 rounded-xl p-2 transition-all duration-300"
-            :class="isFavorited ? 'text-[#f59e0b] hover:text-[#d97706] bg-[#fef3c7]/60 hover:bg-[#fef3c7]' : 'text-[#b3e5fc] hover:text-[#f59e0b] hover:bg-[#fef3c7]/40'"
-            :title="isFavorited ? '取消收藏' : '收藏'"
-            :disabled="favoriting"
-            @click="toggleFavorite"
-          >
-            <svg v-if="isFavorited" class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            <svg v-else class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2zm0 2.46L9.91 9.23 5.13 10.08l4.07 3.97-.96 5.6L12 17.29l3.76 1.98-.96-5.6 4.07-3.97-4.78-.85L12 4.46z"/></svg>
-          </button>
-          <button
-            type="button"
-            class="shrink-0 rounded-xl p-2 transition-all duration-300"
-            :class="linkCopied ? 'text-green-600 bg-green-50' : 'text-[#b3e5fc] hover:text-[#0288d1] hover:bg-[#e1f5fe]/60'"
-            :title="linkCopied ? '已复制' : '复制链接'"
-            @click="copyLink"
-          >
-            <Copy v-if="!linkCopied" class="w-5 h-5" />
-            <Check v-else class="w-5 h-5" />
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              class="shrink-0 rounded-xl p-1.5 transition-all duration-300"
+              :class="isFavorited ? 'text-[#f59e0b] hover:text-[#d97706] bg-[#fef3c7]/60 hover:bg-[#fef3c7]' : 'text-[#b3e5fc] hover:text-[#f59e0b] hover:bg-[#fef3c7]/40'"
+              :title="isFavorited ? '取消收藏' : '收藏'"
+              :disabled="favoriting"
+              @click="toggleFavorite"
+            >
+              <svg v-if="isFavorited" class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg v-else class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2zm0 2.46L9.91 9.23 5.13 10.08l4.07 3.97-.96 5.6L12 17.29l3.76 1.98-.96-5.6 4.07-3.97-4.78-.85L12 4.46z"/></svg>
+            </button>
+            <button
+              type="button"
+              class="shrink-0 rounded-xl p-1.5 transition-all duration-300"
+              :class="linkCopied ? 'text-green-600 bg-green-50' : 'text-[#b3e5fc] hover:text-[#0288d1] hover:bg-[#e1f5fe]/60'"
+              :title="linkCopied ? '已复制' : '复制链接'"
+              @click="copyLink"
+            >
+              <Copy v-if="!linkCopied" class="w-4 h-4" />
+              <Check v-else class="w-4 h-4" />
+            </button>
+          </div>
         </div>
         
         <div v-if="item.tags && item.tags.length" class="flex flex-wrap items-center justify-center gap-2 mb-6">

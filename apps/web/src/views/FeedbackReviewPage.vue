@@ -417,7 +417,7 @@ onMounted(async () => {
             >
               <div class="flex items-center gap-1.5 mb-1">
                 <AlertTriangle class="w-3 h-3 text-[#f9a825]" />
-                <span class="text-xs font-medium text-[#795548]">LLM 建议</span>
+                <span class="text-xs font-medium text-[#795548]" title="LLM：Large Language Model（大语言模型），AI 自动评估生成的建议">LLM 建议</span>
               </div>
               <p class="text-xs text-[#5d4037] leading-relaxed">{{ item.evaluation.suggestion }}</p>
             </div>
