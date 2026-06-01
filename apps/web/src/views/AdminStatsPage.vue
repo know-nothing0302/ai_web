@@ -453,10 +453,10 @@ const { dialogPos, dragging, startDrag } = useDraggable();
               <table class="min-w-full text-sm text-[#355878]">
                 <thead>
                   <tr class="border-b border-[#e1f5fe] text-left text-[#4f6b8a]">
-                    <th class="px-2 py-2">日期</th>
-                    <th class="px-2 py-2">PV</th>
-                    <th class="px-2 py-2">UV</th>
-                    <th class="px-2 py-2">文章浏览量</th>
+                    <th class="px-2 py-2" aria-label="日期">日期</th>
+                    <th class="px-2 py-2" aria-label="页面浏览量">PV</th>
+                    <th class="px-2 py-2" aria-label="独立访客数">UV</th>
+                    <th class="px-2 py-2" aria-label="文章浏览量">文章浏览量</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -595,12 +595,12 @@ const { dialogPos, dragging, startDrag } = useDraggable();
           <table class="min-w-full text-sm text-[#355878]">
             <thead>
               <tr class="border-b border-[#e1f5fe] text-left text-[#4f6b8a]">
-                <th class="px-2 py-2 whitespace-nowrap w-[140px]">提交时间</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[90px]">类型</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[100px]">状态</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[130px]">页面</th>
-                <th class="px-2 py-2">内容摘要</th>
-                <th class="px-2 py-2 whitespace-nowrap w-[90px] text-right">操作</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[140px]" aria-label="提交时间">提交时间</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[90px]" aria-label="反馈类型">类型</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[100px]" aria-label="处理状态">状态</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[130px]" aria-label="来源页面">页面</th>
+                <th class="px-2 py-2" aria-label="内容摘要">内容摘要</th>
+                <th class="px-2 py-2 whitespace-nowrap w-[90px] text-right" aria-label="操作按钮">操作</th>
               </tr>
             </thead>
             <tbody>
