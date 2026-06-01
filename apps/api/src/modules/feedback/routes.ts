@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+
 import { Router } from "express";
 import { z } from "zod";
 
@@ -298,26 +298,8 @@ feedbackRouter.patch("/admin/:id", requireFeedbackReader, async (req, res) => {
         const ev = evalResult.rows[0];
 
         if (ev.suggested_action === "auto_fix") {
-          // auto_fix → transition to in_progress and dispatch to cc-ai-web
-          const updated = await feedbackStore.update(feedbackId, { status: "in_progress", adminNote });
-          if (!updated) {
-            res.status(404).json({ message: "反馈记录不存在" });
-            return;
-          }
-
-          const safeSuggestion = (ev.suggestion || "见评估详情").replace(/'/g, "'\\''");
-          const dispatchMsg = `任务ID: auto-fix-${feedbackId.slice(0, 8)} 请修复反馈 #${feedbackId.slice(0, 8)}: ${safeSuggestion}`;
-          exec(`/opt/hermes/scripts/cc-send.sh cc-ai-web '${dispatchMsg}'`, (err) => {
-            if (err) {
-              logger.error("feedback.dispatch.failed", { feedbackId, session: "cc-ai-web", error: err.message, stage: "dispatch" });
-            } else {
-              logger.info("feedback.dispatch.sent", { feedbackId, session: "cc-ai-web", stage: "dispatch" });
-            }
-          });
-
-          logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve" });
-          res.json(updated);
-          return;
+          // auto_fix → keep "approved", bash pipeline (fb-dispatch.sh) handles grouping + scoring + dispatch to fb-ai-web
+          logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve", note: "delegated to bash pipeline" });
         }
 
         // batch_review / human_gate → keep "approved" (frontend groups them correctly)
