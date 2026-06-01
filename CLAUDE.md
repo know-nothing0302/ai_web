@@ -144,7 +144,7 @@ docker compose up   # 完整开发环境一键启动
    {
      "task_id": "{任务ID}",
      "feedback_ids": ["uuid-1", "uuid-2"],
-     "status": "fixed",
+     "status": "testing",
      "summary": "<一句话描述做了什么改动>",
      "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
    }
@@ -158,7 +158,7 @@ docker compose up   # 完整开发环境一键启动
    ║  ✅ TASK COMPLETE — {任务ID}                 ║
    ╠══════════════════════════════════════════════╣
    ║  修复: N 条 feedback                        ║
-   ║  状态: fixed → inbox 已写入                  ║
+   ║  状态: testing → inbox 已写入                ║
    ║  改动的文件:                                 ║
    ║    • path/to/file.tsx                        ║
    ║  耗时: Xmin                                  ║
