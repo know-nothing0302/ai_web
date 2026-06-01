@@ -28,6 +28,11 @@ const listSchema = z.object({
   endAt: z.string().datetime({ offset: true }).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  includeEval: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => v === true || v === "true")
+    .optional()
+    .default(false),
 });
 
 export const feedbackRouter = Router();
