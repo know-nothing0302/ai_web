@@ -136,7 +136,11 @@ docker compose up   # 完整开发环境一键启动
 - ✅ 只做任务文档明确列出的修改项
 
 ### 完成后必须
-1. **写 inbox 文件（不可跳过）：**
+1. **提交并推送代码（不可跳过）：**
+   ```bash
+   cd /opt/idapps/ai_web && git add -A && git commit -m "fix: <简述修复内容>" && git push origin HEAD
+   ```
+2. **写 inbox 文件（不可跳过）：**
 
    ```bash
    mkdir -p /home/ubuntu/hermes-cc-cowork/inbox
