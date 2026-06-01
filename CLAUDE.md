@@ -135,12 +135,15 @@ docker compose up   # 完整开发环境一键启动
 - ⛔ 禁止添加任务文档未要求的"优化"或"加固"
 - ✅ 只做任务文档明确列出的修改项
 
-### 完成后必须
-1. **提交并推送代码（不可跳过）：**
-   ```bash
-   cd /opt/idapps/ai_web && git add -A && git commit -m "fix: <简述修复内容>" && git push origin HEAD
-   ```
-2. **写 inbox 文件（不可跳过）：**
+### 验收标准（全部必须通过，否则不写 inbox）
+
+- [ ] **TypeScript 编译**: `npx tsc --noEmit -p apps/api/tsconfig.json` 通过
+- [ ] **构建**: `npm run build:api 2>&1 | tail -10`，确认无 error
+- [ ] **提交推送**: `git add -A && git commit -m "fix: <简述>" && git push origin HEAD`
+- [ ] **无误触**: 改动只涉及任务文档列出的文件，无越界修改
+
+### 完成后
+写 inbox 文件:
 
    ```bash
    mkdir -p /home/ubuntu/hermes-cc-cowork/inbox
@@ -155,7 +158,7 @@ docker compose up   # 完整开发环境一键启动
    EOF
    ```
 
-2. **输出格式化状态块**（让 `capture-pane` 一目了然）：
+输出格式化状态块（让 `capture-pane` 一目了然）：
 
    ```
    ╔══════════════════════════════════════════════╗
