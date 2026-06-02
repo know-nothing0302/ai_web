@@ -1,6 +1,7 @@
 import { Response, Router } from "express";
 import { z } from "zod";
 import { env } from "../../config/env";
+import { query } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { type Article } from "../../lib/types";
 import { requireAuth, requireContentHubOperator } from "../../middleware/auth";
@@ -219,6 +220,56 @@ articleRouter.get("/", requireAuth, async (request, response) => {
     status: status === "draft" || status === "published" ? status : undefined,
   });
   response.json({ items: list });
+});
+
+// 排行榜：按收藏数降序
+interface RankingRow {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  channel_code: string;
+  published_at: string | null;
+  favorite_count: number;
+}
+interface RankingCountRow { total: string; }
+
+const rankingSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+articleRouter.get("/ranking", requireAuth, async (request, response) => {
+  const parsed = rankingSchema.safeParse(request.query);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+  const { page, pageSize } = parsed.data;
+  const offset = (page - 1) * pageSize;
+
+  const countResult = await query<RankingCountRow>(
+    `SELECT COUNT(*)::text AS total FROM articles WHERE status = 'published'`
+  );
+  const total = parseInt(countResult.rows[0]?.total ?? "0", 10);
+
+  const itemsResult = await query<RankingRow>(
+    `SELECT a.id, a.title, a.summary, a.category, a.channel_code, a.published_at,
+            COALESCE(fc.cnt, 0)::int AS favorite_count
+     FROM articles a
+     LEFT JOIN (
+       SELECT article_id, COUNT(*)::int AS cnt FROM user_favorites GROUP BY article_id
+     ) fc ON a.id = fc.article_id
+     WHERE a.status = 'published'
+     ORDER BY favorite_count DESC, a.published_at DESC
+     LIMIT $1 OFFSET $2`,
+    [pageSize, offset]
+  );
+
+  response.json({
+    items: itemsResult.rows,
+    pagination: { page, pageSize, total },
+  });
 });
 
 articleRouter.get("/push-digests/today", requireAuth, async (request, response) => {

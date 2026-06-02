@@ -2,8 +2,9 @@
 import { computed, onActivated, onDeactivated, onErrorCaptured, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "./stores/auth";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun } from "lucide-vue-next";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun, Trophy } from "lucide-vue-next";
 
+import BackToTop from "./components/BackToTop.vue";
 import FeedbackPanel from "./components/FeedbackPanel.vue";
 import NeuralBackground from "./components/NeuralBackground.vue";
 import PageAgentLauncher from "./components/PageAgentLauncher.vue";
@@ -325,7 +326,10 @@ const navItems = computed(() => {
     );
   }
 
-  items.push({ path: "/feedback-public", name: "反馈墙", icon: MessageSquare });
+  items.push(
+    { path: "/ranking", name: "排行榜", icon: Trophy },
+    { path: "/feedback-public", name: "反馈墙", icon: MessageSquare }
+  );
 
   return items;
 });
@@ -495,6 +499,8 @@ watch(
       @close="feedbackOpen = false"
       @submit="handleFeedbackSubmit"
     />
+
+    <BackToTop />
 
     <div
       v-if="appMessage"

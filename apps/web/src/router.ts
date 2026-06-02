@@ -19,6 +19,7 @@ const routes = [
   { path: "/admin/feedback-review", component: () => import("./views/FeedbackReviewPage.vue"), meta: { title: `${defaultTitle} - 反馈审批` } },
   { path: "/ai-lab", component: () => import("./views/AiLabPage.vue"), meta: { title: `${defaultTitle} - AI 试验场` } },
   { path: "/profile", component: () => import("./views/ProfilePage.vue"), meta: { title: `${defaultTitle} - 个人中心` } },
+  { path: "/ranking", component: () => import("./views/RankingPage.vue"), meta: { title: `${defaultTitle} - 排行榜` } },
   { path: "/feedback-public", component: () => import("./views/FeedbackPublicPage.vue"), meta: { title: `${defaultTitle} - 反馈墙`, public: true } },
 ];
 

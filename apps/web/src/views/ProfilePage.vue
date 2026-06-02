@@ -324,6 +324,9 @@ onMounted(() => {
                 </span>
               </div>
               <p class="mt-2 text-sm text-[#4f6b8a] break-words">{{ item.content }}</p>
+              <div v-if="item.adminNote" class="mt-2 rounded-xl bg-[#e1f5fe]/70 border border-[#b3e5fc] px-3 py-2 text-xs text-[#0277bd]">
+                <span class="font-medium">处理说明：</span>{{ item.adminNote }}
+              </div>
               <div class="mt-2 flex items-center gap-3 text-xs text-[#8aa3bc]">
                 <span>{{ formatDate(item.createdAt) }}</span>
                 <span>{{ item.pageTitle }}</span>

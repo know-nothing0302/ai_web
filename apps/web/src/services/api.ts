@@ -526,6 +526,25 @@ export const reportReadingHistory = async (articleId: string): Promise<void> => 
   await request.post("/profile/history", { articleId });
 };
 
+// --- Ranking ---
+
+export interface RankingItem {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  channel_code: string;
+  published_at: string | null;
+  favorite_count: number;
+}
+
+export const getRanking = async (page = 1, pageSize = 20): Promise<PaginatedResponse<RankingItem>> => {
+  const result = await request.get<PaginatedResponse<RankingItem>>("/articles/ranking", {
+    params: { page, pageSize },
+  });
+  return result.data;
+};
+
 export const getPageAgentConversationMessages = async (
   conversationId: string
 ): Promise<PageAgentMessage[]> => {

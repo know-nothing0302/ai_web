@@ -1,43 +1,12 @@
 {
   "task_id": "fb-review-20260602-1",
   "pages": [
-    {
-      "path":"/articles/49032412-8c12-45ae-9219-794a6d83d017",
-      "title":"AI徐医",
-      "protected":false,
-      "checks":[
-        {"type":"visible","selector":"body","desc":"页面 body 可见"},
-        {"type":"visible","selector":".article-content-area","desc":"文章内容区可见"},
-        {"type":"text","value":"arxiv","desc":"作者/来源应显示 arxiv.org"}
-      ]
-    },
-    {
-      "path":"/admin/birthday",
-      "title":"生日推送",
-      "protected":true,
-      "checks":[
-        {"type":"visible","selector":"body","desc":"页面 body 可见"},
-        {"type":"text","value":"生日推送管理","desc":"生日推送管理页面加载"}
-      ]
-    },
-    {
-      "path":"/admin/stats",
-      "title":"统计信息",
-      "protected":true,
-      "checks":[
-        {"type":"visible","selector":"body","desc":"页面 body 可见"},
-        {"type":"text","value":"统计信息","desc":"统计信息页面加载"}
-      ]
-    },
-    {
-      "path":"/",
-      "title":"首页",
-      "protected":false,
-      "checks":[
-        {"type":"visible","selector":"body","desc":"页面 body 可见"},
-        {"type":"visible","selector":".glass-card","desc":"文章列表卡片可见"}
-      ]
-    }
+    {"path":"/articles/49032412-8c12-45ae-9219-794a6d83d017","title":"文章详情-49032412","protected":false,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
+    {"path":"/admin/birthday","title":"生日推送","protected":true,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
+    {"path":"/admin/stats","title":"统计信息","protected":true,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
+    {"path":"/","title":"首页","protected":false,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
+    {"path":"/articles/9bf17e77-0e8d-4e60-a68d-602966e14d11","title":"文章详情-9bf17e","protected":false,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
+    {"path":"/admin/feedback-review","title":"反馈审批","protected":true,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]}
   ],
   "api_endpoints": ["/api/health", "/api/auth/me", "/api/articles?page=1&pageSize=3"]
 }

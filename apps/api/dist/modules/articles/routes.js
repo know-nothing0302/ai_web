@@ -4,6 +4,7 @@ exports.articleRouter = void 0;
 const express_1 = require("express");
 const zod_1 = require("zod");
 const env_1 = require("../../config/env");
+const db_1 = require("../../lib/db");
 const logger_1 = require("../../lib/logger");
 const auth_1 = require("../../middleware/auth");
 const store_1 = require("../../lib/store");
@@ -178,6 +179,34 @@ exports.articleRouter.get("/", auth_1.requireAuth, async (request, response) => 
         status: status === "draft" || status === "published" ? status : undefined,
     });
     response.json({ items: list });
+});
+const rankingSchema = zod_1.z.object({
+    page: zod_1.z.coerce.number().int().min(1).default(1),
+    pageSize: zod_1.z.coerce.number().int().min(1).max(50).default(20),
+});
+exports.articleRouter.get("/ranking", auth_1.requireAuth, async (request, response) => {
+    const parsed = rankingSchema.safeParse(request.query);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+        return;
+    }
+    const { page, pageSize } = parsed.data;
+    const offset = (page - 1) * pageSize;
+    const countResult = await (0, db_1.query)(`SELECT COUNT(*)::text AS total FROM articles WHERE status = 'published'`);
+    const total = parseInt(countResult.rows[0]?.total ?? "0", 10);
+    const itemsResult = await (0, db_1.query)(`SELECT a.id, a.title, a.summary, a.category, a.channel_code, a.published_at,
+            COALESCE(fc.cnt, 0)::int AS favorite_count
+     FROM articles a
+     LEFT JOIN (
+       SELECT article_id, COUNT(*)::int AS cnt FROM user_favorites GROUP BY article_id
+     ) fc ON a.id = fc.article_id
+     WHERE a.status = 'published'
+     ORDER BY favorite_count DESC, a.published_at DESC
+     LIMIT $1 OFFSET $2`, [pageSize, offset]);
+    response.json({
+        items: itemsResult.rows,
+        pagination: { page, pageSize, total },
+    });
 });
 exports.articleRouter.get("/push-digests/today", auth_1.requireAuth, async (request, response) => {
     const userId = request.session.user?.id;

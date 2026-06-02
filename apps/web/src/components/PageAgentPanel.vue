@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { ArrowUp, Square, X, MessageSquare, Plus, Search, Zap, BookOpen } from "lucide-vue-next";
+import { ArrowUp, Square, X, MessageSquare, Plus, Search, Zap, BookOpen, Star, Share2 } from "lucide-vue-next";
 
 import { type PageAgentConversation, type PageAgentMessage } from "../page_agent/types";
 import { renderMarkdown } from "../shared/markdown";
@@ -94,6 +94,57 @@ const formatTime = (iso: string): string => {
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return "昨天";
   return `${d.getMonth() + 1}/${d.getDate()}`;
+};
+
+// Answer favorites (localStorage-based)
+const FAV_KEY = "ai-web-fav-answers";
+const loadFavorites = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(FAV_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+const favoritedIds = ref<Set<string>>(loadFavorites());
+
+const toggleFavorite = (msgId: string): void => {
+  const next = new Set(favoritedIds.value);
+  if (next.has(msgId)) {
+    next.delete(msgId);
+  } else {
+    next.add(msgId);
+  }
+  favoritedIds.value = next;
+  localStorage.setItem(FAV_KEY, JSON.stringify([...next]));
+};
+
+const copyToast = ref("");
+let copyToastTimer: ReturnType<typeof setTimeout> | null = null;
+const doCopy = (text: string): void => {
+  navigator.clipboard.writeText(text).then(() => {
+    copyToast.value = "已复制";
+    if (copyToastTimer) clearTimeout(copyToastTimer);
+    copyToastTimer = setTimeout(() => { copyToast.value = ""; }, 1500);
+  }).catch(() => {
+    copyToast.value = "复制失败";
+    if (copyToastTimer) clearTimeout(copyToastTimer);
+    copyToastTimer = setTimeout(() => { copyToast.value = ""; }, 1500);
+  });
+};
+
+const doShare = (text: string): void => {
+  const excerpt = text.slice(0, 200) + (text.length > 200 ? "…" : "");
+  const shareText = `[AI徐医 智能问答]\n${excerpt}\n\n—— 来自 AI徐医 智能助手`;
+  navigator.clipboard.writeText(shareText).then(() => {
+    copyToast.value = "已复制分享内容";
+    if (copyToastTimer) clearTimeout(copyToastTimer);
+    copyToastTimer = setTimeout(() => { copyToast.value = ""; }, 1500);
+  }).catch(() => {
+    copyToast.value = "分享失败";
+    if (copyToastTimer) clearTimeout(copyToastTimer);
+    copyToastTimer = setTimeout(() => { copyToast.value = ""; }, 1500);
+  });
 };
 
 const filterOptions = [
@@ -242,13 +293,33 @@ const filterOptions = [
                 <span class="text-[11px] text-[#6e89a3]">
                   {{ message.meta?.usedSiteSearch ? "已结合站内检索" : "已基于当前页面回答" }}
                 </span>
-                <button
-                  type="button"
-                  class="rounded-lg px-2 py-1 text-[11px] text-[#6e89a3] transition-colors hover:bg-white hover:text-[#01579b]"
-                  @click="emit('copy', message.text)"
-                >
-                  复制
-                </button>
+                <div class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    class="rounded-lg px-1.5 py-1 text-[11px] transition-colors"
+                    :class="favoritedIds.has(message.id) ? 'text-[#f59e0b] hover:text-[#e65100]' : 'text-[#6e89a3] hover:text-[#f59e0b]'"
+                    :title="favoritedIds.has(message.id) ? '取消收藏' : '收藏'"
+                    @click="toggleFavorite(message.id)"
+                  >
+                    <Star class="w-3.5 h-3.5" :class="favoritedIds.has(message.id) ? 'fill-current' : ''" />
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg px-1.5 py-1 text-[11px] text-[#6e89a3] transition-colors hover:text-[#01579b]"
+                    title="转发"
+                    @click="doShare(message.text)"
+                  >
+                    <Share2 class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg px-1.5 py-1 text-[11px] text-[#6e89a3] transition-colors hover:text-[#01579b]"
+                    title="复制"
+                    @click="doCopy(message.text)"
+                  >
+                    复制
+                  </button>
+                </div>
               </div>
               <div
                 class="prose prose-slate max-w-none text-sm leading-6 text-[#355878] prose-p:my-2 prose-strong:text-[#0f4069] prose-a:text-[#0288d1] hover:prose-a:text-[#01579b] prose-ul:my-2 prose-ol:my-2 prose-code:rounded prose-code:bg-[#e1f5fe]/50 prose-code:px-1 prose-code:py-0.5 prose-code:text-[#0288d1] prose-code:before:content-none prose-code:after:content-none"
@@ -273,6 +344,9 @@ const filterOptions = [
       </div>
 
       <div class="border-t border-[#b3e5fc]/35 px-4 py-3">
+        <div v-if="copyToast" class="mb-2 text-center">
+          <span class="inline-block rounded-full bg-[#0288d1]/10 px-3 py-1 text-xs font-medium text-[#0288d1]">{{ copyToast }}</span>
+        </div>
         <div class="flex items-end justify-between gap-3">
           <textarea
             :value="question"
