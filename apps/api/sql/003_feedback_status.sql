@@ -5,7 +5,7 @@ ALTER TABLE feedback_entries
     CHECK (status IN (
       'pending', 'evaluating', 'snoozed', 'approved',
       'in_progress', 'testing', 'deployed', 'verified',
-      'failed_testing', 'reverted', 'wontfix', 'duplicate'
+      'failed_testing', 'reverted', 'wontfix', 'duplicate', 'fixed'
     ));
 
 ALTER TABLE feedback_entries

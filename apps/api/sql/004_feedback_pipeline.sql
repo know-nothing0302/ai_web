@@ -4,7 +4,7 @@ ALTER TABLE feedback_entries ADD CONSTRAINT feedback_entries_status_check
   CHECK (status IN (
     'pending', 'evaluating', 'snoozed', 'approved',
     'in_progress', 'testing', 'deployed', 'verified',
-    'failed_testing', 'reverted', 'wontfix', 'duplicate'
+    'failed_testing', 'reverted', 'wontfix', 'duplicate', 'fixed'
   ));
 
 -- 2. 存量映射：implemented/optimized → verified
