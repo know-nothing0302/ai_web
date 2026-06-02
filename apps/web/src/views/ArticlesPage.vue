@@ -6,7 +6,6 @@ import {
   Search,
   Filter,
   Sparkles,
-  Clock,
   ArrowRight,
   Activity,
   BrainCircuit,
@@ -188,12 +187,6 @@ const load = async (silent = false): Promise<void> => {
   } finally {
     loading.value = false;
   }
-};
-
-const formatDate = (isoString?: string) => {
-  if (!isoString) return '刚刚';
-  const date = new Date(isoString);
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
 };
 
 const getCardText = (value?: string): string => sanitizeCardText(value);
@@ -502,10 +495,6 @@ watchEffect(() => {
       >
         <div class="flex items-center justify-between mb-4">
           <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
-          <span class="flex items-center gap-1 text-xs text-[#4f6b8a]">
-            <Clock class="w-3 h-3" />
-            {{ formatDate(item.publishedAt) }}
-          </span>
         </div>
         
         <h3 class="text-[17px] font-semibold text-[#0f4069] mb-3 group-hover:text-[#0288d1] transition-colors line-clamp-2 leading-snug">
