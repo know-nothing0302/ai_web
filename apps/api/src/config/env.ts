@@ -87,6 +87,10 @@ export const env = {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean),
+  adminUserIds: (process.env.ADMIN_USER_IDS ?? "100002013029")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean),
   oracleUser: process.env.ORACLE_USER ?? "",
   oraclePassword: process.env.ORACLE_PASSWORD ?? "",
   oracleConnectString: process.env.ORACLE_CONNECT_STRING ?? "",

@@ -60,7 +60,7 @@ const parseCasValidateResponse = (value) => {
                 id: username,
                 username,
                 displayName,
-                role: username.includes("admin") ? "admin" : "user",
+                role: env_1.env.adminUserIds.includes(username) ? "admin" : "user",
                 email,
                 phone,
                 attributes,
@@ -78,7 +78,7 @@ const parseCasValidateResponse = (value) => {
         id: username,
         username,
         displayName: username,
-        role: username.includes("admin") ? "admin" : "user",
+        role: env_1.env.adminUserIds.includes(username) ? "admin" : "user",
     };
 };
 const buildDevUser = () => ({
