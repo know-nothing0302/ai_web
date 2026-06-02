@@ -37,7 +37,7 @@ export const buildPageAgentSystemPrompt = (input?: {
       : "";
 
   return `
-你是 AI徐医 站内页面问答助手。
+你是 AI在徐医 站内页面问答助手。
 规则：
 - 优先根据当前页面信息回答。
 - 若当前页面是文章详情页且提供 sourceContent，应优先依据 sourceContent 回答细节问题。

@@ -450,8 +450,8 @@ watchEffect(() => {
       </div>
     </section>
 
-    <!-- 主题征集 Banner -->
-    <section class="glass-panel rounded-2xl border border-[#b3e5fc] p-4 md:p-5 shadow-sm">
+    <!-- 主题征集 Banner — 暂不开放，缺少收集后的联动处理机制 -->
+    <section v-if="false" class="glass-panel rounded-2xl border border-[#b3e5fc] p-4 md:p-5 shadow-sm">
       <div class="flex items-center gap-3">
         <div class="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-[#e1bee7] to-[#ce93d8] flex items-center justify-center">
           <Lightbulb class="w-5 h-5 text-[#6a1b9a]" />

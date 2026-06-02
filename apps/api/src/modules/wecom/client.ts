@@ -523,7 +523,7 @@ const sendNewsNoticeCard = async (
     template_card: {
       card_type: "news_notice",
       source: {
-        desc: "AI徐医",
+        desc: "AI在徐医",
         desc_color: 0,
       },
       main_title: {

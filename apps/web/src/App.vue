@@ -2,7 +2,7 @@
 import { computed, onActivated, onDeactivated, onErrorCaptured, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "./stores/auth";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun, Trophy, Star } from "lucide-vue-next";
+import { BarChart3, Bot, ChevronDown, FileText, Bell, LayoutDashboard, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun, Trophy, Star } from "lucide-vue-next";
 
 import BackToTop from "./components/BackToTop.vue";
 import FeedbackPanel from "./components/FeedbackPanel.vue";
@@ -33,6 +33,7 @@ const { isDark, toggle: toggleDark } = useDarkMode();
 const { fontScale, SCALES, setScale } = useFontScale();
 const route = useRoute();
 const isAgentHovered = ref(false);
+const adminDropdownOpen = ref(false);
 const pageAgentOpen = ref(false);
 const pageAgentQuestion = ref("");
 const pageAgentLoading = ref(false);
@@ -51,7 +52,7 @@ const appMessage = ref("");
 const appBase = import.meta.env.BASE_URL;
 const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
 const currentPageTitle = computed(() => {
-  // Strip "AI徐医" prefix so feedback dialog shows actual page name
+  // Strip "AI在徐医" prefix so feedback dialog shows actual page name
   const raw = document.title || "当前页面";
   return raw.replace(/^AI在徐医\s*[-—–]\s*/, "").trim() || raw;
 });
@@ -308,23 +309,36 @@ const logout = async () => {
   }
 };
 
-const navItems = computed(() => {
-  const items = [
+interface NavItem {
+  path: string;
+  name: string;
+  icon: any;
+  children?: NavItem[];
+}
+
+const navItems = computed((): NavItem[] => {
+  const items: NavItem[] = [
     { path: "/", name: "资讯发现", icon: FileText },
     { path: "/subscription", name: "智能订阅", icon: Bell },
     { path: "/profile", name: "我的收藏", icon: Star },
   ];
 
+  const adminChildren: NavItem[] = [];
+
   if (auth.user) {
-    items.push({ path: "/admin/stats", name: "统计信息", icon: BarChart3 });
+    adminChildren.push({ path: "/admin/stats", name: "统计信息", icon: BarChart3 });
   }
 
   if (canAccessAdminViews(auth.user)) {
-    items.push(
+    adminChildren.push(
       { path: "/ai-lab", name: "AI 试验场", icon: Zap },
       { path: "/admin/publish", name: "内容发布", icon: Settings },
       { path: "/admin/feedback-review", name: "反馈审批", icon: ClipboardCheck }
     );
+  }
+
+  if (adminChildren.length > 0) {
+    items.push({ path: "", name: "管理功能", icon: LayoutDashboard, children: adminChildren });
   }
 
   items.push(
@@ -334,6 +348,11 @@ const navItems = computed(() => {
 
   return items;
 });
+
+const isAdminChildActive = (item: NavItem): boolean => {
+  if (!item.children) return false;
+  return item.children.some((child) => route.path === child.path);
+};
 
 const pageError = ref(false);
 
@@ -377,22 +396,55 @@ watch(
               <Bot class="w-6 h-6 text-white" />
             </div>
             <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#0288d1] to-[#01579b] tracking-tight">
-              AI徐医
+              AI在徐医
             </span>
           </div>
 
           <!-- Navigation -->
           <nav class="hidden md:flex items-center gap-1 bg-white/70 p-1 rounded-2xl border border-[#0288d1]/20 backdrop-blur-xl">
-            <router-link 
-              v-for="item in navItems" 
-              :key="item.path" 
-              :to="item.path"
-              class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300"
-              :class="route.path === item.path ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border border-[#0288d1]/25' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] border border-transparent'"
-            >
-              <component :is="item.icon" class="w-4 h-4" />
-              {{ item.name }}
-            </router-link>
+            <template v-for="item in navItems" :key="item.path || item.name">
+              <!-- Regular nav item -->
+              <router-link
+                v-if="!item.children"
+                :to="item.path"
+                class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300"
+                :class="route.path === item.path ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border border-[#0288d1]/25' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] border border-transparent'"
+              >
+                <component :is="item.icon" class="w-4 h-4" />
+                {{ item.name }}
+              </router-link>
+              <!-- Dropdown: 管理功能 -->
+              <div
+                v-else
+                class="relative"
+                @mouseenter="adminDropdownOpen = true"
+                @mouseleave="adminDropdownOpen = false"
+              >
+                <button
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 border border-transparent"
+                  :class="isAdminChildActive(item) ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border-[#0288d1]/25' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe]'"
+                >
+                  <component :is="item.icon" class="w-4 h-4" />
+                  {{ item.name }}
+                  <ChevronDown class="w-3 h-3 transition-transform" :class="{ 'rotate-180': adminDropdownOpen }" />
+                </button>
+                <div
+                  v-show="adminDropdownOpen"
+                  class="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-[#0288d1]/15 py-1 min-w-[140px] z-50"
+                >
+                  <router-link
+                    v-for="child in item.children"
+                    :key="child.path"
+                    :to="child.path"
+                    class="flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-[#e1f5fe]"
+                    :class="route.path === child.path ? 'text-[#01579b] font-medium' : 'text-[#4f6b8a]'"
+                  >
+                    <component :is="child.icon" class="w-4 h-4" />
+                    {{ child.name }}
+                  </router-link>
+                </div>
+              </div>
+            </template>
           </nav>
 
           <!-- Actions -->
