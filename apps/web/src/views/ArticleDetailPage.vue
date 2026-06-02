@@ -15,6 +15,7 @@ import {
   createAnnotation,
   updateAnnotation,
   deleteAnnotation,
+  submitFeedback,
   type Article,
   type UserAnnotation,
 } from "../services/api";
@@ -28,6 +29,22 @@ const item = ref<Article | null>(null);
 const loading = ref(false);
 const isFavorited = ref(false);
 const favoriting = ref(false);
+const linkReported = ref(false);
+
+const reportBrokenLink = async (): Promise<void> => {
+  if (!item.value?.originalUrl) return;
+  try {
+    await submitFeedback({
+      type: "bug",
+      content: `[链接失效] 文章「${item.value.title}」的原文链接无法访问：${item.value.originalUrl}`,
+      pageRoute: route.fullPath,
+      pageTitle: document.title || item.value.title,
+    });
+    linkReported.value = true;
+  } catch {
+    // silent — user can retry
+  }
+};
 
 const parsedContent = computed(() => {
   if (!item.value?.content) return "";
@@ -478,7 +495,17 @@ onBeforeUnmount(() => {
              查看原文
              <span class="text-[10px] text-[#8aa3bc] font-normal">（外部链接）</span>
           </a>
-          <span v-else class="flex items-center gap-1.5 text-[#8aa3bc]">
+          <button
+            v-if="item.originalUrl && !linkReported"
+            type="button"
+            class="text-[10px] text-[#8aa3bc] hover:text-[#c62828] hover:underline transition-colors"
+            title="反馈链接失效"
+            @click="reportBrokenLink"
+          >
+            链接失效？
+          </button>
+          <span v-else-if="linkReported" class="text-[10px] text-[#4caf50]">已反馈，感谢</span>
+          <span v-if="!item.originalUrl" class="flex items-center gap-1.5 text-[#8aa3bc]">
             <Link class="w-4 h-4 opacity-60" />
             未提供原文链接
           </span>

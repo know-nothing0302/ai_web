@@ -2,7 +2,7 @@
 import { computed, onActivated, onDeactivated, onErrorCaptured, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "./stores/auth";
-import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun, Trophy } from "lucide-vue-next";
+import { BarChart3, Bot, FileText, Bell, Settings, LogOut, Zap, ClipboardCheck, MessageSquare, Moon, Sun, Trophy, Star } from "lucide-vue-next";
 
 import BackToTop from "./components/BackToTop.vue";
 import FeedbackPanel from "./components/FeedbackPanel.vue";
@@ -312,6 +312,7 @@ const navItems = computed(() => {
   const items = [
     { path: "/", name: "资讯发现", icon: FileText },
     { path: "/subscription", name: "智能订阅", icon: Bell },
+    { path: "/profile", name: "我的收藏", icon: Star },
   ];
 
   if (auth.user) {
