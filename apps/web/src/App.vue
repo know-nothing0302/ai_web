@@ -26,8 +26,10 @@ import {
 } from "./services/api";
 
 import { useDarkMode } from "./composables/useDarkMode";
+import { useFontScale } from "./composables/useFontScale";
 
 const { isDark, toggle: toggleDark } = useDarkMode();
+const { fontScale, SCALES, setScale } = useFontScale();
 const route = useRoute();
 const isAgentHovered = ref(false);
 const pageAgentOpen = ref(false);
@@ -47,7 +49,11 @@ const feedbackSubmitting = ref(false);
 const appMessage = ref("");
 const appBase = import.meta.env.BASE_URL;
 const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
-const currentPageTitle = computed(() => document.title || "当前页面");
+const currentPageTitle = computed(() => {
+  // Strip "AI徐医" prefix so feedback dialog shows actual page name
+  const raw = document.title || "当前页面";
+  return raw.replace(/^AI徐医\s*[-—–]\s*/, "").trim() || raw;
+});
 const auth = useAuthStore();
 
 const routerInstance = useRouter();
@@ -399,6 +405,19 @@ watch(
             <button @click="toggleDark" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" :title="isDark ? '浅色模式' : '深色模式'">
               <component :is="isDark ? Moon : Sun" class="w-5 h-5" />
             </button>
+            <!-- Font scale control -->
+            <div class="flex items-center gap-0.5" title="字体大小">
+              <button
+                v-for="s in SCALES"
+                :key="s.value"
+                type="button"
+                class="px-1.5 py-0.5 rounded text-xs font-medium transition-colors"
+                :class="fontScale === s.value ? 'bg-[#0288d1] text-white' : 'text-[#8aa3bc] hover:text-[#01579b] hover:bg-[#e1f5fe]'"
+                @click="setScale(s.value)"
+              >
+                {{ s.label }}
+              </button>
+            </div>
             <button @click="logout" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" title="退出登录">
               <LogOut class="w-5 h-5" />
             </button>

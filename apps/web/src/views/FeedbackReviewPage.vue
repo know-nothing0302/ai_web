@@ -26,7 +26,14 @@ const STATUS_TABS = [
   { key: "wontfix", label: "暂缓" },
   { key: "duplicate", label: "重复" },
   { key: "snoozed", label: "搁置" },
+  { key: "processed", label: "已处理" },
 ] as const;
+
+/** Statuses considered "processed" (non-pending, non-evaluating) */
+const PROCESSED_STATUSES = [
+  "approved", "in_progress", "testing", "deployed", "verified",
+  "failed_testing", "reverted", "wontfix", "duplicate", "snoozed",
+];
 
 // --- State ---
 const accessDenied = ref(false);
@@ -124,8 +131,12 @@ async function loadTab(key: string, page?: number) {
   if (page !== undefined) state.page = page;
   state.loading = true;
   try {
+    // "processed" tab: fetch all non-pending statuses via comma-separated list
+    const statusParam = key === "processed"
+      ? PROCESSED_STATUSES.join(",")
+      : key;
     const params: { status: string; page: number; pageSize: number; search?: string } = {
-      status: key,
+      status: statusParam,
       page: state.page,
       pageSize: pageSize.value,
     };
@@ -275,7 +286,7 @@ onMounted(async () => {
             </div>
             <h1 class="flex items-center gap-3 text-3xl font-bold text-[#0f4069]">
               <ClipboardCheck class="h-8 w-8 text-[#0288d1]" />
-              AI徐医反馈审批
+              反馈审批
             </h1>
             <p class="mt-2 text-sm text-[#4f6b8a]">
               {{ today }} · 当前 {{ STATUS_TABS.find((t) => t.key === activeTab)?.label }} {{ currentTab.total }} 条
@@ -359,12 +370,12 @@ onMounted(async () => {
                   :class="expandedId === item.id ? '' : 'line-clamp-2'"
                 >{{ item.content }}</p>
                 <button
-                  v-if="item.content.length > 100"
+                  v-if="item.content.length > 80"
                   type="button"
-                  class="mt-1 text-xs text-[#0288d1] hover:text-[#01579b]"
+                  class="mt-1 inline-flex items-center gap-0.5 text-xs font-medium text-[#0288d1] hover:text-[#01579b] hover:underline"
                   @click.stop="toggleExpand(item.id)"
                 >
-                  {{ expandedId === item.id ? '收起' : '展开全文' }}
+                  {{ expandedId === item.id ? '收起 ▲' : '展开全文 ▼' }}
                 </button>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e89a3]">
                   <span v-if="item.evaluation?.severity" class="rounded-full bg-[#e1f5fe] px-2 py-0.5">

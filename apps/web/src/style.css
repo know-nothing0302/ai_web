@@ -24,6 +24,8 @@
 @layer base {
   body {
     @apply antialiased min-h-screen overflow-x-hidden;
+    font-size: var(--font-base-size, 1rem);
+    line-height: var(--font-line-height, 1.65);
     color: var(--color-ai-text);
     background-color: #f7fbff;
     background-image:
