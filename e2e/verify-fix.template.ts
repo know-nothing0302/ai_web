@@ -36,7 +36,8 @@ test("修复验证 — 核心功能可用", async ({ page }) => {
 
   // CAS 登录 → 导航到目标页面
   await casLogin(page, targetPath);
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForTimeout(2000);
 
   // ── CC 在此添加具体验证逻辑 ──
   // 示例: 验证按钮存在

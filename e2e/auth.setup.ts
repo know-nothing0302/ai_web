@@ -31,7 +31,7 @@ const CAS_CONFIG = {
 export async function casLogin(
   page: Page,
   target: string = "/",
-  timeout: number = 30000
+  timeout: number = 60000
 ): Promise<void> {
   // 1. 导航到 CAS 登录入口
   const loginEntry = `${CAS_CONFIG.serviceBase}/api/auth/cas/login?redirect=${encodeURIComponent(target)}`;
@@ -39,36 +39,47 @@ export async function casLogin(
 
   // 2. 等待跳转到 CAS 登录页面
   await page.waitForURL(/authserver\.xzhmu\.edu\.cn/, { timeout: 10000 });
+  await page.waitForLoadState("domcontentloaded");
 
-  // 3. 填写 CAS 登录表单（CAS 典型表单结构）
+  // 3. 填写登录表单（账号密码表单与扫码页并存，无需切换标签页）
   const usernameInput = page.locator("#username");
   const passwordInput = page.locator("#password");
-  const submitBtn = page.locator("input[type='submit'], button[type='submit'], .btn-submit").first();
-
   await usernameInput.waitFor({ state: "visible", timeout: 10000 });
   await usernameInput.fill(CAS_CONFIG.username);
   await passwordInput.fill(CAS_CONFIG.password);
-  await submitBtn.click();
 
-  // 4. 等待回调完成，跳转回应用
+  // 4. 提交 — 按 Enter 键（CAS 登录链接是 javascript:void(0)，不支持 click）
+  await passwordInput.press("Enter");
+
+  // 5. 等待回调完成，跳转回应用
   await page.waitForURL(/idapps\.xzhmu\.edu\.cn/, { timeout: 15000 });
 
-  // 5. 等待页面稳定（Vue 渲染 + API 调用）
-  await page.waitForLoadState("networkidle", { timeout: 10000 });
-  await page.waitForTimeout(2000);
+  // 6. 等待页面稳定（Vue SPA 渲染）
+  //    不用 networkidle — 应用有 WebSocket/SSE 长连接导致永不 idle
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForTimeout(3000);
 }
 
 /**
  * 验证当前会话已认证
  */
 export async function assertAuthenticated(page: Page): Promise<void> {
-  const resp = await page.request.get(
-    `${CAS_CONFIG.serviceBase}/api/auth/me`
-  );
-  expect(resp.status()).toBe(200);
-  const body = await resp.json();
-  expect(body.user).toBeTruthy();
-  expect(body.user.id).toBeTruthy();
+  // 使用 page.request 但通过 page.context().request 共享 cookie jar
+  // 或直接检查页面 URL 不是 CAS 登录页（说明已通过认证）
+  const url = page.url();
+  expect(url).toContain("idapps.xzhmu.edu.cn");
+  expect(url).not.toContain("authserver");
+
+  // 页面加载后，通过浏览器内 fetch 调用 /api/auth/me
+  // 注意：fetch 相对于页面 URL，所以用绝对路径
+  const user = await page.evaluate(async () => {
+    const resp = await fetch("/ai-web/api/auth/me", { credentials: "include" });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.user;
+  });
+  expect(user).toBeTruthy();
+  expect(user.id).toBeTruthy();
 }
 
 /**
@@ -79,7 +90,8 @@ export async function assertPageLoads(
   path: string
 ): Promise<void> {
   await page.goto(`${CAS_CONFIG.serviceBase}${path}`, { timeout: 15000 });
-  await page.waitForLoadState("networkidle", { timeout: 10000 });
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForTimeout(2000);
 
   // 无控制台错误
   const errors: string[] = [];
