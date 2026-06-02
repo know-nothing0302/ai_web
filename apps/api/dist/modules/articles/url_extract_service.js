@@ -149,7 +149,36 @@ const collectMetaValues = ($, name) => $(`meta[name="${name}"]`)
     .toArray()
     .map((element) => $(element).attr("content")?.trim() ?? "")
     .filter(Boolean);
-const pickAuthor = ($) => {
+/** Well-known preprint / academic aggregator hostnames → preferred source label */
+const PREPRINT_HOSTNAME_MAP = {
+    "arxiv.org": "arxiv.org",
+    "www.arxiv.org": "arxiv.org",
+    "export.arxiv.org": "arxiv.org",
+    "biorxiv.org": "biorxiv.org",
+    "www.biorxiv.org": "biorxiv.org",
+    "medrxiv.org": "medrxiv.org",
+    "www.medrxiv.org": "medrxiv.org",
+    "chemrxiv.org": "chemrxiv.org",
+    "www.chemrxiv.org": "chemrxiv.org",
+    "researchsquare.com": "researchsquare.com",
+    "www.researchsquare.com": "researchsquare.com",
+};
+const pickHostnameSource = (url) => {
+    try {
+        const hostname = new URL(url).hostname;
+        return PREPRINT_HOSTNAME_MAP[hostname];
+    }
+    catch {
+        return undefined;
+    }
+};
+const pickAuthor = ($, url) => {
+    // For preprint servers, prefer the hostname as the source label
+    if (url) {
+        const hostSource = pickHostnameSource(url);
+        if (hostSource)
+            return hostSource;
+    }
     const institutions = [...new Set(collectMetaValues($, "citation_author_institution"))];
     if (institutions.length > 0) {
         return institutions[0];
@@ -241,7 +270,7 @@ const parsePublishedAt = (value) => {
     }
     return date.toISOString();
 };
-const buildPlainText = (html) => {
+const buildPlainText = (html, url) => {
     const $ = cheerio.load(html);
     $("script, style, nav, footer, header, aside, noscript").remove();
     const title = $("article h1").first().text().trim() ||
@@ -251,7 +280,7 @@ const buildPlainText = (html) => {
         $('meta[property="og:title"]').attr("content")?.trim() ||
         $("title").first().text().trim();
     const publishedAt = pickPublishedAt($);
-    const author = pickAuthor($);
+    const author = pickAuthor($, url);
     const blocks = $("article p, main p, p")
         .toArray()
         .map((element) => $(element).text().trim())
@@ -443,7 +472,7 @@ const extractArticleFromUrl = async (input) => {
         }
         throw buildServiceError("网页抓取失败", 502);
     }
-    const extracted = buildPlainText(html);
+    const extracted = buildPlainText(html, input.url);
     logger_1.logger.info("article.extract.clean.success", {
         url: input.url,
         contentLength: extracted.content.length,
@@ -468,12 +497,15 @@ const extractArticleFromUrl = async (input) => {
         !aiResult.channelCode ? "channelCode" : "",
         !(aiResult.author || extracted.author) ? "author" : "",
     ].filter(Boolean);
+    // Preprint servers (arxiv etc.): always use the hostname as the source label,
+    // overriding both AI and HTML extraction — paper IDs are not author names.
+    const preprintSource = pickHostnameSource(input.url);
     return {
         title: extracted.title,
         content: aiResult.content,
         sourceContent: extracted.content,
         summary,
-        author: aiResult.author || extracted.author,
+        author: preprintSource || aiResult.author || extracted.author,
         channelCode: aiResult.channelCode,
         originalUrl: input.url,
         publishedAt: extracted.publishedAt,

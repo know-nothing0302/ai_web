@@ -15,11 +15,12 @@ import {
   Microscope,
   ShieldCheck,
   Newspaper,
+  Lightbulb,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
 } from "lucide-vue-next";
-import { listArticles, listChannels, getReadingHistory, type Article } from "../services/api";
+import { listArticles, listChannels, getReadingHistory, submitFeedback, type Article } from "../services/api";
 import { buildArticleListContext, setPageAgentContext } from "../page_agent/context";
 import { sanitizeCardText } from "../shared/text_sanitizer";
 import { useSearchHistory } from "../composables/useSearchHistory";
@@ -44,6 +45,32 @@ const pageSize = 9;
 const { searchHistory, addSearchHistory, clearHistory } = useSearchHistory();
 const isSearchFocused = ref(false);
 const readArticleIds = ref<Set<string>>(new Set());
+
+// Topic suggestion
+const topicText = ref("");
+const topicSubmitting = ref(false);
+const topicSuccess = ref(false);
+
+const submitTopicSuggestion = async (): Promise<void> => {
+  const text = topicText.value.trim();
+  if (!text || text.length < 5 || topicSubmitting.value) return;
+  topicSubmitting.value = true;
+  try {
+    await submitFeedback({
+      type: "content",
+      content: `[主题征集] ${text}`,
+      pageRoute: "/",
+      pageTitle: "主题征集",
+    });
+    topicText.value = "";
+    topicSuccess.value = true;
+    setTimeout(() => { topicSuccess.value = false; }, 3000);
+  } catch {
+    // silently fail — non-blocking
+  } finally {
+    topicSubmitting.value = false;
+  }
+};
 
 const fetchReadArticleIds = async (): Promise<void> => {
   try {
@@ -135,14 +162,14 @@ const goNextPage = (): void => {
   }
 };
 
-const load = async (): Promise<void> => {
+const load = async (silent = false): Promise<void> => {
   console.info("[AIWEB] ArticlesPage 开始加载资讯列表", {
     keyword: keyword.value || "",
     category: category.value || "",
     channelCode: channelCode.value || "",
     channel: activeChannel.value,
   });
-  loading.value = true;
+  if (!silent) loading.value = true;
   try {
     items.value = await listArticles({
       keyword: keyword.value || undefined,
@@ -156,7 +183,8 @@ const load = async (): Promise<void> => {
     console.info("[AIWEB] ArticlesPage 资讯列表加载完成", { count: items.value.length });
   } catch (err) {
     console.error("[AIWEB] ArticlesPage 加载文章列表失败", err);
-    items.value = [];
+    // In silent mode, keep existing items on error (avoid blank)
+    if (!silent) items.value = [];
   } finally {
     loading.value = false;
   }
@@ -275,10 +303,11 @@ onActivated(async () => {
   console.log("[AIWEB] ArticlesPage onActivated 入口", { itemsLength: items.value.length, loading: loading.value });
   syncSearchParamsToUrl();
   fetchReadArticleIds();
-  if (items.value.length === 0) {
-    console.log("[AIWEB] ArticlesPage onActivated items为空，触发 load");
-    try { await load(); } catch (err) { console.error("[AIWEB] ArticlesPage onActivated load 失败", err); }
-  }
+  // Always reload on reactivation to prevent stale/blank state after back-navigation;
+  // use silent mode when items already exist to avoid loading-spinner flash.
+  const hasItems = items.value.length > 0;
+  console.log("[AIWEB] ArticlesPage onActivated 触发 reload", { hasItems });
+  try { await load(hasItems); } catch (err) { console.error("[AIWEB] ArticlesPage onActivated load 失败", err); }
 });
 
 watchEffect(() => {
@@ -419,6 +448,36 @@ watchEffect(() => {
           {{ channel.label }}
         </button>
       </div>
+    </section>
+
+    <!-- 主题征集 Banner -->
+    <section class="glass-panel rounded-2xl border border-[#b3e5fc] p-4 md:p-5 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-[#e1bee7] to-[#ce93d8] flex items-center justify-center">
+          <Lightbulb class="w-5 h-5 text-[#6a1b9a]" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-[#0f4069]">主题征集</p>
+          <p class="text-xs text-[#6e89a3] mt-0.5">有想看的 AI 话题？告诉我们，内容团队会优先安排</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mt-3">
+        <input
+          v-model="topicText"
+          class="flex-1 h-10 rounded-xl border border-[#81d4fa]/60 bg-white px-3 text-sm text-[#355878] placeholder:text-[#9bb5cc] focus:border-[#ce93d8] focus:shadow-[0_0_0_3px_rgba(206,147,216,0.15)] outline-none transition-all"
+          placeholder="例如：AI 在医学影像诊断中的应用"
+          @keyup.enter="submitTopicSuggestion"
+        />
+        <button
+          type="button"
+          class="btn-primary h-10 px-5 text-sm shrink-0 rounded-xl shadow-md shadow-[#ce93d8]/20"
+          :disabled="topicText.trim().length < 5 || topicSubmitting"
+          @click="submitTopicSuggestion"
+        >
+          {{ topicSubmitting ? "提交中..." : topicSuccess ? "✓ 已提交" : "提交" }}
+        </button>
+      </div>
+      <p v-if="topicSuccess" class="mt-2 text-xs text-green-600">感谢你的建议！我们会认真考虑。</p>
     </section>
 
     <!-- Content Section -->

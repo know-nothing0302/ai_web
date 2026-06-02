@@ -169,7 +169,20 @@ def generate(input_data: dict) -> None:
 		# Date range rendering removed — no longer displayed on card
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    img.save(output_path, "PNG")
+
+    # Convert RGBA → RGB for JPEG (birthday cards are full-cover, no transparency needed)
+    if img.mode == "RGBA":
+        img = img.convert("RGB")
+
+    # Resize large images to max 1600px on longest side before JPEG compression
+    max_dim = 1600
+    w, h = img.size
+    if max(w, h) > max_dim:
+        ratio = max_dim / max(w, h)
+        img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
+
+    # Save as JPEG ~1 MB (quality 85 + optimize); keep extension unchanged
+    img.save(output_path, "JPEG", quality=85, optimize=True)
     print(json.dumps({"output": output_path}), flush=True)
 
 

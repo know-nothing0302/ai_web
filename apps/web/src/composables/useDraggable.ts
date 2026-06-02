@@ -40,6 +40,7 @@ export function useDraggable(threshold = 5) {
   };
 
   const stopDrag = () => {
+    dragging.value = false;
     document.removeEventListener("mousemove", onDrag);
     document.removeEventListener("mouseup", stopDrag);
     document.removeEventListener("touchmove", onDrag);
