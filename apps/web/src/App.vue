@@ -53,7 +53,7 @@ const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
 const currentPageTitle = computed(() => {
   // Strip "AI徐医" prefix so feedback dialog shows actual page name
   const raw = document.title || "当前页面";
-  return raw.replace(/^AI徐医\s*[-—–]\s*/, "").trim() || raw;
+  return raw.replace(/^AI在徐医\s*[-—–]\s*/, "").trim() || raw;
 });
 const auth = useAuthStore();
 
