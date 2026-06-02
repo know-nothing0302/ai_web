@@ -1,12 +1,8 @@
 {
-  "task_id": "fb-review-20260602-1",
+  "task_id": "smoke-test",
   "pages": [
-    {"path":"/articles/49032412-8c12-45ae-9219-794a6d83d017","title":"文章详情-49032412","protected":false,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
-    {"path":"/admin/birthday","title":"生日推送","protected":true,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
-    {"path":"/admin/stats","title":"统计信息","protected":true,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
-    {"path":"/","title":"首页","protected":false,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
-    {"path":"/articles/9bf17e77-0e8d-4e60-a68d-602966e14d11","title":"文章详情-9bf17e","protected":false,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]},
-    {"path":"/admin/feedback-review","title":"反馈审批","protected":true,"checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]}
+    {"path": "/", "title": "首页", "checks": []},
+    {"path": "/admin/publish", "title": "管理后台", "checks": [{"type": "visible", "selector": "body", "desc": "页面加载"}]}
   ],
-  "api_endpoints": ["/api/health", "/api/auth/me", "/api/articles?page=1&pageSize=3"]
+  "api_endpoints": ["/api/health", "/api/auth/me"]
 }

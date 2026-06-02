@@ -7,3 +7,4 @@ logs/
 .env
 .DS_Store
 apps/api/image/*.psd
+e2e/.auth/
