@@ -121,10 +121,8 @@ def generate(input_data: dict) -> None:
     # Collect text layer params
     name_params = _get_text_params(psd, "name")
     blessing_params = _get_text_params(psd, "blessing")
-    date_params = _get_text_params(psd, "date")
-
-    if not name_params or not blessing_params or not date_params:
-        print(json.dumps({"error": "Required text layers (name/blessing/date) not found in PSD"}), flush=True)
+    if not name_params or not blessing_params:
+        print(json.dumps({"error": "Required text layers (name/blessing) not found in PSD"}), flush=True)
         sys.exit(1)
 
     # Hide text layers, composite background only
@@ -138,7 +136,6 @@ def generate(input_data: dict) -> None:
 
     name_center = bbox_center(name_params["bbox"])
     blessing_center = bbox_center(blessing_params["bbox"])
-    date_center = bbox_center(date_params["bbox"])
 
     # Background composite
     img = psd.composite(force=True)

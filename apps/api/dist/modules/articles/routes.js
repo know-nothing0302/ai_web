@@ -587,6 +587,8 @@ const createAnnotationSchema = zod_1.z.object({
     color: zod_1.z.enum(["yellow", "green", "blue", "pink"]).default("yellow"),
     startOffset: zod_1.z.number().int().min(0),
     endOffset: zod_1.z.number().int().min(0),
+}).refine((d) => d.endOffset > d.startOffset, {
+    message: "endOffset must be greater than startOffset",
 });
 const updateAnnotationSchema = zod_1.z.object({
     note: zod_1.z.string().max(2000).optional(),

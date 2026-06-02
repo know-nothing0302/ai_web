@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
-import { Sparkles, Rocket, Edit3, RefreshCw, ListChecks, Filter, ChevronLeft, ChevronRight } from "lucide-vue-next";
+import { Sparkles, Rocket, Edit3, RefreshCw, ListChecks, Filter, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-vue-next";
 import { useRoute } from "vue-router";
 import {
   createArticle,
@@ -19,6 +19,7 @@ import {
 import { buildAdminContext, setPageAgentContext } from "../page_agent/context";
 import { renderMarkdown } from "../shared/markdown";
 
+const formCollapsed = ref(false);
 const title = ref("");
 const channelCode = ref("");
 const content = ref("");
@@ -502,6 +503,14 @@ onBeforeUnmount(() => {
         </h1>
         <p class="text-[#4f6b8a] mt-2">管理员可在当前页面完成栏目选择、文章发布与文章状态管理</p>
       </div>
+      <button
+        type="button"
+        class="btn-secondary flex items-center gap-1.5 shrink-0"
+        @click="formCollapsed = !formCollapsed"
+      >
+        <component :is="formCollapsed ? ChevronDown : ChevronUp" class="w-4 h-4" />
+        {{ formCollapsed ? '展开' : '收起' }}发布表单
+      </button>
     </div>
 
     <section
@@ -516,7 +525,7 @@ onBeforeUnmount(() => {
 
 
     <!-- Redesigned Top Area -->
-    <div v-if="!accessDenied" class="glass-panel p-6 md:p-8 rounded-3xl border shadow-sm">
+    <div v-if="!accessDenied && !formCollapsed" class="glass-panel p-6 md:p-8 rounded-3xl border shadow-sm">
       <div class="flex flex-col md:flex-row gap-6">
         <div class="flex-1 space-y-5">
           <div class="space-y-2">

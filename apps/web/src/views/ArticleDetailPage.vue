@@ -39,6 +39,15 @@ const parsedSummary = computed(() => {
   return renderMarkdown(item.value.summary);
 });
 
+const displayAuthor = computed(() => {
+  const raw = item.value?.author?.trim();
+  if (!raw) return "未知作者";
+  // Split by common delimiters: comma, Chinese comma, semicolon, slash
+  const parts = raw.split(/[,，;；/、]+/).map((s) => s.trim()).filter(Boolean);
+  if (parts.length <= 1) return raw;
+  return `${parts[0]}等`;
+});
+
 const load = async (): Promise<void> => {
   console.info("[AIWEB] ArticleDetailPage 加载文章详情", { id: route.params.id?.toString() ?? "" });
   loading.value = true;
@@ -452,7 +461,7 @@ onBeforeUnmount(() => {
         <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-[#4f6b8a]">
           <span class="flex items-center gap-1.5">
             <User class="w-4 h-4 text-[#0288d1]/70" />
-            {{ item.author }}
+            {{ displayAuthor }}
           </span>
           <span class="flex items-center gap-1.5">
             <Clock class="w-4 h-4 text-[#0288d1]/70" />

@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.feedbackRouter = void 0;
-const child_process_1 = require("child_process");
 const express_1 = require("express");
 const zod_1 = require("zod");
 const env_1 = require("../../config/env");
@@ -269,25 +268,8 @@ exports.feedbackRouter.patch("/admin/:id", auth_1.requireFeedbackReader, async (
             if (evalResult.rows.length > 0) {
                 const ev = evalResult.rows[0];
                 if (ev.suggested_action === "auto_fix") {
-                    // auto_fix → transition to in_progress and dispatch to cc-ai-web
-                    const updated = await store_1.feedbackStore.update(feedbackId, { status: "in_progress", adminNote });
-                    if (!updated) {
-                        res.status(404).json({ message: "反馈记录不存在" });
-                        return;
-                    }
-                    const safeSuggestion = (ev.suggestion || "见评估详情").replace(/'/g, "'\\''");
-                    const dispatchMsg = `任务ID: auto-fix-${feedbackId.slice(0, 8)} 请修复反馈 #${feedbackId.slice(0, 8)}: ${safeSuggestion}`;
-                    (0, child_process_1.exec)(`/opt/hermes/scripts/cc-send.sh cc-ai-web '${dispatchMsg}'`, (err) => {
-                        if (err) {
-                            logger_1.logger.error("feedback.dispatch.failed", { feedbackId, session: "cc-ai-web", error: err.message, stage: "dispatch" });
-                        }
-                        else {
-                            logger_1.logger.info("feedback.dispatch.sent", { feedbackId, session: "cc-ai-web", stage: "dispatch" });
-                        }
-                    });
-                    logger_1.logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve" });
-                    res.json(updated);
-                    return;
+                    // auto_fix → keep "approved", bash pipeline (fb-dispatch.sh) handles grouping + scoring + dispatch to fb-ai-web
+                    logger_1.logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve", note: "delegated to bash pipeline" });
                 }
                 // batch_review / human_gate → keep "approved" (frontend groups them correctly)
                 logger_1.logger.info("feedback.approve.success", { feedbackId, suggestedAction: ev.suggested_action, stage: "approve" });
@@ -430,7 +412,7 @@ exports.feedbackRouter.post("/internal/evaluations", auth_1.requireAdminOrFeedba
 const batchStatusSchema = zod_1.z.object({
     items: zod_1.z.array(zod_1.z.object({
         id: zod_1.z.string().uuid(),
-        status: zod_1.z.enum(["in_progress", "testing", "fixed", "deployed", "failed_testing", "wontfix"]),
+        status: zod_1.z.enum(["in_progress", "testing", "fixed", "deployed", "verified", "failed_testing", "wontfix"]),
     })).min(1),
 });
 exports.feedbackRouter.patch("/internal/batch-status", auth_1.requireAdminOrFeedbackWriteToken, async (request, response) => {
