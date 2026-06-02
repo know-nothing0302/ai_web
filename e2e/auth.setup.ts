@@ -28,22 +28,33 @@ setup("CAS 登录 — 保存认证状态", async ({ page }) => {
   // 1. 导航到 CAS 登录入口
   await page.goto(`${CAS_CONFIG.serviceBase}/api/auth/cas/login?redirect=%2F`);
 
-  // 2. 等待跳转到 CAS 登录页面
-  await page.waitForURL(/authserver\.xzhmu\.edu\.cn/, { timeout: 10000 });
-  await page.waitForLoadState("domcontentloaded");
+  // 2. 检测是否需要 CAS 登录（DEV_AUTH_BYPASS 模式下自动完成回调）
+  const onCasPage = await page.waitForURL(
+    /authserver\.xzhmu\.edu\.cn/,
+    { timeout: 5000 }
+  ).then(() => true).catch(() => false);
 
-  // 3. 填写登录表单（账号密码表单与扫码页并存，无需切换标签页）
-  const usernameInput = page.locator("#username");
-  const passwordInput = page.locator("#password");
-  await usernameInput.waitFor({ state: "visible", timeout: 10000 });
-  await usernameInput.fill(CAS_CONFIG.username);
-  await passwordInput.fill(CAS_CONFIG.password);
+  if (onCasPage) {
+    // 3. 真实 CAS 登录 — 填写表单
+    await page.waitForLoadState("domcontentloaded");
+    const usernameInput = page.locator("#username");
+    const passwordInput = page.locator("#password");
+    await usernameInput.waitFor({ state: "visible", timeout: 10000 });
+    await usernameInput.fill(CAS_CONFIG.username);
+    await passwordInput.fill(CAS_CONFIG.password);
 
-  // 4. 提交 — 按 Enter 键
-  await passwordInput.press("Enter");
+    const loginBtn = page.locator("a:has-text(\"Login\"), a:has-text(\"登录\")").first();
+    const btnVisible = await loginBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    if (btnVisible) { await loginBtn.click(); }
+    else { await passwordInput.press("Enter"); }
+  }
+  // DEV_AUTH_BYPASS: 回调自动完成，跳过表单
 
-  // 5. 等待回调完成
-  await page.waitForURL(/idapps\.xzhmu\.edu\.cn/, { timeout: 15000 });
+  // 4. 等待回到应用
+  await page.waitForFunction(
+    () => window.location.hostname.includes("idapps.xzhmu.edu.cn"),
+    { timeout: 20000 }
+  );
   await page.waitForLoadState("domcontentloaded");
   await page.waitForTimeout(3000);
 
