@@ -91,8 +91,24 @@
   }
 
   .input-ai:focus {
-    border-color: rgba(2, 136, 209, 0.68);
-    box-shadow: 0 0 0 3px rgba(179, 229, 252, 0.9);
+    border-color: var(--color-ai-600);
+    box-shadow: 0 0 0 4px rgba(2, 136, 209, 0.15), 0 0 0 1px rgba(2, 136, 209, 0.3);
+  }
+
+  .input-error {
+    @apply w-full bg-white border rounded-xl px-4 py-2.5 placeholder:text-slate-400 focus:outline-none transition-all duration-200;
+    color: var(--color-ai-text);
+    border-color: #ef4444;
+  }
+
+  .input-error:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(239, 68, 68, 0.3);
+  }
+
+  .input-hint {
+    @apply mt-1 text-xs;
+    color: #ef4444;
   }
 
   .badge-ai {
@@ -100,6 +116,35 @@
     color: #0f4f80;
     border-color: rgba(2, 136, 209, 0.28);
     background: linear-gradient(135deg, rgba(225, 245, 254, 0.94), rgba(179, 229, 252, 0.6));
+  }
+
+  .btn-ghost {
+    @apply rounded-xl px-3 py-1.5 text-sm font-medium transition-colors duration-200;
+    color: var(--color-ai-text-muted);
+  }
+
+  .btn-ghost:hover {
+    background-color: rgba(129, 212, 250, 0.15);
+    color: var(--color-ai-600);
+  }
+
+  .btn-tag {
+    @apply rounded-full px-3 py-1 text-xs font-medium transition-all duration-200 border;
+    color: var(--color-ai-600);
+    border-color: rgba(2, 136, 209, 0.2);
+    background: rgba(225, 245, 254, 0.6);
+  }
+
+  .btn-tag:hover {
+    background: rgba(2, 136, 209, 0.12);
+    border-color: rgba(2, 136, 209, 0.4);
+  }
+
+  .btn-tag-active {
+    @apply rounded-full px-3 py-1 text-xs font-medium transition-all duration-200;
+    color: #fff;
+    background: var(--color-ai-600);
+    box-shadow: 0 4px 12px -6px rgba(2, 136, 209, 0.5);
   }
 
   .section-title {
@@ -155,6 +200,30 @@
 
 .dark .input-ai::placeholder {
   color: #64748b;
+}
+
+.dark .btn-ghost {
+  color: #94a3b8;
+}
+
+.dark .btn-ghost:hover {
+  background-color: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+}
+
+.dark .btn-tag {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+
+.dark .btn-tag:hover {
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.dark .input-error {
+  background: rgba(15, 23, 42, 0.7);
+  color: #e2e8f0;
 }
 
 .dark .badge-ai {

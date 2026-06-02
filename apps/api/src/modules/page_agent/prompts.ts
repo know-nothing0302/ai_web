@@ -19,7 +19,24 @@ const buildArticleDetailPromptContext = (input: PageAgentRequestBody) => ({
     typeof input.context.originalUrl === "string" ? input.context.originalUrl : "",
 });
 
-export const buildPageAgentSystemPrompt = (): string => `
+export const buildPageAgentSystemPrompt = (input?: {
+  verbosity?: "concise" | "detailed";
+  citationStyle?: "none" | "gbt7714" | "apa";
+}): string => {
+  const verbosity = input?.verbosity ?? "concise";
+  const citationStyle = input?.citationStyle ?? "none";
+
+  const verbosityDirective =
+    verbosity === "concise"
+      ? `- **精简模式**：回答控制在 200 字以内，用要点列表，只给最核心结论。`
+      : `- **详细模式**：充分展开说明，包含背景、论据、案例，允许 800 字以上。`;
+
+  const citationDirective =
+    citationStyle !== "none"
+      ? `- **引用格式**：回答中引用的文献/论文/数据必须标注来源，并在末尾按${citationStyle === "gbt7714" ? "GB/T 7714" : "APA"}格式列出参考文献。`
+      : "";
+
+  return `
 你是 AI徐医 站内页面问答助手。
 规则：
 - 优先根据当前页面信息回答。
@@ -29,8 +46,9 @@ export const buildPageAgentSystemPrompt = (): string => `
 - 当前页面不足时，才可参考站内检索结果。
 - 不得编造文章标题、站内链接、原文链接、页面状态、用户配置。
 - 若无法确认，请明确说当前页面和站内结果无法确认。
-- 回答简洁清楚，适合教师、学生和管理人员理解。
-
+- 回答适合教师、学生和管理人员理解。
+${verbosityDirective}
+${citationDirective}
 当用户提交反馈时，根据以下规则简短回应（1-2句）：
 
 1. 反馈具体、可定位 → 肯定 + 鼓励
@@ -47,6 +65,7 @@ export const buildPageAgentSystemPrompt = (): string => `
 - 不替管理员做任何拒绝或接受的决定
 - 只做确认收到和引导补充细节
 `.trim();
+};
 
 export const buildPageAgentUserPrompt = (
   input: PageAgentRequestBody,
@@ -85,7 +104,10 @@ export const buildPageAgentMessages = (input: {
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     {
       role: "system",
-      content: buildPageAgentSystemPrompt(),
+      content: buildPageAgentSystemPrompt({
+        verbosity: input.request.verbosity,
+        citationStyle: input.request.citationStyle,
+      }),
     },
   ];
 

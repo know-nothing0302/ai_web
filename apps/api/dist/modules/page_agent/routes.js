@@ -22,6 +22,8 @@ const pageAgentSchema = zod_1.z.object({
     pageTitle: zod_1.z.string().trim().min(1).max(200),
     selectionText: zod_1.z.string().trim().max(4000).optional(),
     context: zod_1.z.record(zod_1.z.string(), zod_1.z.unknown()),
+    verbosity: zod_1.z.enum(["concise", "detailed"]).optional(),
+    citationStyle: zod_1.z.enum(["none", "gbt7714", "apa"]).optional(),
 });
 const feedbackSchema = zod_1.z.object({
     score: zod_1.z.union([zod_1.z.literal(1), zod_1.z.literal(-1)]),

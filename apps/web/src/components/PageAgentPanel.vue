@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
-import { ArrowUp, Square, X, MessageSquare, Plus } from "lucide-vue-next";
+import { computed, nextTick, ref, watch } from "vue";
+import { ArrowUp, Square, X, MessageSquare, Plus, Search, Zap, BookOpen } from "lucide-vue-next";
 
 import { type PageAgentConversation, type PageAgentMessage } from "../page_agent/types";
 import { renderMarkdown } from "../shared/markdown";
@@ -12,6 +12,9 @@ const props = defineProps<{
   messages: PageAgentMessage[];
   conversations: PageAgentConversation[];
   loadingConversations: boolean;
+  verbosity: "concise" | "detailed";
+  citationStyle: "none" | "gbt7714" | "apa";
+  pageType?: string;
 }>();
 
 const emit = defineEmits<{
@@ -20,12 +23,32 @@ const emit = defineEmits<{
   stop: [];
   copy: [value: string];
   "update:question": [value: string];
+  "update:verbosity": [value: "concise" | "detailed"];
+  "update:citationStyle": [value: "none" | "gbt7714" | "apa"];
   "load-conversations": [];
   "select-conversation": [id: string];
   "new-conversation": [];
 }>();
 
 const messageContainerRef = ref<HTMLElement | null>(null);
+const convSearch = ref("");
+const convFilter = ref<"all" | "article_detail" | "article_list" | "subscription" | "admin">("all");
+
+const filteredConversations = computed(() => {
+  let list = props.conversations;
+  if (convFilter.value !== "all") {
+    list = list.filter((c) => c.pageType === convFilter.value);
+  }
+  if (convSearch.value.trim()) {
+    const q = convSearch.value.trim().toLowerCase();
+    list = list.filter(
+      (c) =>
+        (c.title ?? "").toLowerCase().includes(q) ||
+        (c.pageTitle ?? "").toLowerCase().includes(q)
+    );
+  }
+  return list;
+});
 
 const handleKeydown = (event: KeyboardEvent): void => {
   if (event.key !== "Enter") {
@@ -56,6 +79,8 @@ watch(
   (open) => {
     if (open) {
       emit("load-conversations");
+      convSearch.value = "";
+      convFilter.value = "all";
     }
   }
 );
@@ -70,6 +95,14 @@ const formatTime = (iso: string): string => {
   if (d.toDateString() === yesterday.toDateString()) return "昨天";
   return `${d.getMonth() + 1}/${d.getDate()}`;
 };
+
+const filterOptions = [
+  { value: "all" as const, label: "全部" },
+  { value: "article_detail" as const, label: "文章" },
+  { value: "article_list" as const, label: "资讯" },
+  { value: "subscription" as const, label: "订阅" },
+  { value: "admin" as const, label: "管理" },
+];
 </script>
 
 <template>
@@ -77,25 +110,61 @@ const formatTime = (iso: string): string => {
     <section
       class="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-[24px] border border-[#81d4fa]/55 bg-white/96 shadow-[0_20px_48px_-28px_rgba(2,136,209,0.38)] backdrop-blur-xl"
     >
-      <header class="flex items-center justify-between border-b border-[#b3e5fc]/35 px-4 py-3">
-        <h2 class="text-sm font-semibold text-[#0f4069]">AI 智能分析与搜索</h2>
-        <div class="flex items-center gap-1">
+      <header class="border-b border-[#b3e5fc]/35 px-4 py-3">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold text-[#0f4069]">AI 智能分析与搜索</h2>
+          <div class="flex items-center gap-1">
+            <button
+              v-if="messages.length > 0 || conversations.length > 0"
+              type="button"
+              class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#e1f5fe]"
+              @click="emit('new-conversation')"
+            >
+              <Plus class="h-3.5 w-3.5" />
+              新建对话
+            </button>
+            <button
+              type="button"
+              class="rounded-xl p-2 text-[#6b86a0] transition-colors hover:bg-[#eaf7ff] hover:text-[#01579b]"
+              @click="emit('close')"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <!-- Verbosity & Citation Controls -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[11px] text-[#8aa3bc]">回答风格</span>
           <button
-            v-if="messages.length > 0 || conversations.length > 0"
             type="button"
-            class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#e1f5fe]"
-            @click="emit('new-conversation')"
+            class="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors"
+            :class="verbosity === 'concise' ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc]'"
+            @click="emit('update:verbosity', 'concise')"
           >
-            <Plus class="h-3.5 w-3.5" />
-            新建对话
+            <Zap class="h-3 w-3 inline -mt-0.5 mr-0.5" />
+            精简
           </button>
           <button
             type="button"
-            class="rounded-xl p-2 text-[#6b86a0] transition-colors hover:bg-[#eaf7ff] hover:text-[#01579b]"
-            @click="emit('close')"
+            class="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors"
+            :class="verbosity === 'detailed' ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc]'"
+            @click="emit('update:verbosity', 'detailed')"
           >
-            <X class="h-4 w-4" />
+            <BookOpen class="h-3 w-3 inline -mt-0.5 mr-0.5" />
+            详细
           </button>
+          <template v-if="pageType === 'article_detail'">
+            <span class="text-[11px] text-[#8aa3bc] ml-1">引用</span>
+            <select
+              :value="citationStyle"
+              class="rounded-lg border border-[#81d4fa]/50 bg-white px-2 py-1 text-[11px] text-[#0f4069] outline-none"
+              @change="emit('update:citationStyle', ($event.target as HTMLSelectElement).value as 'none' | 'gbt7714' | 'apa')"
+            >
+              <option value="none">无</option>
+              <option value="gbt7714">GB/T 7714</option>
+              <option value="apa">APA</option>
+            </select>
+          </template>
         </div>
       </header>
 
@@ -109,13 +178,40 @@ const formatTime = (iso: string): string => {
         <div v-else-if="messages.length === 0 && loadingConversations" class="flex items-center justify-center py-8 text-sm text-[#7b95ad]">
           加载历史对话…
         </div>
-        <div v-else-if="messages.length === 0 && conversations.length > 0" class="space-y-1">
+        <div v-else-if="messages.length === 0 && conversations.length > 0" class="space-y-2">
           <div class="mb-3 flex items-center gap-2 text-xs font-medium text-[#6e89a3]">
             <MessageSquare class="h-3.5 w-3.5" />
             历史对话
           </div>
+          <!-- Search & Filter -->
+          <div class="flex items-center gap-2">
+            <div class="flex-1 flex items-center gap-1 rounded-lg border border-[#81d4fa]/50 bg-white px-2.5 py-1.5">
+              <Search class="h-3 w-3 text-[#8aa3bc] shrink-0" />
+              <input
+                v-model="convSearch"
+                class="w-full bg-transparent text-xs text-[#355878] outline-none placeholder:text-[#9bb5cc]"
+                placeholder="搜索对话..."
+              />
+            </div>
+          </div>
+          <div class="flex items-center gap-1 flex-wrap">
+            <button
+              v-for="opt in filterOptions"
+              :key="opt.value"
+              type="button"
+              class="rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors"
+              :class="convFilter === opt.value ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc]'"
+              @click="convFilter = opt.value"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+          <!-- Filtered list -->
+          <div v-if="filteredConversations.length === 0" class="rounded-xl bg-[#f8fbfe] px-3 py-4 text-center text-xs text-[#9bb5cc]">
+            没有匹配的对话
+          </div>
           <button
-            v-for="conv in conversations"
+            v-for="conv in filteredConversations"
             :key="conv.id"
             type="button"
             class="w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-[#eaf7ff]"
@@ -181,7 +277,7 @@ const formatTime = (iso: string): string => {
           <textarea
             :value="question"
             rows="2"
-            class="max-h-28 min-h-[48px] w-full resize-none rounded-2xl border border-[#81d4fa]/60 bg-[#fcfeff] px-3 py-2.5 text-sm text-[#355878] outline-none transition-colors placeholder:text-xs placeholder:text-[#7ba1bb]/75 focus:border-[#0288d1]"
+            class="max-h-28 min-h-[48px] w-full resize-none rounded-2xl border-2 border-[#81d4fa]/60 bg-[#fcfeff] px-3 py-2.5 text-sm text-[#355878] outline-none transition-all placeholder:text-xs placeholder:text-[#7ba1bb]/75 focus:border-[#0288d1] focus:ring-4 focus:ring-[#0288d1]/12"
             placeholder="问当前页面内容… Enter 发送，Shift + Enter 换行"
             @input="emit('update:question', ($event.target as HTMLTextAreaElement).value)"
             @keydown="handleKeydown"

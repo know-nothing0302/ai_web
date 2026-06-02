@@ -27,6 +27,8 @@ const pageAgentSchema = z.object({
   pageTitle: z.string().trim().min(1).max(200),
   selectionText: z.string().trim().max(4000).optional(),
   context: z.record(z.string(), z.unknown()),
+  verbosity: z.enum(["concise", "detailed"]).optional(),
+  citationStyle: z.enum(["none", "gbt7714", "apa"]).optional(),
 });
 
 const feedbackSchema = z.object({
