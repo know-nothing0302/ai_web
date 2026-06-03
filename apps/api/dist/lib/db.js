@@ -400,6 +400,32 @@ CREATE TABLE IF NOT EXISTS user_annotations (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_user_annotations_user_article ON user_annotations(user_id, article_id);
+
+-- Migration 2026-06-02: 订阅频率互斥 — 每个用户只保留一条订阅，改 UNIQUE 约束
+DO $$
+BEGIN
+  DELETE FROM subscriptions
+  WHERE id NOT IN (
+    SELECT DISTINCT ON (user_id) id
+    FROM subscriptions
+    ORDER BY user_id, updated_at DESC
+  );
+
+  ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_user_id_frequency_key;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscriptions_user_id_key'
+      AND conrelid = 'subscriptions'::regclass
+  ) THEN
+    ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_user_id_key UNIQUE (user_id);
+  END IF;
+END $$;
+
+-- 清理超过 1 小时仍为 pending 的推送记录（孤儿记录）
+DELETE FROM push_records
+WHERE status = 'pending'
+  AND created_at < NOW() - INTERVAL '1 hour';
 `;
 const seedSql = `
 INSERT INTO article_channels (code, name, description, sort_order, enabled)

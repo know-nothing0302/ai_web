@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.answerPageQuestion = void 0;
+exports.streamPageAnswer = exports.answerPageQuestion = void 0;
 const axios_1 = __importDefault(require("axios"));
 const env_1 = require("../../config/env");
 const logger_1 = require("../../lib/logger");
@@ -384,3 +384,207 @@ const answerPageQuestion = async (input, requestUserId) => {
     }
 };
 exports.answerPageQuestion = answerPageQuestion;
+/**
+ * SSE 流式回答 — 将 DeepSeek chunk 逐段推给客户端
+ * 流结束时保存完整消息到 DB
+ */
+const streamPageAnswer = async (input, userId, response) => {
+    const startedAt = Date.now();
+    logger_1.logger.info("page.agent.stream.enter", {
+        conversationId: input.conversationId,
+        userId,
+        pageType: input.pageType,
+        route: input.route,
+    });
+    // 1. 验证会话
+    const conversation = await store_1.pageAgentConversationStore.getById(input.conversationId);
+    if (!conversation || conversation.userId !== userId) {
+        response.status(403).json({ message: "会话不存在或无权限" });
+        return;
+    }
+    // 2. 准备上下文
+    const userProfile = await store_1.userProfileStore.getByUserId(userId);
+    const historyMessages = (await store_1.pageAgentMessageStore.listRecentByConversation(input.conversationId, 8))
+        .filter((item) => item.role === "user" || item.role === "assistant")
+        .map((item) => ({
+        ...item,
+        sanitizedContent: (0, sanitize_1.truncateForModel)(item.sanitizedContent ?? item.content, 1200),
+    }));
+    const sanitizedQuestion = (0, sanitize_1.sanitizeForModel)(input.question);
+    const usedSiteSearch = shouldSearchSite(input.question);
+    const searchSources = usedSiteSearch ? await searchPublishedArticles(input, 3) : [];
+    const currentPageSource = {
+        type: "current_page",
+        title: input.pageTitle || "当前页面",
+        url: input.route,
+    };
+    // 3. 保存用户消息
+    await store_1.pageAgentMessageStore.create({
+        conversationId: input.conversationId,
+        userId,
+        role: "user",
+        messageType: "question",
+        content: input.question,
+        sanitizedContent: sanitizedQuestion,
+        pageType: input.pageType,
+        route: input.route,
+        pageTitle: input.pageTitle,
+        contextPayload: input.context,
+        sourcesPayload: [],
+    });
+    // 4. 设置 SSE headers
+    response.setHeader("Content-Type", "text/event-stream");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+    response.setHeader("X-Accel-Buffering", "no");
+    response.flushHeaders();
+    // 5. 如果未配置 LLM，推送 fallback
+    if (!env_1.env.deepseekApiBaseUrl) {
+        const fallback = buildFallbackAnswer(input);
+        response.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
+        response.write(`data: ${JSON.stringify({ done: true, sources: [currentPageSource, ...searchSources] })}\n\n`);
+        response.end();
+        // 保存 fallback 消息
+        await store_1.pageAgentMessageStore.create({
+            conversationId: input.conversationId,
+            userId,
+            role: "assistant",
+            messageType: "answer",
+            content: fallback,
+            sanitizedContent: fallback,
+            pageType: input.pageType,
+            route: input.route,
+            pageTitle: input.pageTitle,
+            contextPayload: input.context,
+            sourcesPayload: [currentPageSource, ...searchSources],
+            model: env_1.env.deepseekModel,
+        });
+        await store_1.pageAgentConversationStore.touch(input.conversationId);
+        return;
+    }
+    // 6. 构建消息并调用 LLM 流式
+    const messages = (0, prompts_1.buildPageAgentMessages)({
+        request: { ...input, question: sanitizedQuestion },
+        historyMessages,
+        userProfile,
+        searchSources,
+    });
+    let fullAnswer = "";
+    let streamError = null;
+    try {
+        const llmResponse = await axios_1.default.post(`${env_1.env.deepseekApiBaseUrl}/v1/chat/completions`, {
+            model: env_1.env.deepseekModel,
+            messages,
+            temperature: 0.2,
+            stream: true,
+        }, {
+            headers: env_1.env.deepseekApiKey
+                ? { Authorization: `Bearer ${env_1.env.deepseekApiKey}` }
+                : undefined,
+            responseType: "stream",
+            timeout: 120000,
+        });
+        llmResponse.data.on("data", (chunk) => {
+            const lines = chunk.toString().split("\n").filter((line) => line.startsWith("data: "));
+            for (const line of lines) {
+                const jsonStr = line.slice(6).trim();
+                if (jsonStr === "[DONE]")
+                    continue;
+                try {
+                    const parsed = JSON.parse(jsonStr);
+                    const token = parsed.choices?.[0]?.delta?.content;
+                    if (token) {
+                        fullAnswer += token;
+                        response.write(`data: ${JSON.stringify({ token })}\n\n`);
+                    }
+                }
+                catch {
+                    // skip malformed chunk
+                }
+            }
+        });
+        llmResponse.data.on("end", async () => {
+            const finalAnswer = normalizeAiContent(fullAnswer) || buildFallbackAnswer(input);
+            // 保存完整回答
+            await store_1.pageAgentMessageStore.create({
+                conversationId: input.conversationId,
+                userId,
+                role: "assistant",
+                messageType: "answer",
+                content: finalAnswer,
+                sanitizedContent: finalAnswer,
+                pageType: input.pageType,
+                route: input.route,
+                pageTitle: input.pageTitle,
+                contextPayload: input.context,
+                sourcesPayload: [currentPageSource, ...searchSources],
+                model: env_1.env.deepseekModel,
+            });
+            await store_1.pageAgentConversationStore.touch(input.conversationId);
+            response.write(`data: ${JSON.stringify({ done: true, sources: [currentPageSource, ...searchSources] })}\n\n`);
+            response.end();
+            logger_1.logger.info("page.agent.stream.finish", {
+                userId,
+                conversationId: input.conversationId,
+                answerLength: finalAnswer.length,
+                durationMs: Date.now() - startedAt,
+            });
+        });
+        llmResponse.data.on("error", async (err) => {
+            streamError = err;
+            const fallback = buildFallbackAnswer(input);
+            response.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
+            response.write(`data: ${JSON.stringify({ done: true, error: err.message })}\n\n`);
+            response.end();
+            await store_1.pageAgentMessageStore.create({
+                conversationId: input.conversationId,
+                userId,
+                role: "assistant",
+                messageType: "answer",
+                content: fallback,
+                sanitizedContent: fallback,
+                pageType: input.pageType,
+                route: input.route,
+                pageTitle: input.pageTitle,
+                contextPayload: input.context,
+                sourcesPayload: [currentPageSource, ...searchSources],
+                model: env_1.env.deepseekModel,
+            });
+            await store_1.pageAgentConversationStore.touch(input.conversationId);
+            logger_1.logger.error("page.agent.stream.failed", {
+                userId,
+                conversationId: input.conversationId,
+                error: err.message,
+                durationMs: Date.now() - startedAt,
+            });
+        });
+    }
+    catch (error) {
+        const fallback = buildFallbackAnswer(input);
+        response.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
+        response.write(`data: ${JSON.stringify({ done: true, error: error.message })}\n\n`);
+        response.end();
+        await store_1.pageAgentMessageStore.create({
+            conversationId: input.conversationId,
+            userId,
+            role: "assistant",
+            messageType: "answer",
+            content: fallback,
+            sanitizedContent: fallback,
+            pageType: input.pageType,
+            route: input.route,
+            pageTitle: input.pageTitle,
+            contextPayload: input.context,
+            sourcesPayload: [currentPageSource, ...searchSources],
+            model: env_1.env.deepseekModel,
+        });
+        await store_1.pageAgentConversationStore.touch(input.conversationId);
+        logger_1.logger.error("page.agent.stream.failed", {
+            userId,
+            conversationId: input.conversationId,
+            error: error.message,
+            durationMs: Date.now() - startedAt,
+        });
+    }
+};
+exports.streamPageAnswer = streamPageAnswer;

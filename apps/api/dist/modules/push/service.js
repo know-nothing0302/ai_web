@@ -688,6 +688,15 @@ exports.pushService = {
             });
             return 0;
         }
+        // 去重：检查是否已有该文章的成功推送记录
+        const existingRecords = await store_1.pushRecordStore.listByArticleId(article.id);
+        if (existingRecords.some((r) => r.status === "success")) {
+            logger_1.logger.info("push.instant.skip.already_pushed", {
+                articleId: article.id,
+                channelCode: article.channelCode,
+            });
+            return 0;
+        }
         const subscriptions = await store_1.subscriptionStore.listEnabledByChannelCodeAndFrequency(article.channelCode, "instant");
         const summary = await pushArticleByTagOrFallback({
             article,

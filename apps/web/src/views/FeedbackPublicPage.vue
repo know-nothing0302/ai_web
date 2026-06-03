@@ -11,7 +11,7 @@ import {
 const loading = ref(true);
 const items = ref<FeedbackPublicItem[]>([]);
 const total = ref(0);
-const sortMode = ref<"recent" | "popular">("recent");
+const sortMode = ref<"recent" | "popular">("popular");
 const statusFilter = ref<"all" | "replied" | "resolved" | "deferred">("all");
 const liking = ref<Set<string>>(new Set());
 const message = ref("");

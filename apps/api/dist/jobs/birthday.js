@@ -121,7 +121,7 @@ const runBirthdayPush = async () => {
 };
 exports.runBirthdayPush = runBirthdayPush;
 const initBirthdayJob = () => {
-    node_cron_1.default.schedule("0 8 * * *", async () => {
+    node_cron_1.default.schedule("0 10 * * *", async () => {
         logger_1.logger.info("birthday.job.start", { mode: env_1.env.birthdayPushMode });
         try {
             const result = await (0, exports.runBirthdayPush)();

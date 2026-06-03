@@ -169,6 +169,20 @@ exports.pageAgentRouter.post("/qa", auth_1.requireAuth, async (request, response
     });
     response.json(result);
 });
+// SSE 流式 — 代替原 /qa 用于前端实时渲染
+exports.pageAgentRouter.post("/qa/stream", auth_1.requireAuth, (request, response) => {
+    const parsed = pageAgentSchema.safeParse(request.body);
+    if (!parsed.success) {
+        response.status(400).json({ message: "参数错误", errors: zod_1.z.flattenError(parsed.error) });
+        return;
+    }
+    const userId = getAuthenticatedUserId(request);
+    if (!userId) {
+        response.status(401).json({ message: "未登录" });
+        return;
+    }
+    (0, service_1.streamPageAnswer)(parsed.data, userId, response);
+});
 exports.pageAgentRouter.post("/messages/:id/feedback", auth_1.requireAuth, async (request, response) => {
     const parsed = feedbackSchema.safeParse(request.body);
     if (!parsed.success) {

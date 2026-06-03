@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watchEffect, watch, nextTick } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Copy, Check, Highlighter, Trash2, X } from "lucide-vue-next";
+import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Copy, Check, } from "lucide-vue-next";
 
 import { buildArticleDetailContext, setPageAgentContext } from "../page_agent/context";
 import {
@@ -11,13 +11,8 @@ import {
   addFavorite,
   removeFavorite,
   reportReadingHistory,
-  getAnnotations,
-  createAnnotation,
-  updateAnnotation,
-  deleteAnnotation,
   submitFeedback,
   type Article,
-  type UserAnnotation,
 } from "../services/api";
 import { renderMarkdown } from "../shared/markdown";
 import { logger } from "../shared/logger";
@@ -109,254 +104,254 @@ const toggleFavorite = async (): Promise<void> => {
 };
 
 // --- 文本标注（高亮 + 笔记）---
-
-const annotations = ref<UserAnnotation[]>([]);
-const showAnnoToolbar = ref(false);
-const annoToolbarStyle = ref<Record<string, string>>({});
-const currentSelection = ref<{ text: string; startOffset: number; endOffset: number } | null>(null);
-const editingAnnotation = ref<UserAnnotation | null>(null);
-const editingNote = ref("");
-const showNoteEditor = ref(false);
-const noteEditorStyle = ref<Record<string, string>>({});
-
-const HIGHLIGHT_COLORS = [
-  { key: "yellow", label: "黄色", bg: "bg-yellow-200", border: "border-yellow-400", text: "text-yellow-800" },
-  { key: "green", label: "绿色", bg: "bg-green-200", border: "border-green-400", text: "text-green-800" },
-  { key: "blue", label: "蓝色", bg: "bg-blue-200", border: "border-blue-400", text: "text-blue-800" },
-  { key: "pink", label: "粉色", bg: "bg-pink-200", border: "border-pink-400", text: "text-pink-800" },
-] as const;
-
-const getAnnoContainer = (): HTMLElement | null => {
-  return document.querySelector(".article-content-area") as HTMLElement | null;
-};
-
-const getSelectionOffsets = (container: HTMLElement): { text: string; startOffset: number; endOffset: number } | null => {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
-  const range = sel.getRangeAt(0);
-  if (!container.contains(range.commonAncestorContainer)) return null;
-  const text = range.toString().trim();
-  if (!text) return null;
-  const preRange = document.createRange();
-  preRange.selectNodeContents(container);
-  preRange.setEnd(range.startContainer, range.startOffset);
-  const startOffset = preRange.toString().length;
-  const endOffset = startOffset + text.length;
-  return { text, startOffset, endOffset };
-};
-
-const handleTextSelection = (event: MouseEvent): void => {
-  const container = getAnnoContainer();
-  if (!container) return;
-  const sel = getSelectionOffsets(container);
-  if (!sel) {
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const annotations = ref<UserAnnotation[]>([]);
+// [ANNO-DISABLED] const showAnnoToolbar = ref(false);
+// [ANNO-DISABLED] const annoToolbarStyle = ref<Record<string, string>>({});
+// [ANNO-DISABLED] const currentSelection = ref<{ text: string; startOffset: number; endOffset: number } | null>(null);
+// [ANNO-DISABLED] const editingAnnotation = ref<UserAnnotation | null>(null);
+// [ANNO-DISABLED] const editingNote = ref("");
+// [ANNO-DISABLED] const showNoteEditor = ref(false);
+// [ANNO-DISABLED] const noteEditorStyle = ref<Record<string, string>>({});
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const HIGHLIGHT_COLORS = [
+// [ANNO-DISABLED]   { key: "yellow", label: "黄色", bg: "bg-yellow-200", border: "border-yellow-400", text: "text-yellow-800" },
+// [ANNO-DISABLED]   { key: "green", label: "绿色", bg: "bg-green-200", border: "border-green-400", text: "text-green-800" },
+// [ANNO-DISABLED]   { key: "blue", label: "蓝色", bg: "bg-blue-200", border: "border-blue-400", text: "text-blue-800" },
+// [ANNO-DISABLED]   { key: "pink", label: "粉色", bg: "bg-pink-200", border: "border-pink-400", text: "text-pink-800" },
+// [ANNO-DISABLED] ] as const;
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const getAnnoContainer = (): HTMLElement | null => {
+// [ANNO-DISABLED]   return document.querySelector(".article-content-area") as HTMLElement | null;
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const getSelectionOffsets = (container: HTMLElement): { text: string; startOffset: number; endOffset: number } | null => {
+// [ANNO-DISABLED]   const sel = window.getSelection();
+// [ANNO-DISABLED]   if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+// [ANNO-DISABLED]   const range = sel.getRangeAt(0);
+// [ANNO-DISABLED]   if (!container.contains(range.commonAncestorContainer)) return null;
+// [ANNO-DISABLED]   const text = range.toString().trim();
+// [ANNO-DISABLED]   if (!text) return null;
+// [ANNO-DISABLED]   const preRange = document.createRange();
+// [ANNO-DISABLED]   preRange.selectNodeContents(container);
+// [ANNO-DISABLED]   preRange.setEnd(range.startContainer, range.startOffset);
+// [ANNO-DISABLED]   const startOffset = preRange.toString().length;
+// [ANNO-DISABLED]   const endOffset = startOffset + text.length;
+// [ANNO-DISABLED]   return { text, startOffset, endOffset };
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const handleTextSelection = (event: MouseEvent): void => {
+// [ANNO-DISABLED]   const container = getAnnoContainer();
+// [ANNO-DISABLED]   if (!container) return;
+// [ANNO-DISABLED]   const sel = getSelectionOffsets(container);
+// [ANNO-DISABLED]   if (!sel) {
     // Delay hiding to allow clicks on toolbar
-    setTimeout(() => {
-      if (!currentSelection.value) {
-        showAnnoToolbar.value = false;
-      }
-    }, 200);
-    return;
-  }
-  currentSelection.value = sel;
-  showAnnoToolbar.value = true;
-  annoToolbarStyle.value = {
-    left: `${event.clientX + window.scrollX}px`,
-    top: `${event.clientY + window.scrollY - 44}px`,
-  };
-};
-
-const handleAnnotationClick = (event: MouseEvent, annotation: UserAnnotation): void => {
-  event.stopPropagation();
-  editingAnnotation.value = annotation;
-  editingNote.value = annotation.note || "";
-  const rect = (event.target as HTMLElement).getBoundingClientRect();
-  noteEditorStyle.value = {
-    left: `${rect.left + window.scrollX}px`,
-    top: `${rect.bottom + window.scrollY + 4}px`,
-  };
-  showNoteEditor.value = true;
-};
-
-const highlightAnnotation = async (color: string): Promise<void> => {
-  if (!item.value || !currentSelection.value) return;
-  try {
-    const anno = await createAnnotation(item.value.id, {
-      selectedText: currentSelection.value.text,
-      startOffset: currentSelection.value.startOffset,
-      endOffset: currentSelection.value.endOffset,
-      color,
-    });
-    annotations.value.push(anno);
-    await nextTick();
-    applyHighlights();
-  } catch (e) {
-    logger.error('annotations', e);
-  } finally {
-    showAnnoToolbar.value = false;
-    currentSelection.value = null;
-    window.getSelection()?.removeAllRanges();
-  }
-};
-
-const addNoteToSelection = async (): Promise<void> => {
-  if (!item.value || !currentSelection.value) return;
-  const note = prompt("请输入笔记内容：");
-  if (note === null) return;
-  try {
-    const anno = await createAnnotation(item.value.id, {
-      selectedText: currentSelection.value.text,
-      startOffset: currentSelection.value.startOffset,
-      endOffset: currentSelection.value.endOffset,
-      color: "yellow",
-      note: note || undefined,
-    });
-    annotations.value.push(anno);
-    await nextTick();
-    applyHighlights();
-  } catch (e) {
-    logger.error('annotations', e);
-  } finally {
-    showAnnoToolbar.value = false;
-    currentSelection.value = null;
-    window.getSelection()?.removeAllRanges();
-  }
-};
-
-const saveNote = async (): Promise<void> => {
-  if (!item.value || !editingAnnotation.value) return;
-  try {
-    const updated = await updateAnnotation(item.value.id, editingAnnotation.value.id, {
-      note: editingNote.value || undefined,
-    });
-    const idx = annotations.value.findIndex((a) => a.id === updated.id);
-    if (idx !== -1) annotations.value[idx] = updated;
-  } catch (e) {
-    logger.error('annotations', e);
-  }
-  showNoteEditor.value = false;
-  editingAnnotation.value = null;
-};
-
-const removeAnnotation = async (): Promise<void> => {
-  if (!item.value || !editingAnnotation.value) return;
-  try {
-    await deleteAnnotation(item.value.id, editingAnnotation.value.id);
-    annotations.value = annotations.value.filter((a) => a.id !== editingAnnotation.value!.id);
-    await nextTick();
-    applyHighlights();
-  } catch (e) {
-    logger.error('annotations', e);
-  }
-  showNoteEditor.value = false;
-  editingAnnotation.value = null;
-};
-
-const loadAnnotations = async (): Promise<void> => {
-  if (!item.value) return;
-  try {
-    annotations.value = await getAnnotations(item.value.id);
-    await nextTick();
-    applyHighlights();
-  } catch (e) {
-    logger.error('annotations:applyHighlights', e);
-    annotations.value = [];
-  }
-};
-
-const applyHighlights = (): void => {
-  const container = getAnnoContainer();
-  if (!container || annotations.value.length === 0) return;
+// [ANNO-DISABLED]     setTimeout(() => {
+// [ANNO-DISABLED]       if (!currentSelection.value) {
+// [ANNO-DISABLED]         showAnnoToolbar.value = false;
+// [ANNO-DISABLED]       }
+// [ANNO-DISABLED]     }, 200);
+// [ANNO-DISABLED]     return;
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED]   currentSelection.value = sel;
+// [ANNO-DISABLED]   showAnnoToolbar.value = true;
+// [ANNO-DISABLED]   annoToolbarStyle.value = {
+// [ANNO-DISABLED]     left: `${event.clientX + window.scrollX}px`,
+// [ANNO-DISABLED]     top: `${event.clientY + window.scrollY - 44}px`,
+// [ANNO-DISABLED]   };
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const handleAnnotationClick = (event: MouseEvent, annotation: UserAnnotation): void => {
+// [ANNO-DISABLED]   event.stopPropagation();
+// [ANNO-DISABLED]   editingAnnotation.value = annotation;
+// [ANNO-DISABLED]   editingNote.value = annotation.note || "";
+// [ANNO-DISABLED]   const rect = (event.target as HTMLElement).getBoundingClientRect();
+// [ANNO-DISABLED]   noteEditorStyle.value = {
+// [ANNO-DISABLED]     left: `${rect.left + window.scrollX}px`,
+// [ANNO-DISABLED]     top: `${rect.bottom + window.scrollY + 4}px`,
+// [ANNO-DISABLED]   };
+// [ANNO-DISABLED]   showNoteEditor.value = true;
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const highlightAnnotation = async (color: string): Promise<void> => {
+// [ANNO-DISABLED]   if (!item.value || !currentSelection.value) return;
+// [ANNO-DISABLED]   try {
+// [ANNO-DISABLED]     const anno = await createAnnotation(item.value.id, {
+// [ANNO-DISABLED]       selectedText: currentSelection.value.text,
+// [ANNO-DISABLED]       startOffset: currentSelection.value.startOffset,
+// [ANNO-DISABLED]       endOffset: currentSelection.value.endOffset,
+// [ANNO-DISABLED]       color,
+// [ANNO-DISABLED]     });
+// [ANNO-DISABLED]     annotations.value.push(anno);
+// [ANNO-DISABLED]     await nextTick();
+// [ANNO-DISABLED]     applyHighlights();
+// [ANNO-DISABLED]   } catch (e) {
+// [ANNO-DISABLED]     logger.error('annotations', e);
+// [ANNO-DISABLED]   } finally {
+// [ANNO-DISABLED]     showAnnoToolbar.value = false;
+// [ANNO-DISABLED]     currentSelection.value = null;
+// [ANNO-DISABLED]     window.getSelection()?.removeAllRanges();
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const addNoteToSelection = async (): Promise<void> => {
+// [ANNO-DISABLED]   if (!item.value || !currentSelection.value) return;
+// [ANNO-DISABLED]   const note = prompt("请输入笔记内容：");
+// [ANNO-DISABLED]   if (note === null) return;
+// [ANNO-DISABLED]   try {
+// [ANNO-DISABLED]     const anno = await createAnnotation(item.value.id, {
+// [ANNO-DISABLED]       selectedText: currentSelection.value.text,
+// [ANNO-DISABLED]       startOffset: currentSelection.value.startOffset,
+// [ANNO-DISABLED]       endOffset: currentSelection.value.endOffset,
+// [ANNO-DISABLED]       color: "yellow",
+// [ANNO-DISABLED]       note: note || undefined,
+// [ANNO-DISABLED]     });
+// [ANNO-DISABLED]     annotations.value.push(anno);
+// [ANNO-DISABLED]     await nextTick();
+// [ANNO-DISABLED]     applyHighlights();
+// [ANNO-DISABLED]   } catch (e) {
+// [ANNO-DISABLED]     logger.error('annotations', e);
+// [ANNO-DISABLED]   } finally {
+// [ANNO-DISABLED]     showAnnoToolbar.value = false;
+// [ANNO-DISABLED]     currentSelection.value = null;
+// [ANNO-DISABLED]     window.getSelection()?.removeAllRanges();
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const saveNote = async (): Promise<void> => {
+// [ANNO-DISABLED]   if (!item.value || !editingAnnotation.value) return;
+// [ANNO-DISABLED]   try {
+// [ANNO-DISABLED]     const updated = await updateAnnotation(item.value.id, editingAnnotation.value.id, {
+// [ANNO-DISABLED]       note: editingNote.value || undefined,
+// [ANNO-DISABLED]     });
+// [ANNO-DISABLED]     const idx = annotations.value.findIndex((a) => a.id === updated.id);
+// [ANNO-DISABLED]     if (idx !== -1) annotations.value[idx] = updated;
+// [ANNO-DISABLED]   } catch (e) {
+// [ANNO-DISABLED]     logger.error('annotations', e);
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED]   showNoteEditor.value = false;
+// [ANNO-DISABLED]   editingAnnotation.value = null;
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const removeAnnotation = async (): Promise<void> => {
+// [ANNO-DISABLED]   if (!item.value || !editingAnnotation.value) return;
+// [ANNO-DISABLED]   try {
+// [ANNO-DISABLED]     await deleteAnnotation(item.value.id, editingAnnotation.value.id);
+// [ANNO-DISABLED]     annotations.value = annotations.value.filter((a) => a.id !== editingAnnotation.value!.id);
+// [ANNO-DISABLED]     await nextTick();
+// [ANNO-DISABLED]     applyHighlights();
+// [ANNO-DISABLED]   } catch (e) {
+// [ANNO-DISABLED]     logger.error('annotations', e);
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED]   showNoteEditor.value = false;
+// [ANNO-DISABLED]   editingAnnotation.value = null;
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const loadAnnotations = async (): Promise<void> => {
+// [ANNO-DISABLED]   if (!item.value) return;
+// [ANNO-DISABLED]   try {
+// [ANNO-DISABLED]     annotations.value = await getAnnotations(item.value.id);
+// [ANNO-DISABLED]     await nextTick();
+// [ANNO-DISABLED]     applyHighlights();
+// [ANNO-DISABLED]   } catch (e) {
+// [ANNO-DISABLED]     logger.error('annotations:applyHighlights', e);
+// [ANNO-DISABLED]     annotations.value = [];
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const applyHighlights = (): void => {
+// [ANNO-DISABLED]   const container = getAnnoContainer();
+// [ANNO-DISABLED]   if (!container || annotations.value.length === 0) return;
   // Remove existing highlights first
-  container.querySelectorAll(".anno-highlight").forEach((el) => {
-    const parent = el.parentNode;
-    if (!parent) return;
-    while (el.firstChild) {
-      parent.insertBefore(el.firstChild, el);
-    }
-    parent.removeChild(el);
-  });
+// [ANNO-DISABLED]   container.querySelectorAll(".anno-highlight").forEach((el) => {
+// [ANNO-DISABLED]     const parent = el.parentNode;
+// [ANNO-DISABLED]     if (!parent) return;
+// [ANNO-DISABLED]     while (el.firstChild) {
+// [ANNO-DISABLED]       parent.insertBefore(el.firstChild, el);
+// [ANNO-DISABLED]     }
+// [ANNO-DISABLED]     parent.removeChild(el);
+// [ANNO-DISABLED]   });
   // Sort annotations by startOffset for sequential processing
-  const sorted = [...annotations.value].sort((a, b) => a.startOffset - b.startOffset);
-  for (const anno of sorted) {
-    applySingleHighlight(container, anno);
-  }
-};
-
-const applySingleHighlight = (container: HTMLElement, anno: UserAnnotation): void => {
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-  const wrapperRanges: Array<{ node: Text; start: number; end: number }> = [];
-  let offset = 0;
-  let node = walker.nextNode() as Text | null;
-  while (node) {
-    const len = node.textContent?.length ?? 0;
-    const nodeStart = offset;
-    const nodeEnd = offset + len;
-    if (nodeEnd > anno.startOffset && nodeStart < anno.endOffset) {
-      const s = Math.max(0, anno.startOffset - nodeStart);
-      const e = Math.min(len, anno.endOffset - nodeStart);
-      if (s < e) {
-        wrapperRanges.push({ node, start: s, end: e });
-      }
-    }
-    if (nodeStart >= anno.endOffset) break;
-    offset = nodeEnd;
-    node = walker.nextNode() as Text | null;
-  }
+// [ANNO-DISABLED]   const sorted = [...annotations.value].sort((a, b) => a.startOffset - b.startOffset);
+// [ANNO-DISABLED]   for (const anno of sorted) {
+// [ANNO-DISABLED]     applySingleHighlight(container, anno);
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const applySingleHighlight = (container: HTMLElement, anno: UserAnnotation): void => {
+// [ANNO-DISABLED]   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+// [ANNO-DISABLED]   const wrapperRanges: Array<{ node: Text; start: number; end: number }> = [];
+// [ANNO-DISABLED]   let offset = 0;
+// [ANNO-DISABLED]   let node = walker.nextNode() as Text | null;
+// [ANNO-DISABLED]   while (node) {
+// [ANNO-DISABLED]     const len = node.textContent?.length ?? 0;
+// [ANNO-DISABLED]     const nodeStart = offset;
+// [ANNO-DISABLED]     const nodeEnd = offset + len;
+// [ANNO-DISABLED]     if (nodeEnd > anno.startOffset && nodeStart < anno.endOffset) {
+// [ANNO-DISABLED]       const s = Math.max(0, anno.startOffset - nodeStart);
+// [ANNO-DISABLED]       const e = Math.min(len, anno.endOffset - nodeStart);
+// [ANNO-DISABLED]       if (s < e) {
+// [ANNO-DISABLED]         wrapperRanges.push({ node, start: s, end: e });
+// [ANNO-DISABLED]       }
+// [ANNO-DISABLED]     }
+// [ANNO-DISABLED]     if (nodeStart >= anno.endOffset) break;
+// [ANNO-DISABLED]     offset = nodeEnd;
+// [ANNO-DISABLED]     node = walker.nextNode() as Text | null;
+// [ANNO-DISABLED]   }
   // Wrap from last to first to preserve offsets
-  for (let i = wrapperRanges.length - 1; i >= 0; i--) {
-    const { node, start, end } = wrapperRanges[i];
-    try {
-      const range = document.createRange();
-      range.setStart(node, start);
-      range.setEnd(node, end);
-      const mark = document.createElement("mark");
-      mark.className = `anno-highlight anno-${anno.color}`;
-      mark.dataset.annotationId = anno.id;
-      mark.title = anno.note ? `笔记: ${anno.note}` : "高亮标注";
-      mark.style.cssText = [
-        "cursor: pointer",
-        "border-radius: 2px",
-        anno.color === "yellow" ? "background-color: #fef08a" : "",
-        anno.color === "green" ? "background-color: #bbf7d0" : "",
-        anno.color === "blue" ? "background-color: #bfdbfe" : "",
-        anno.color === "pink" ? "background-color: #fbcfe8" : "",
-      ].filter(Boolean).join("; ");
-      range.surroundContents(mark);
-    } catch (e) {
-      logger.error('annotations:surroundContents', e);
+// [ANNO-DISABLED]   for (let i = wrapperRanges.length - 1; i >= 0; i--) {
+// [ANNO-DISABLED]     const { node, start, end } = wrapperRanges[i];
+// [ANNO-DISABLED]     try {
+// [ANNO-DISABLED]       const range = document.createRange();
+// [ANNO-DISABLED]       range.setStart(node, start);
+// [ANNO-DISABLED]       range.setEnd(node, end);
+// [ANNO-DISABLED]       const mark = document.createElement("mark");
+// [ANNO-DISABLED]       mark.className = `anno-highlight anno-${anno.color}`;
+// [ANNO-DISABLED]       mark.dataset.annotationId = anno.id;
+// [ANNO-DISABLED]       mark.title = anno.note ? `笔记: ${anno.note}` : "高亮标注";
+// [ANNO-DISABLED]       mark.style.cssText = [
+// [ANNO-DISABLED]         "cursor: pointer",
+// [ANNO-DISABLED]         "border-radius: 2px",
+// [ANNO-DISABLED]         anno.color === "yellow" ? "background-color: #fef08a" : "",
+// [ANNO-DISABLED]         anno.color === "green" ? "background-color: #bbf7d0" : "",
+// [ANNO-DISABLED]         anno.color === "blue" ? "background-color: #bfdbfe" : "",
+// [ANNO-DISABLED]         anno.color === "pink" ? "background-color: #fbcfe8" : "",
+// [ANNO-DISABLED]       ].filter(Boolean).join("; ");
+// [ANNO-DISABLED]       range.surroundContents(mark);
+// [ANNO-DISABLED]     } catch (e) {
+// [ANNO-DISABLED]       logger.error('annotations:surroundContents', e);
       // Skip if surrounding fails (e.g., partial selection across elements)
-    }
-  }
-};
-
-const handleDocumentClick = (e: MouseEvent): void => {
-  const target = e.target as HTMLElement;
-
+// [ANNO-DISABLED]     }
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
+// [ANNO-DISABLED] const handleDocumentClick = (e: MouseEvent): void => {
+// [ANNO-DISABLED]   const target = e.target as HTMLElement;
+// [ANNO-DISABLED] 
   // Check if clicking on an annotation highlight
-  if (target.classList.contains("anno-highlight")) {
-    const id = target.dataset.annotationId;
-    const anno = annotations.value.find((a) => a.id === id);
-    if (anno) handleAnnotationClick(e, anno);
-    return;
-  }
-
+// [ANNO-DISABLED]   if (target.classList.contains("anno-highlight")) {
+// [ANNO-DISABLED]     const id = target.dataset.annotationId;
+// [ANNO-DISABLED]     const anno = annotations.value.find((a) => a.id === id);
+// [ANNO-DISABLED]     if (anno) handleAnnotationClick(e, anno);
+// [ANNO-DISABLED]     return;
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED] 
   // Close note editor if clicking outside
-  if (showNoteEditor.value) {
-    const editor = document.querySelector(".anno-note-editor");
-    if (editor && !editor.contains(target)) {
-      showNoteEditor.value = false;
-      editingAnnotation.value = null;
-    }
-  }
-};
-
+// [ANNO-DISABLED]   if (showNoteEditor.value) {
+// [ANNO-DISABLED]     const editor = document.querySelector(".anno-note-editor");
+// [ANNO-DISABLED]     if (editor && !editor.contains(target)) {
+// [ANNO-DISABLED]       showNoteEditor.value = false;
+// [ANNO-DISABLED]       editingAnnotation.value = null;
+// [ANNO-DISABLED]     }
+// [ANNO-DISABLED]   }
+// [ANNO-DISABLED] };
+// [ANNO-DISABLED] 
 // Watch for content changes to re-apply highlights
-watch([parsedContent, () => annotations.value.length], async () => {
-  await nextTick();
-  applyHighlights();
-});
-
+// [ANNO-DISABLED] watch([parsedContent, () => annotations.value.length], async () => {
+// [ANNO-DISABLED]   await nextTick();
+// [ANNO-DISABLED]   applyHighlights();
+// [ANNO-DISABLED] });
+// [ANNO-DISABLED] 
 const formatDate = (isoString?: string) => {
   if (!isoString) return "未提供";
   const date = new Date(isoString);

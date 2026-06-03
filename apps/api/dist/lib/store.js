@@ -509,7 +509,7 @@ exports.subscriptionStore = {
         enabled
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7)
-      ON CONFLICT (user_id, frequency)
+      ON CONFLICT (user_id)
       DO UPDATE SET
         channel_codes = EXCLUDED.channel_codes,
         categories = EXCLUDED.categories,
@@ -1138,6 +1138,21 @@ exports.pushRecordStore = {
             JSON.stringify(input.responsePayload ?? {}),
             input.errorDetail,
         ]);
+    },
+    async listByArticleId(articleId) {
+        const result = await (0, db_1.query)(`
+      SELECT
+        id, article_id, channel_code, subscription_user_id, qywx_user_id,
+        delivery_mode, wecom_tag_id, wecom_tag_name, message_type,
+        title, summary, url, status, retry_count, wecom_errcode,
+        wecom_errmsg, wecom_msgid, response_code, request_payload,
+        response_payload, error_detail, sent_at, created_at, updated_at
+      FROM push_records
+      WHERE article_id = $1
+      ORDER BY created_at DESC
+      LIMIT 10
+      `, [articleId]);
+        return result.rows.map(mapPushRecord);
     },
     async listRecent(limit = 20) {
         const safeLimit = Math.max(1, Math.min(limit, 100));

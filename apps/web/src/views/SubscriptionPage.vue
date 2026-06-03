@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
-import { BellRing, IdCard, UserRound, Tags, Zap, CheckCircle2 } from "lucide-vue-next";
+import { BellRing, Tags, Zap, CheckCircle2 } from "lucide-vue-next";
 
 import { buildSubscriptionContext, setPageAgentContext } from "../page_agent/context";
 import {

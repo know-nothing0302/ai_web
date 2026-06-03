@@ -829,6 +829,15 @@ export const pushService = {
       });
       return 0;
     }
+    // 去重：检查是否已有该文章的成功推送记录
+    const existingRecords = await pushRecordStore.listByArticleId(article.id);
+    if (existingRecords.some((r) => r.status === "success")) {
+      logger.info("push.instant.skip.already_pushed", {
+        articleId: article.id,
+        channelCode: article.channelCode,
+      });
+      return 0;
+    }
     const subscriptions = await subscriptionStore.listEnabledByChannelCodeAndFrequency(
       article.channelCode,
       "instant"
