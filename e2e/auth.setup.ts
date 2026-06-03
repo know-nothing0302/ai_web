@@ -11,9 +11,17 @@ import * as fs from "fs";
 
 const CAS_CONFIG = {
   serviceBase: "https://idapps.xzhmu.edu.cn/ai-web",
-  username: "790020260042",
-  password: "Py9W_mb4hE-NJwz",
+  username: process.env.E2E_CAS_USERNAME || "",
+  password: process.env.E2E_CAS_PASSWORD || "",
 };
+
+// 运行时校验：缺少凭据时明确报错
+if (!CAS_CONFIG.username || !CAS_CONFIG.password) {
+  throw new Error(
+    "E2E_CAS_USERNAME / E2E_CAS_PASSWORD 环境变量未设置。\n" +
+    "请在运行测试前 export 这两个变量，或创建 e2e/.env.e2e 文件。"
+  );
+}
 
 const AUTH_FILE = path.resolve(__dirname, ".auth", "user.json");
 
