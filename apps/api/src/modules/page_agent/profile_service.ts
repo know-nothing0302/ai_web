@@ -2,6 +2,8 @@ import axios from "axios";
 import { z } from "zod";
 
 import { env } from "../../config/env";
+import { query } from "../../lib/db";
+import { logger } from "../../lib/logger";
 import {
   pageAgentMessageStore,
   subscriptionStore,
@@ -49,6 +51,15 @@ export const runUserProfileAnalysisJob = async (input: {
   triggerMode: UserProfileAnalysisTriggerMode;
   targetUserId?: string;
 }) => {
+  // 并发保护：跳过已有正在运行的任务
+  const activeCheck = await query<{ id: string }>(
+    `SELECT id FROM user_profile_analysis_jobs WHERE status IN ('pending', 'running') LIMIT 1`
+  );
+  if (activeCheck.rows.length > 0) {
+    const existing = await userProfileAnalysisJobStore.getById(activeCheck.rows[0].id);
+    if (existing) return existing;
+  }
+
   const job = await userProfileAnalysisJobStore.create({
     triggerMode: input.triggerMode,
     targetUserId: input.targetUserId,
@@ -62,102 +73,129 @@ export const runUserProfileAnalysisJob = async (input: {
 
     let processedCount = 0;
     let successCount = 0;
+    let failedCount = 0;
 
     for (const userId of userIds) {
-      const subscriptions = await subscriptionStore.listByUser(userId);
-      const messages = await pageAgentMessageStore.listRecentByUser(userId, 30);
-      const recentQuestions = messages
-        .filter((item) => item.role === "user")
-        .map((item) => sanitizeForModel(item.content))
-        .slice(-10);
-      const recentFeedback = messages
-        .filter((item) => item.role === "feedback")
-        .map((item) => ({
-          score: item.feedbackScore,
-          tag: item.feedbackTag,
-          content: sanitizeForModel(item.content),
-        }))
-        .slice(-10);
+      try {
+        // 增量跳过：7天内已分析过的用户不再重复分析
+        const existingProfile = await userProfileStore.getByUserId(userId);
+        if (existingProfile?.lastAnalyzedAt) {
+          const lastAnalyzed = new Date(existingProfile.lastAnalyzedAt).getTime();
+          const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+          if (lastAnalyzed > sevenDaysAgo) {
+            successCount += 1;
+            processedCount += 1;
+            await userProfileAnalysisJobStore.updateCounters(job.id, {
+              processedCount,
+              successCount,
+              failedCount,
+            });
+            continue;
+          }
+        }
 
-      const payload = {
-        subscriptions: {
-          channelCodes: subscriptions.flatMap((item) => item.channelCodes),
-          frequencies: subscriptions.map((item) => item.frequency),
-        },
-        questionStats: {
-          total: messages.filter((item) => item.role === "user").length,
-          followUpCount: Math.max(messages.filter((item) => item.role === "user").length - 1, 0),
-          pageTypeDistribution: messages.reduce<Record<string, number>>((result, item) => {
-            if (!item.pageType) {
+        const subscriptions = await subscriptionStore.listByUser(userId);
+        const messages = await pageAgentMessageStore.listRecentByUser(userId, 30);
+        const recentQuestions = messages
+          .filter((item) => item.role === "user")
+          .map((item) => sanitizeForModel(item.content))
+          .slice(-10);
+        const recentFeedback = messages
+          .filter((item) => item.role === "feedback")
+          .map((item) => ({
+            score: item.feedbackScore,
+            tag: item.feedbackTag,
+            content: sanitizeForModel(item.content),
+          }))
+          .slice(-10);
+
+        const payload = {
+          subscriptions: {
+            channelCodes: subscriptions.flatMap((item) => item.channelCodes),
+            frequencies: subscriptions.map((item) => item.frequency),
+          },
+          questionStats: {
+            total: messages.filter((item) => item.role === "user").length,
+            followUpCount: Math.max(messages.filter((item) => item.role === "user").length - 1, 0),
+            pageTypeDistribution: messages.reduce<Record<string, number>>((result, item) => {
+              if (!item.pageType) {
+                return result;
+              }
+              result[item.pageType] = (result[item.pageType] ?? 0) + 1;
               return result;
-            }
-            result[item.pageType] = (result[item.pageType] ?? 0) + 1;
-            return result;
-          }, {}),
-        },
-        recentQuestions,
-        recentFeedback,
-      };
+            }, {}),
+          },
+          recentQuestions,
+          recentFeedback,
+        };
 
-      const llmResult = env.deepseekApiBaseUrl
-        ? await axios.post(
-            `${env.deepseekApiBaseUrl}/v1/chat/completions`,
-            {
-              model: env.deepseekModel,
-              messages: [
-                {
-                  role: "system",
-                  content: buildUserProfileAnalysisSystemPrompt(),
+        const llmResult = env.deepseekApiBaseUrl
+          ? await axios.post(
+              `${env.deepseekApiBaseUrl}/v1/chat/completions`,
+              {
+                model: env.deepseekModel,
+                messages: [
+                  {
+                    role: "system",
+                    content: buildUserProfileAnalysisSystemPrompt(),
+                  },
+                  {
+                    role: "user",
+                    content: buildUserProfileAnalysisUserPrompt(payload),
+                  },
+                ],
+                temperature: 0.2,
+                response_format: {
+                  type: "json_object",
                 },
-                {
-                  role: "user",
-                  content: buildUserProfileAnalysisUserPrompt(payload),
-                },
-              ],
-              temperature: 0.2,
-              response_format: {
-                type: "json_object",
               },
-            },
-            {
-              headers: env.deepseekApiKey
-                ? {
-                    Authorization: `Bearer ${env.deepseekApiKey}`,
-                  }
-                : undefined,
-              timeout: 60000,
-            }
-          )
-        : undefined;
+              {
+                headers: env.deepseekApiKey
+                  ? {
+                      Authorization: `Bearer ${env.deepseekApiKey}`,
+                    }
+                  : undefined,
+                timeout: 60000,
+              }
+            )
+          : undefined;
 
-      const parsed = llmResult
-        ? profileOutputSchema.parse(
-            JSON.parse(llmResult.data?.choices?.[0]?.message?.content ?? "{}")
-          )
-        : buildFallbackProfile({
-            channelCodes: payload.subscriptions.channelCodes,
-            recentFeedback: recentFeedback.map((item) => item.content),
-          });
+        const parsed = llmResult
+          ? profileOutputSchema.parse(
+              JSON.parse(llmResult.data?.choices?.[0]?.message?.content ?? "{}")
+            )
+          : buildFallbackProfile({
+              channelCodes: payload.subscriptions.channelCodes,
+              recentFeedback: recentFeedback.map((item) => item.content),
+            });
 
-      await userProfileStore.upsertByUser(userId, {
-        profileVersion: 1,
-        preferenceSummary: parsed.preferenceSummary,
-        personaPrompt: parsed.personaPrompt.slice(0, 500),
-        interestTopics: parsed.interestTopics,
-        responsePreferences: parsed.responsePreferences,
-        evidenceStats: {
-          questionCount: payload.questionStats.total,
-          feedbackCount: recentFeedback.length,
-          confidence: parsed.confidence,
-        },
-      });
+        await userProfileStore.upsertByUser(userId, {
+          profileVersion: (existingProfile?.profileVersion ?? 0) + 1,
+          preferenceSummary: parsed.preferenceSummary,
+          personaPrompt: parsed.personaPrompt.slice(0, 500),
+          interestTopics: parsed.interestTopics,
+          responsePreferences: parsed.responsePreferences,
+          evidenceStats: {
+            questionCount: payload.questionStats.total,
+            feedbackCount: recentFeedback.length,
+            confidence: parsed.confidence,
+          },
+        });
 
+        successCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        logger.error("profile.analysis.user.failed", {
+          jobId: job.id,
+          userId,
+          error: error instanceof Error ? error.message : "unknown_error",
+        });
+      }
       processedCount += 1;
-      successCount += 1;
       await userProfileAnalysisJobStore.updateCounters(job.id, {
         processedCount,
         successCount,
-        failedCount: processedCount - successCount,
+        failedCount,
       });
     }
 

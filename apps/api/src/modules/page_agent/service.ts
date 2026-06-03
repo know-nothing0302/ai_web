@@ -572,66 +572,74 @@ export const streamPageAnswer = async (
             response.write(`data: ${JSON.stringify({ token })}\n\n`);
           }
         } catch {
-          // skip malformed line — may be a partial JSON that was cut mid-frame;
-          // it remains in streamBuffer and will be retried after the next chunk
+          // skip malformed line — LLM APIs produce well-formed JSON per line,
+          // so a parse failure here indicates a genuinely corrupt chunk
         }
       }
     });
 
-    llmResponse.data.on("end", async () => {
-      const finalAnswer = normalizeAiContent(fullAnswer) || buildFallbackAnswer(input);
-      // 保存完整回答
-      await pageAgentMessageStore.create({
-        conversationId: input.conversationId,
-        userId,
-        role: "assistant",
-        messageType: "answer",
-        content: finalAnswer,
-        sanitizedContent: finalAnswer,
-        pageType: input.pageType,
-        route: input.route,
-        pageTitle: input.pageTitle,
-        contextPayload: input.context,
-        sourcesPayload: [currentPageSource, ...searchSources],
-        model: env.deepseekModel,
-      });
-      await pageAgentConversationStore.touch(input.conversationId);
-      response.write(`data: ${JSON.stringify({ done: true, sources: [currentPageSource, ...searchSources] })}\n\n`);
-      response.end();
-      logger.info("page.agent.stream.finish", {
-        userId,
-        conversationId: input.conversationId,
-        answerLength: finalAnswer.length,
-        durationMs: Date.now() - startedAt,
+    llmResponse.data.on("end", () => {
+      (async () => {
+        const finalAnswer = normalizeAiContent(fullAnswer) || buildFallbackAnswer(input);
+        // 保存完整回答
+        await pageAgentMessageStore.create({
+          conversationId: input.conversationId,
+          userId,
+          role: "assistant",
+          messageType: "answer",
+          content: finalAnswer,
+          sanitizedContent: finalAnswer,
+          pageType: input.pageType,
+          route: input.route,
+          pageTitle: input.pageTitle,
+          contextPayload: input.context,
+          sourcesPayload: [currentPageSource, ...searchSources],
+          model: env.deepseekModel,
+        });
+        await pageAgentConversationStore.touch(input.conversationId);
+        response.write(`data: ${JSON.stringify({ done: true, sources: [currentPageSource, ...searchSources] })}\n\n`);
+        response.end();
+        logger.info("page.agent.stream.finish", {
+          userId,
+          conversationId: input.conversationId,
+          answerLength: finalAnswer.length,
+          durationMs: Date.now() - startedAt,
+        });
+      })().catch((err) => {
+        logger.error("page.agent.stream.end_handler_failed", { err, conversationId: input.conversationId });
       });
     });
 
-    llmResponse.data.on("error", async (err: Error) => {
-      streamError = err;
-      const fallback = buildFallbackAnswer(input);
-      response.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
-      response.write(`data: ${JSON.stringify({ done: true, error: err.message })}\n\n`);
-      response.end();
-      await pageAgentMessageStore.create({
-        conversationId: input.conversationId,
-        userId,
-        role: "assistant",
-        messageType: "answer",
-        content: fallback,
-        sanitizedContent: fallback,
-        pageType: input.pageType,
-        route: input.route,
-        pageTitle: input.pageTitle,
-        contextPayload: input.context,
-        sourcesPayload: [currentPageSource, ...searchSources],
-        model: env.deepseekModel,
-      });
-      await pageAgentConversationStore.touch(input.conversationId);
-      logger.error("page.agent.stream.failed", {
-        userId,
-        conversationId: input.conversationId,
-        error: err.message,
-        durationMs: Date.now() - startedAt,
+    llmResponse.data.on("error", (err: Error) => {
+      (async () => {
+        streamError = err;
+        const fallback = buildFallbackAnswer(input);
+        response.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
+        response.write(`data: ${JSON.stringify({ done: true, error: err.message })}\n\n`);
+        response.end();
+        await pageAgentMessageStore.create({
+          conversationId: input.conversationId,
+          userId,
+          role: "assistant",
+          messageType: "answer",
+          content: fallback,
+          sanitizedContent: fallback,
+          pageType: input.pageType,
+          route: input.route,
+          pageTitle: input.pageTitle,
+          contextPayload: input.context,
+          sourcesPayload: [currentPageSource, ...searchSources],
+          model: env.deepseekModel,
+        });
+        await pageAgentConversationStore.touch(input.conversationId);
+        logger.error("page.agent.stream.failed", {
+          userId,
+          conversationId: input.conversationId,
+          error: err.message,
+          durationMs: Date.now() - startedAt,
+        });
+      })().catch((innerErr) => {
+        logger.error("page.agent.stream.error_handler_failed", { innerErr, originalError: err.message, conversationId: input.conversationId });
       });
     });
   } catch (error: any) {

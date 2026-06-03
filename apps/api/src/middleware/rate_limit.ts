@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { env } from "../config/env";
 
 interface RateLimitEntry {
   count: number;
@@ -10,6 +11,11 @@ const DEFAULT_WINDOW_MS = 60_000;
 const CLEANUP_INTERVAL_MS = 300_000; // 每 5 分钟清理过期条目
 
 const store = new Map<string, RateLimitEntry>();
+
+// 清理上一次模块加载遗留的定时器（tsx watch 热重载场景）
+const PREV_TIMER_KEY = Symbol.for("rate_limit_cleanup_timer");
+const prevTimer = (globalThis as any)[PREV_TIMER_KEY];
+if (prevTimer) clearInterval(prevTimer);
 
 // 定期清理过期条目，防止内存泄漏
 const cleanupTimer = setInterval(() => {
@@ -25,6 +31,8 @@ const cleanupTimer = setInterval(() => {
 if (cleanupTimer.unref) {
   cleanupTimer.unref();
 }
+// 存储到 globalThis 以便下次热重载时清理
+(globalThis as any)[PREV_TIMER_KEY] = cleanupTimer;
 
 /**
  * 创建基于用户 ID 的速率限制中间件
@@ -37,7 +45,8 @@ export const createRateLimiter = (
   windowMs: number = DEFAULT_WINDOW_MS
 ) => {
   return (request: Request, response: Response, next: NextFunction): void => {
-    const userId = (request.session as any)?.user?.id ?? "anonymous";
+    const userId = (request.session as any)?.user?.id
+      ?? (env.devAuthBypass ? "dev-mock-id" : "anonymous");
     const now = Date.now();
     const record = store.get(userId);
 

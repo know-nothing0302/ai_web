@@ -35,6 +35,9 @@ export const buildPageAgentSystemPrompt = (input?: {
       : `- **详细模式**：深度展开。回答必须包含：背景分析、核心论点、支撑证据、相关案例、结论。不得少于 300 字。禁止在回答末尾说"需要更具体的问题"之类推脱话术，应基于页面已有信息尽力给出完整分析。`;
 
   const citationStyle = input?.citationStyle ?? "none";
+  // NOTE: 引文格式依赖 LLM 从文章上下文中提取元数据（作者、刊名、卷期等）。
+  // 当文章元数据不完整时，模型可能编造引用信息。prompt 内包含"注明信息不全"
+  // 的指令作为缓解，但无法完全消除幻觉风险。若幻觉率过高，可通过前端关闭此功能。
   const citationDirective =
     citationStyle === "gbt7714"
       ? `- **引文格式**：引用文章时需提供 GB/T 7714 格式的参考文献条目。格式：[序号] 主要责任者. 文献题名[J]. 刊名, 出版年份, 卷号(期号): 起止页码. 若信息不完整，请根据已有信息尽力格式化，并注明"信息不全"。`
@@ -73,12 +76,17 @@ ${citationDirective}
 `.trim();
 };
 
-const sanitizeContextValues = (ctx: Record<string, unknown>): Record<string, unknown> => {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(ctx)) {
-    result[key] = typeof value === "string" ? sanitizeForModel(value) : value;
+const sanitizeContextValues = (value: unknown): unknown => {
+  if (typeof value === "string") return sanitizeForModel(value);
+  if (Array.isArray(value)) return value.map(sanitizeContextValues);
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      result[k] = sanitizeContextValues(v);
+    }
+    return result;
   }
-  return result;
+  return value;
 };
 
 export const buildPageAgentUserPrompt = (
