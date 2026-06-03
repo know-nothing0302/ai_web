@@ -10,7 +10,9 @@ import {
   userProfileAnalysisJobStore,
 } from "../../lib/store";
 import { requireAdminOrInternalToken, requireAuth } from "../../middleware/auth";
+import { pageAgentQaRateLimiter } from "../../middleware/rate_limit";
 import { runUserProfileAnalysisJob } from "./profile_service";
+import { sanitizeForModel } from "./sanitize";
 import { answerPageQuestion, streamPageAnswer } from "./service";
 
 const createConversationSchema = z.object({
@@ -149,7 +151,7 @@ pageAgentRouter.get("/conversations/:id/messages", requireAuth, async (request, 
   response.json({ items });
 });
 
-pageAgentRouter.post("/qa", requireAuth, async (request, response) => {
+pageAgentRouter.post("/qa", requireAuth, pageAgentQaRateLimiter, async (request, response) => {
   logger.info("page.agent.qa.request", {
     hasSessionUser: Boolean(request.session.user),
     devAuthBypass: env.devAuthBypass,
@@ -188,7 +190,7 @@ pageAgentRouter.post("/qa", requireAuth, async (request, response) => {
 });
 
 // SSE 流式 — 代替原 /qa 用于前端实时渲染
-pageAgentRouter.post("/qa/stream", requireAuth, (request, response) => {
+pageAgentRouter.post("/qa/stream", requireAuth, pageAgentQaRateLimiter, (request, response) => {
   const parsed = pageAgentSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: z.flattenError(parsed.error) });
@@ -225,7 +227,7 @@ pageAgentRouter.post("/messages/:id/feedback", requireAuth, async (request, resp
     role: "feedback",
     messageType: "feedback",
     content: parsed.data.content,
-    sanitizedContent: parsed.data.content,
+    sanitizedContent: sanitizeForModel(parsed.data.content),
     pageType: message.pageType,
     route: message.route,
     pageTitle: message.pageTitle,

@@ -239,10 +239,14 @@ const answerPageQuestion = async (input, requestUserId) => {
         };
     }
     try {
+        const sanitizedSelectionText = input.selectionText?.trim()
+            ? (0, sanitize_1.sanitizeForModel)(input.selectionText.trim())
+            : undefined;
         const messages = (0, prompts_1.buildPageAgentMessages)({
             request: {
                 ...input,
                 question: sanitizedQuestion,
+                selectionText: sanitizedSelectionText,
             },
             historyMessages,
             userProfile,
@@ -463,13 +467,17 @@ const streamPageAnswer = async (input, userId, response) => {
         return;
     }
     // 6. 构建消息并调用 LLM 流式
+    const sanitizedSelectionText = input.selectionText?.trim()
+        ? (0, sanitize_1.sanitizeForModel)(input.selectionText.trim())
+        : undefined;
     const messages = (0, prompts_1.buildPageAgentMessages)({
-        request: { ...input, question: sanitizedQuestion },
+        request: { ...input, question: sanitizedQuestion, selectionText: sanitizedSelectionText },
         historyMessages,
         userProfile,
         searchSources,
     });
     let fullAnswer = "";
+    let streamBuffer = "";
     let streamError = null;
     try {
         const llmResponse = await axios_1.default.post(`${env_1.env.deepseekApiBaseUrl}/v1/chat/completions`, {
@@ -485,8 +493,13 @@ const streamPageAnswer = async (input, userId, response) => {
             timeout: 120000,
         });
         llmResponse.data.on("data", (chunk) => {
-            const lines = chunk.toString().split("\n").filter((line) => line.startsWith("data: "));
+            streamBuffer += chunk.toString();
+            const lines = streamBuffer.split("\n");
+            // 最后一行可能不完整，保留到下次拼接
+            streamBuffer = lines.pop() ?? "";
             for (const line of lines) {
+                if (!line.startsWith("data: "))
+                    continue;
                 const jsonStr = line.slice(6).trim();
                 if (jsonStr === "[DONE]")
                     continue;
@@ -499,7 +512,8 @@ const streamPageAnswer = async (input, userId, response) => {
                     }
                 }
                 catch {
-                    // skip malformed chunk
+                    // skip malformed line — may be a partial JSON that was cut mid-frame;
+                    // it remains in streamBuffer and will be retried after the next chunk
                 }
             }
         });

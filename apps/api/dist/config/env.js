@@ -48,6 +48,7 @@ exports.env = {
     wecomTagSyncCron: process.env.WECOM_TAG_SYNC_CRON ?? "0 5 * * *",
     wecomTagNamePrefix: process.env.WECOM_TAG_NAME_PREFIX ?? "AI订阅",
     pushTimezone: process.env.PUSH_TIMEZONE ?? "Asia/Shanghai",
+    profileAnalysisCron: process.env.PROFILE_ANALYSIS_CRON ?? "0 3 * * 0",
     dailyPushCron: process.env.DAILY_PUSH_CRON ?? "0 20 * * *",
     weeklyPushCron: process.env.WEEKLY_PUSH_CRON ?? "0 20 * * 0",
     deferredInstantPushCron: process.env.DEFERRED_INSTANT_PUSH_CRON ?? "0 8 * * *",

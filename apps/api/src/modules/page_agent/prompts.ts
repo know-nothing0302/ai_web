@@ -1,14 +1,18 @@
 import { PageAgentMessage, UserProfile } from "../../lib/types";
 import { PageAgentRequestBody, PageAgentSource } from "./types";
+import { sanitizeForModel } from "./sanitize";
 
 const buildArticleDetailPromptContext = (input: PageAgentRequestBody) => ({
-  title: typeof input.context.title === "string" ? input.context.title : "",
-  summary: typeof input.context.summary === "string" ? input.context.summary : "",
-  sourceContent:
-    typeof input.context.sourceContent === "string" ? input.context.sourceContent : "",
-  contentPreview:
-    typeof input.context.contentPreview === "string" ? input.context.contentPreview : "",
-  author: typeof input.context.author === "string" ? input.context.author : "",
+  title: typeof input.context.title === "string"
+    ? sanitizeForModel(input.context.title) : "",
+  summary: typeof input.context.summary === "string"
+    ? sanitizeForModel(input.context.summary) : "",
+  sourceContent: typeof input.context.sourceContent === "string"
+    ? sanitizeForModel(input.context.sourceContent) : "",
+  contentPreview: typeof input.context.contentPreview === "string"
+    ? sanitizeForModel(input.context.contentPreview) : "",
+  author: typeof input.context.author === "string"
+    ? sanitizeForModel(input.context.author) : "",
   publishedAt:
     typeof input.context.publishedAt === "string" ? input.context.publishedAt : "",
   channelCode:
@@ -30,8 +34,13 @@ export const buildPageAgentSystemPrompt = (input?: {
       ? `- **精简模式**：回答控制在 200 字以内，用要点列表，只给最核心结论。`
       : `- **详细模式**：深度展开。回答必须包含：背景分析、核心论点、支撑证据、相关案例、结论。不得少于 300 字。禁止在回答末尾说"需要更具体的问题"之类推脱话术，应基于页面已有信息尽力给出完整分析。`;
 
-  // 引文功能未成熟，暂强制关闭
-  const citationDirective = "";
+  const citationStyle = input?.citationStyle ?? "none";
+  const citationDirective =
+    citationStyle === "gbt7714"
+      ? `- **引文格式**：引用文章时需提供 GB/T 7714 格式的参考文献条目。格式：[序号] 主要责任者. 文献题名[J]. 刊名, 出版年份, 卷号(期号): 起止页码. 若信息不完整，请根据已有信息尽力格式化，并注明"信息不全"。`
+      : citationStyle === "apa"
+        ? `- **引文格式**：引用文章时需提供 APA 格式的参考文献条目。格式：Author, A. A. (Year). Title of article. Title of Periodical, Volume(Issue), pages. 若信息不完整，请根据已有信息尽力格式化，并注明"信息不全"。`
+        : "";
 
   return `
 你是 AI在徐医 站内页面问答助手。
@@ -64,6 +73,14 @@ ${citationDirective}
 `.trim();
 };
 
+const sanitizeContextValues = (ctx: Record<string, unknown>): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(ctx)) {
+    result[key] = typeof value === "string" ? sanitizeForModel(value) : value;
+  }
+  return result;
+};
+
 export const buildPageAgentUserPrompt = (
   input: PageAgentRequestBody,
   searchSources: PageAgentSource[]
@@ -85,7 +102,7 @@ export const buildPageAgentUserPrompt = (
           route: input.route,
           pageTitle: input.pageTitle,
           selectionText: input.selectionText ?? "",
-          context: input.context,
+          context: sanitizeContextValues(input.context),
           searchSources,
         },
     null,
@@ -103,6 +120,7 @@ export const buildPageAgentMessages = (input: {
       role: "system",
       content: buildPageAgentSystemPrompt({
         verbosity: input.request.verbosity,
+        citationStyle: input.request.citationStyle,
       }),
     },
   ];
@@ -136,7 +154,7 @@ export const buildPageAgentMessages = (input: {
     if (message.role === "user" || message.role === "assistant") {
       messages.push({
         role: message.role,
-        content: message.sanitizedContent || message.content,
+        content: message.sanitizedContent || sanitizeForModel(message.content),
       });
     }
   });

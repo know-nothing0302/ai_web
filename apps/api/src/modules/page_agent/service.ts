@@ -279,10 +279,14 @@ export const answerPageQuestion = async (
   }
 
   try {
+    const sanitizedSelectionText = input.selectionText?.trim()
+      ? sanitizeForModel(input.selectionText.trim())
+      : undefined;
     const messages = buildPageAgentMessages({
       request: {
         ...input,
         question: sanitizedQuestion,
+        selectionText: sanitizedSelectionText,
       },
       historyMessages,
       userProfile,
@@ -518,14 +522,18 @@ export const streamPageAnswer = async (
   }
 
   // 6. 构建消息并调用 LLM 流式
+  const sanitizedSelectionText = input.selectionText?.trim()
+    ? sanitizeForModel(input.selectionText.trim())
+    : undefined;
   const messages = buildPageAgentMessages({
-    request: { ...input, question: sanitizedQuestion },
+    request: { ...input, question: sanitizedQuestion, selectionText: sanitizedSelectionText },
     historyMessages,
     userProfile,
     searchSources,
   });
 
   let fullAnswer = "";
+  let streamBuffer = "";
   let streamError: Error | null = null;
 
   try {
@@ -547,8 +555,13 @@ export const streamPageAnswer = async (
     );
 
     llmResponse.data.on("data", (chunk: Buffer) => {
-      const lines = chunk.toString().split("\n").filter((line) => line.startsWith("data: "));
+      streamBuffer += chunk.toString();
+      const lines = streamBuffer.split("\n");
+      // 最后一行可能不完整，保留到下次拼接
+      streamBuffer = lines.pop() ?? "";
+
       for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
         const jsonStr = line.slice(6).trim();
         if (jsonStr === "[DONE]") continue;
         try {
@@ -559,7 +572,8 @@ export const streamPageAnswer = async (
             response.write(`data: ${JSON.stringify({ token })}\n\n`);
           }
         } catch {
-          // skip malformed chunk
+          // skip malformed line — may be a partial JSON that was cut mid-frame;
+          // it remains in streamBuffer and will be retried after the next chunk
         }
       }
     });

@@ -204,7 +204,6 @@ const filterOptions = [
             <BookOpen class="h-3 w-3 inline -mt-0.5 mr-0.5" />
             详细
           </button>
-          <!-- 引用功能未成熟，暂藏
           <template v-if="pageType === 'article_detail'">
             <span class="text-[11px] text-[#8aa3bc] ml-1">引用</span>
             <select
@@ -217,7 +216,6 @@ const filterOptions = [
               <option value="apa">APA</option>
             </select>
           </template>
-          -->
         </div>
       </header>
 

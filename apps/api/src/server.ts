@@ -2,6 +2,7 @@ import { env } from "./config/env";
 import { initPushJobs } from "./jobs/push";
 import { initSyncUsersJob } from "./jobs/sync-users";
 import { initBirthdayJob } from "./jobs/birthday";
+import { initProfileAnalysisJob } from "./jobs/profile";
 import { app } from "./app";
 import { initDb } from "./lib/db";
 import { logger } from "./lib/logger";
@@ -12,6 +13,7 @@ const start = async (): Promise<void> => {
     initPushJobs();
     initSyncUsersJob();
     initBirthdayJob();
+    initProfileAnalysisJob();
     logger.info("server.started", {
       port: env.port,
       nodeEnv: env.nodeEnv,

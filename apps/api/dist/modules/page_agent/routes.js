@@ -7,7 +7,9 @@ const env_1 = require("../../config/env");
 const logger_1 = require("../../lib/logger");
 const store_1 = require("../../lib/store");
 const auth_1 = require("../../middleware/auth");
+const rate_limit_1 = require("../../middleware/rate_limit");
 const profile_service_1 = require("./profile_service");
+const sanitize_1 = require("./sanitize");
 const service_1 = require("./service");
 const createConversationSchema = zod_1.z.object({
     pageType: zod_1.z.enum(["article_detail", "article_list", "subscription", "admin"]),
@@ -133,7 +135,7 @@ exports.pageAgentRouter.get("/conversations/:id/messages", auth_1.requireAuth, a
     const items = await store_1.pageAgentMessageStore.listRecentByConversation(conversation.id, 100);
     response.json({ items });
 });
-exports.pageAgentRouter.post("/qa", auth_1.requireAuth, async (request, response) => {
+exports.pageAgentRouter.post("/qa", auth_1.requireAuth, rate_limit_1.pageAgentQaRateLimiter, async (request, response) => {
     logger_1.logger.info("page.agent.qa.request", {
         hasSessionUser: Boolean(request.session.user),
         devAuthBypass: env_1.env.devAuthBypass,
@@ -170,7 +172,7 @@ exports.pageAgentRouter.post("/qa", auth_1.requireAuth, async (request, response
     response.json(result);
 });
 // SSE 流式 — 代替原 /qa 用于前端实时渲染
-exports.pageAgentRouter.post("/qa/stream", auth_1.requireAuth, (request, response) => {
+exports.pageAgentRouter.post("/qa/stream", auth_1.requireAuth, rate_limit_1.pageAgentQaRateLimiter, (request, response) => {
     const parsed = pageAgentSchema.safeParse(request.body);
     if (!parsed.success) {
         response.status(400).json({ message: "参数错误", errors: zod_1.z.flattenError(parsed.error) });
@@ -206,7 +208,7 @@ exports.pageAgentRouter.post("/messages/:id/feedback", auth_1.requireAuth, async
         role: "feedback",
         messageType: "feedback",
         content: parsed.data.content,
-        sanitizedContent: parsed.data.content,
+        sanitizedContent: (0, sanitize_1.sanitizeForModel)(parsed.data.content),
         pageType: message.pageType,
         route: message.route,
         pageTitle: message.pageTitle,
