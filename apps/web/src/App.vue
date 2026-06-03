@@ -15,9 +15,9 @@ import {
   buildPageAgentClientErrorMessage,
   logPageAgentClient,
 } from "./page_agent/error_message";
-import { type PageAgentConversation, type PageAgentMessage, type PageAgentResponse } from "./page_agent/types";
+import { type PageAgentConversation, type PageAgentMessage } from "./page_agent/types";
 import {
-  askPageAgent,
+  askPageAgentStream,
   canAccessAdminViews,
   createPageAgentConversation,
   getPageAgentConversationMessages,
@@ -39,6 +39,7 @@ const pageAgentQuestion = ref("");
 const pageAgentLoading = ref(false);
 const pageAgentMessages = ref<PageAgentMessage[]>([]);
 const pageAgentRequestToken = ref(0);
+const pageAgentStreamController = ref<AbortController | null>(null);
 const pageAgentConversationId = ref("");
 const pageAgentIntroActive = ref(true);
 const pageAgentConversations = ref<PageAgentConversation[]>([]);
@@ -145,19 +146,6 @@ const appendUserMessage = (text: string): void => {
   ];
 };
 
-const appendAssistantMessage = (result: PageAgentResponse): void => {
-  pageAgentMessages.value = [
-    ...pageAgentMessages.value,
-    {
-      id: `assistant-${Date.now()}`,
-      role: "assistant",
-      text: result.answer,
-      sources: result.sources,
-      meta: result.meta,
-    },
-  ];
-};
-
 const submitPageAgentQuestion = async (): Promise<void> => {
   const text = pageAgentQuestion.value.trim();
   if (!currentPageAgentContext.value || !text) {
@@ -180,33 +168,67 @@ const submitPageAgentQuestion = async (): Promise<void> => {
       pageType: currentPageAgentContext.value.pageType,
       questionLength: text.length,
     });
-    const result = await askPageAgent({
-      ...currentPageAgentContext.value,
-      conversationId,
-      question: text,
-      selectionText: getSelectionText(),
-      verbosity: pageAgentVerbosity.value,
-      citationStyle: pageAgentCitationStyle.value,
-    });
-    if (pageAgentRequestToken.value !== token) {
-      return;
-    }
-    pageAgentConversationId.value = result.conversationId;
-    logPageAgentClient("answer.request.success", {
-      conversationId: result.conversationId,
-      answerLength: result.answer.length,
-      usedHistory: result.meta.usedHistory,
-      usedUserProfile: result.meta.usedUserProfile,
-      usedSiteSearch: result.meta.usedSiteSearch,
-    });
-    appendAssistantMessage(result);
-    // Auto-set conversation title from first user question
-    if (!pageAgentTitleSet.value) {
-      pageAgentTitleSet.value = true;
-      const title = text.slice(0, 30);
-      updatePageAgentConversationTitle(pageAgentConversationId.value, title)
-        .catch((err) => console.error("标题更新失败", err));
-    }
+    // 流式: 先插入占位消息，逐 token 更新
+    const msgId = `assistant-${Date.now()}`;
+    pageAgentMessages.value = [
+      ...pageAgentMessages.value,
+      { id: msgId, role: "assistant" as const, text: "" },
+    ];
+    let streamDone = false;
+
+    const controller = askPageAgentStream(
+      {
+        ...currentPageAgentContext.value,
+        conversationId,
+        question: text,
+        selectionText: getSelectionText(),
+        verbosity: pageAgentVerbosity.value,
+        citationStyle: pageAgentCitationStyle.value,
+      },
+      {
+        onToken: (t) => {
+          if (pageAgentRequestToken.value !== token || streamDone) return;
+          const idx = pageAgentMessages.value.findIndex((m) => m.id === msgId);
+          if (idx >= 0) {
+            pageAgentMessages.value[idx] = {
+              ...pageAgentMessages.value[idx],
+              text: pageAgentMessages.value[idx].text + t,
+            };
+          }
+        },
+        onDone: (sources) => {
+          if (pageAgentRequestToken.value !== token) return;
+          streamDone = true;
+          const idx = pageAgentMessages.value.findIndex((m) => m.id === msgId);
+          if (idx >= 0) {
+            pageAgentMessages.value[idx] = {
+              ...pageAgentMessages.value[idx],
+              sources,
+            };
+          }
+          pageAgentLoading.value = false;
+          if (!pageAgentTitleSet.value) {
+            pageAgentTitleSet.value = true;
+            updatePageAgentConversationTitle(conversationId, text.slice(0, 30))
+              .catch((err) => console.error("标题更新失败", err));
+          }
+        },
+        onError: (err) => {
+          if (pageAgentRequestToken.value !== token) return;
+          streamDone = true;
+          const idx = pageAgentMessages.value.findIndex((m) => m.id === msgId);
+          if (idx >= 0) {
+            pageAgentMessages.value[idx] = {
+              ...pageAgentMessages.value[idx],
+              text: pageAgentMessages.value[idx].text || `[错误] ${err}`,
+            };
+          }
+          pageAgentLoading.value = false;
+        },
+      }
+    );
+    pageAgentStreamController.value = controller;
+    pageAgentConversationId.value = conversationId;
   } catch (error) {
     logPageAgentClient("answer.request.failed", {
       error,
@@ -231,6 +253,8 @@ const copyPageAgentMessage = async (value: string): Promise<void> => {
 
 const stopPageAgentRequest = (): void => {
   pageAgentRequestToken.value = Date.now();
+  pageAgentStreamController.value?.abort();
+  pageAgentStreamController.value = null;
   pageAgentLoading.value = false;
 };
 
@@ -325,12 +349,9 @@ const navItems = computed((): NavItem[] => {
 
   const adminChildren: NavItem[] = [];
 
-  if (auth.user) {
-    adminChildren.push({ path: "/admin/stats", name: "统计信息", icon: BarChart3 });
-  }
-
   if (canAccessAdminViews(auth.user)) {
     adminChildren.push(
+      { path: "/admin/stats", name: "统计信息", icon: BarChart3 },
       { path: "/ai-lab", name: "AI 试验场", icon: Zap },
       { path: "/admin/publish", name: "内容发布", icon: Settings },
       { path: "/admin/feedback-review", name: "反馈审批", icon: ClipboardCheck }

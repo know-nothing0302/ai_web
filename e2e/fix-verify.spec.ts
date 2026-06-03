@@ -88,17 +88,28 @@ const cfg = loadConfig();
 test.describe(`反馈修复验收 — ${cfg.task_id}`, () => {
 
   // 1. 逐页验证（已认证，所有页面直接加载）
-  for (const pageCfg of cfg.pages) {
+  // 去重：相同 path 只测一次（避免 Playwright duplicate test title 错误）
+  const seen = new Set<string>();
+  const uniquePages: (PageConfig & { _idx: number })[] = [];
+  for (let i = 0; i < cfg.pages.length; i++) {
+    const key = cfg.pages[i].path;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniquePages.push({ ...cfg.pages[i], _idx: i + 1 });
+    }
+  }
+
+  for (const pageCfg of uniquePages) {
     const label = pageCfg.title || pageCfg.path;
 
-    test(`页面加载 — ${label} (${pageCfg.path})`, async ({ page }) => {
+    test(`[${pageCfg._idx}] 页面加载 — ${label} (${pageCfg.path})`, async ({ page }) => {
       test.setTimeout(60000);
       await gotoPage(page, pageCfg.path);
       await assertPageLoads(page, pageCfg.path);
     });
 
     if (pageCfg.checks && pageCfg.checks.length > 0) {
-      test(`功能验证 — ${label}`, async ({ page }) => {
+      test(`[${pageCfg._idx}] 功能验证 — ${label}`, async ({ page }) => {
         test.setTimeout(60000);
         await gotoPage(page, pageCfg.path);
         for (const check of pageCfg.checks) {

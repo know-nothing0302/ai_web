@@ -432,6 +432,70 @@ export const askPageAgent = async (
   return result.data;
 };
 
+/**
+ * 流式提问 — 通过 SSE 逐 token 推送，前端实时渲染
+ * onToken: 每收到一个 token 调用
+ * onDone: 流结束时调用，返回 sources
+ * onError: 出错时调用
+ * 返回值: 用于取消耗材的 AbortController
+ */
+export const askPageAgentStream = (
+  payload: PageAgentRequestPayload,
+  callbacks: {
+    onToken: (token: string) => void;
+    onDone: (sources: PageAgentSource[]) => void;
+    onError: (error: string) => void;
+  }
+): AbortController => {
+  const controller = new AbortController();
+  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
+  fetch(`${baseUrl}/api/page-agent/qa/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: controller.signal,
+    credentials: "include",
+  })
+    .then(async (resp) => {
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        callbacks.onError(errText || `HTTP ${resp.status}`);
+        return;
+      }
+      const reader = resp.body?.getReader();
+      if (!reader) {
+        callbacks.onError("浏览器不支持流式读取");
+        return;
+      }
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.token) callbacks.onToken(data.token);
+            if (data.done) callbacks.onDone(data.sources ?? []);
+            if (data.error) callbacks.onError(data.error);
+          } catch { /* skip malformed line */ }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") {
+        callbacks.onError(err.message);
+      }
+    });
+
+  return controller;
+};
+
 export const createPageAgentConversation = async (payload: {
   pageType: PageAgentContextPayload["pageType"];
   route: string;

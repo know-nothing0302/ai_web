@@ -83,8 +83,8 @@ const load = async (): Promise<void> => {
     checkFavorite(articleId).then((result) => {
       isFavorited.value = result.isFavorited;
     }).catch(() => undefined);
-    // 加载标注
-    loadAnnotations();
+    // 加载标注 — 功能未成熟，暂注释
+    // loadAnnotations();
   } finally {
     loading.value = false;
   }
@@ -390,8 +390,9 @@ onMounted(() => {
   console.log("[AIWEB] ArticleDetailPage onMounted", { articleId: route.params.id?.toString() ?? "" });
   load();
   window.addEventListener("popstate", handleBrowserBack);
-  document.addEventListener("mouseup", handleTextSelection as EventListener);
-  document.addEventListener("click", handleDocumentClick);
+  // 文本标注功能未成熟，暂注释
+  // document.addEventListener("mouseup", handleTextSelection as EventListener);
+  // document.addEventListener("click", handleDocumentClick);
 });
 
 watchEffect(() => {
@@ -413,8 +414,9 @@ const handleBrowserBack = (): void => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("popstate", handleBrowserBack);
-  document.removeEventListener("mouseup", handleTextSelection as EventListener);
-  document.removeEventListener("click", handleDocumentClick);
+  // 与 onMounted 中的标注事件监听对应
+  // document.removeEventListener("mouseup", handleTextSelection as EventListener);
+  // document.removeEventListener("click", handleDocumentClick);
   setPageAgentContext(null);
 });
 </script>
@@ -562,7 +564,8 @@ onBeforeUnmount(() => {
     {{ linkCopyMessage }}
   </div>
 
-  <!-- 标注工具栏 -->
+  <!-- 标注工具栏 — 功能未成熟，暂藏 -->
+  <!--
   <Teleport to="body">
     <div
       v-if="showAnnoToolbar"
@@ -594,8 +597,10 @@ onBeforeUnmount(() => {
       </button>
     </div>
   </Teleport>
+  -->
 
-  <!-- 笔记编辑器 -->
+  <!-- 笔记编辑器 — 功能未成熟，暂藏 -->
+  <!--
   <Teleport to="body">
     <div
       v-if="showNoteEditor && editingAnnotation"
@@ -641,4 +646,5 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </Teleport>
+  -->
 </template>

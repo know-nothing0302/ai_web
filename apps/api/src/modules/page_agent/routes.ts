@@ -11,7 +11,7 @@ import {
 } from "../../lib/store";
 import { requireAdminOrInternalToken, requireAuth } from "../../middleware/auth";
 import { runUserProfileAnalysisJob } from "./profile_service";
-import { answerPageQuestion } from "./service";
+import { answerPageQuestion, streamPageAnswer } from "./service";
 
 const createConversationSchema = z.object({
   pageType: z.enum(["article_detail", "article_list", "subscription", "admin"]),
@@ -185,6 +185,21 @@ pageAgentRouter.post("/qa", requireAuth, async (request, response) => {
     usedSiteSearch: result.meta.usedSiteSearch,
   });
   response.json(result);
+});
+
+// SSE 流式 — 代替原 /qa 用于前端实时渲染
+pageAgentRouter.post("/qa/stream", requireAuth, (request, response) => {
+  const parsed = pageAgentSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: z.flattenError(parsed.error) });
+    return;
+  }
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+  streamPageAnswer(parsed.data, userId, response);
 });
 
 pageAgentRouter.post("/messages/:id/feedback", requireAuth, async (request, response) => {

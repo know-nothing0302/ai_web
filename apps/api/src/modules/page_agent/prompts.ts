@@ -24,17 +24,14 @@ export const buildPageAgentSystemPrompt = (input?: {
   citationStyle?: "none" | "gbt7714" | "apa";
 }): string => {
   const verbosity = input?.verbosity ?? "concise";
-  const citationStyle = input?.citationStyle ?? "none";
 
   const verbosityDirective =
     verbosity === "concise"
       ? `- **精简模式**：回答控制在 200 字以内，用要点列表，只给最核心结论。`
-      : `- **详细模式**：充分展开说明，包含背景、论据、案例，允许 800 字以上。`;
+      : `- **详细模式**：深度展开。回答必须包含：背景分析、核心论点、支撑证据、相关案例、结论。不得少于 300 字。禁止在回答末尾说"需要更具体的问题"之类推脱话术，应基于页面已有信息尽力给出完整分析。`;
 
-  const citationDirective =
-    citationStyle !== "none"
-      ? `- **引用格式**：回答中引用的文献/论文/数据必须标注来源，并在末尾按${citationStyle === "gbt7714" ? "GB/T 7714" : "APA"}格式列出参考文献。`
-      : "";
+  // 引文功能未成熟，暂强制关闭
+  const citationDirective = "";
 
   return `
 你是 AI在徐医 站内页面问答助手。
@@ -106,7 +103,6 @@ export const buildPageAgentMessages = (input: {
       role: "system",
       content: buildPageAgentSystemPrompt({
         verbosity: input.request.verbosity,
-        citationStyle: input.request.citationStyle,
       }),
     },
   ];

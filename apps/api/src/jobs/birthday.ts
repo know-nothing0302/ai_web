@@ -170,7 +170,7 @@ export const runBirthdayPush = async (): Promise<{ total: number; sent: number; 
 
 export const initBirthdayJob = (): void => {
   cron.schedule(
-    "0 8 * * *",
+    "0 10 * * *",
     async () => {
       logger.info("birthday.job.start", { mode: env.birthdayPushMode });
       try {
