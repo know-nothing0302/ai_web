@@ -46,7 +46,6 @@ const pageAgentConversations = ref<PageAgentConversation[]>([]);
 const pageAgentConversationsLoading = ref(false);
 const pageAgentTitleSet = ref(false);
 const pageAgentVerbosity = ref<"concise" | "detailed">("concise");
-const pageAgentCitationStyle = ref<"none" | "gbt7714" | "apa">("none");
 const feedbackOpen = ref(false);
 const feedbackSubmitting = ref(false);
 const appMessage = ref("");
@@ -183,7 +182,6 @@ const submitPageAgentQuestion = async (): Promise<void> => {
         question: text,
         selectionText: getSelectionText(),
         verbosity: pageAgentVerbosity.value,
-        citationStyle: pageAgentCitationStyle.value,
       },
       {
         onToken: (t) => {
@@ -534,7 +532,6 @@ watch(
       :conversations="pageAgentConversations"
       :loading-conversations="pageAgentConversationsLoading"
       :verbosity="pageAgentVerbosity"
-      :citation-style="pageAgentCitationStyle"
       :page-type="currentPageAgentContext?.pageType"
       @close="pageAgentOpen = false; pageAgentConversations = []"
       @submit="submitPageAgentQuestion"
@@ -542,7 +539,6 @@ watch(
       @copy="copyPageAgentMessage"
       @update:question="pageAgentQuestion = $event"
       @update:verbosity="pageAgentVerbosity = $event"
-      @update:citation-style="pageAgentCitationStyle = $event"
       @load-conversations="loadPageAgentConversations"
       @select-conversation="selectPageAgentConversation"
       @new-conversation="resetPageAgentConversation"

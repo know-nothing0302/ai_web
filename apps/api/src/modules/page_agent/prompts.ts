@@ -25,7 +25,6 @@ const buildArticleDetailPromptContext = (input: PageAgentRequestBody) => ({
 
 export const buildPageAgentSystemPrompt = (input?: {
   verbosity?: "concise" | "detailed";
-  citationStyle?: "none" | "gbt7714" | "apa";
 }): string => {
   const verbosity = input?.verbosity ?? "concise";
 
@@ -33,17 +32,6 @@ export const buildPageAgentSystemPrompt = (input?: {
     verbosity === "concise"
       ? `- **精简模式**：回答控制在 200 字以内，用要点列表，只给最核心结论。`
       : `- **详细模式**：深度展开。回答必须包含：背景分析、核心论点、支撑证据、相关案例、结论。不得少于 300 字。禁止在回答末尾说"需要更具体的问题"之类推脱话术，应基于页面已有信息尽力给出完整分析。`;
-
-  const citationStyle = input?.citationStyle ?? "none";
-  // NOTE: 引文格式依赖 LLM 从文章上下文中提取元数据（作者、刊名、卷期等）。
-  // 当文章元数据不完整时，模型可能编造引用信息。prompt 内包含"注明信息不全"
-  // 的指令作为缓解，但无法完全消除幻觉风险。若幻觉率过高，可通过前端关闭此功能。
-  const citationDirective =
-    citationStyle === "gbt7714"
-      ? `- **引文格式**：引用文章时需提供 GB/T 7714 格式的参考文献条目。格式：[序号] 主要责任者. 文献题名[J]. 刊名, 出版年份, 卷号(期号): 起止页码. 若信息不完整，请根据已有信息尽力格式化，并注明"信息不全"。`
-      : citationStyle === "apa"
-        ? `- **引文格式**：引用文章时需提供 APA 格式的参考文献条目。格式：Author, A. A. (Year). Title of article. Title of Periodical, Volume(Issue), pages. 若信息不完整，请根据已有信息尽力格式化，并注明"信息不全"。`
-        : "";
 
   return `
 你是 AI在徐医 站内页面问答助手。
@@ -57,7 +45,6 @@ export const buildPageAgentSystemPrompt = (input?: {
 - 若无法确认，请明确说当前页面和站内结果无法确认。
 - 回答适合教师、学生和管理人员理解。
 ${verbosityDirective}
-${citationDirective}
 当用户提交反馈时，根据以下规则简短回应（1-2句）：
 
 1. 反馈具体、可定位 → 肯定 + 鼓励
@@ -128,7 +115,6 @@ export const buildPageAgentMessages = (input: {
       role: "system",
       content: buildPageAgentSystemPrompt({
         verbosity: input.request.verbosity,
-        citationStyle: input.request.citationStyle,
       }),
     },
   ];

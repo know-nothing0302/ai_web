@@ -16,7 +16,6 @@ export interface PageAgentRequestPayload extends PageAgentContextPayload {
   conversationId: string;
   question: string;
   verbosity?: "concise" | "detailed";
-  citationStyle?: "none" | "gbt7714" | "apa";
 }
 
 export interface PageAgentConversation {

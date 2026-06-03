@@ -13,7 +13,6 @@ export interface PageAgentRequestBody {
   selectionText?: string;
   context: Record<string, unknown>;
   verbosity?: "concise" | "detailed";
-  citationStyle?: "none" | "gbt7714" | "apa";
 }
 
 export interface PageAgentSource {

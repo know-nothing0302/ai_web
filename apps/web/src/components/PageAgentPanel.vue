@@ -13,7 +13,6 @@ const props = defineProps<{
   conversations: PageAgentConversation[];
   loadingConversations: boolean;
   verbosity: "concise" | "detailed";
-  citationStyle: "none" | "gbt7714" | "apa";
   pageType?: string;
 }>();
 
@@ -24,7 +23,6 @@ const emit = defineEmits<{
   copy: [value: string];
   "update:question": [value: string];
   "update:verbosity": [value: "concise" | "detailed"];
-  "update:citationStyle": [value: "none" | "gbt7714" | "apa"];
   "load-conversations": [];
   "select-conversation": [id: string];
   "new-conversation": [];
@@ -204,18 +202,6 @@ const filterOptions = [
             <BookOpen class="h-3 w-3 inline -mt-0.5 mr-0.5" />
             详细
           </button>
-          <template v-if="pageType === 'article_detail'">
-            <span class="text-[11px] text-[#8aa3bc] ml-1">引用</span>
-            <select
-              :value="citationStyle"
-              class="rounded-lg border border-[#81d4fa]/50 bg-white px-2 py-1 text-[11px] text-[#0f4069] outline-none"
-              @change="emit('update:citationStyle', ($event.target as HTMLSelectElement).value as 'none' | 'gbt7714' | 'apa')"
-            >
-              <option value="none">无</option>
-              <option value="gbt7714">GB/T 7714</option>
-              <option value="apa">APA</option>
-            </select>
-          </template>
         </div>
       </header>
 
