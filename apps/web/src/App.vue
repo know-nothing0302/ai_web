@@ -217,15 +217,19 @@ const submitPageAgentQuestion = async (): Promise<void> => {
             };
           }
         },
-        onDone: (sources, meta) => {
+        onDone: (sources, meta, answer) => {
           if (pageAgentRequestToken.value !== token) return;
           streamDone = true;
           const idx = pageAgentMessages.value.findIndex((m) => m.id === msgId);
           if (idx >= 0) {
+            const current = pageAgentMessages.value[idx];
             pageAgentMessages.value[idx] = {
-              ...pageAgentMessages.value[idx],
+              ...current,
               sources,
               meta,
+              // 若流式未收到任何 token（推理模型 content 为空），
+              // 使用后端 done 事件中的兜底回答
+              text: current.text || answer || current.text,
             };
           }
           pageAgentLoading.value = false;

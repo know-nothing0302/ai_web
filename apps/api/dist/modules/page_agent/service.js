@@ -566,6 +566,7 @@ const streamPageAnswer = async (input, userId, response) => {
                 await store_1.pageAgentConversationStore.touch(input.conversationId);
                 response.write(`data: ${JSON.stringify({
                     done: true,
+                    answer: finalAnswer,
                     sources: [currentPageSource, ...searchSources],
                     meta: {
                         usedCurrentPage: true,
