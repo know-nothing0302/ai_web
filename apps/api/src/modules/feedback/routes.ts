@@ -294,20 +294,29 @@ feedbackRouter.patch("/admin/:id", requireFeedbackReader, async (req, res) => {
         [feedbackId]
       );
 
-      if (evalResult.rows.length > 0) {
-        const ev = evalResult.rows[0];
-
-        if (ev.suggested_action === "auto_fix") {
-          // auto_fix → keep "approved", bash pipeline (fb-dispatch.sh) handles grouping + scoring + dispatch to fb-ai-web
-          logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve", note: "delegated to bash pipeline" });
-        }
-
-        // batch_review / human_gate → keep "approved" (frontend groups them correctly)
-        logger.info("feedback.approve.success", { feedbackId, suggestedAction: ev.suggested_action, stage: "approve" });
+      if (evalResult.rows.length === 0) {
+        // Block approval without AI evaluation — pipeline (fb-dispatch.sh) requires it
+        logger.warn("feedback.approve.blocked.no_evaluation", { feedbackId, stage: "approve" });
+        res.status(400).json({
+          message: "请等待 AI 评估完成后再审批，当前尚无评估记录",
+          code: "EVALUATION_REQUIRED",
+        });
+        return;
       }
+
+      const ev = evalResult.rows[0];
+
+      if (ev.suggested_action === "auto_fix") {
+        // auto_fix → keep "approved", bash pipeline (fb-dispatch.sh) handles grouping + scoring + dispatch to fb-ai-web
+        logger.info("feedback.approve.auto_fix", { feedbackId, stage: "approve", note: "delegated to bash pipeline" });
+      }
+
+      // batch_review / human_gate → keep "approved" (frontend groups them correctly)
+      logger.info("feedback.approve.success", { feedbackId, suggestedAction: ev.suggested_action, stage: "approve" });
     } catch (error) {
       logger.error("feedback.approve.eval_lookup.failed", { feedbackId, error, stage: "approve" });
-      // Fall through to default update
+      res.status(500).json({ message: "评估查询失败，请稍后重试" });
+      return;
     }
   }
 
