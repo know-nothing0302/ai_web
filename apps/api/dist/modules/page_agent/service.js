@@ -12,10 +12,18 @@ const prompts_1 = require("./prompts");
 const sanitize_1 = require("./sanitize");
 const normalizeAiContent = (content) => {
     let normalized = String(content ?? "").trim();
+    // DeepSeek R1/V4 推理模型使用 <｜end▁of▁thinking｜> 标记分隔思考与回答
+    if (normalized.includes("<｜end▁of▁thinking｜>")) {
+        normalized = normalized.split(" response").slice(-1)[0]?.trim() ?? normalized;
+    }
+    // 移除所有  ...  块（如果 response 分割后仍有残留）
+    normalized = normalized.replace(/[\s\S]*?<\/think>/g, "").trim();
+    // 传统 <think>...</think> 标签
     if (normalized.includes("</think>")) {
         normalized = normalized.split("</think>").slice(-1)[0]?.trim() ?? normalized;
     }
-    return normalized.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    normalized = normalized.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    return normalized;
 };
 const shouldSearchSite = (question) => {
     const normalized = question.trim();
@@ -274,12 +282,22 @@ const answerPageQuestion = async (input, requestUserId) => {
                 : undefined,
             timeout: 60000,
         });
-        const answer = normalizeAiContent(result.data?.choices?.[0]?.message?.content);
-        const finalAnswer = answer || buildFallbackAnswer(input);
+        const rawContent = String(result.data?.choices?.[0]?.message?.content ?? "");
+        const answer = normalizeAiContent(rawContent);
+        // 若模型返回过短（< 10 字符）或仅为空洞确认，视为无效回答
+        const minLength = 10;
+        const isTooShort = answer.length < minLength;
+        const isNonAnswer = /^(已基于当前页面|根据当前页面|已识别|好的|收到|明白了?)[，。]?$/.test(answer);
+        const finalAnswer = (answer && !isTooShort && !isNonAnswer)
+            ? answer
+            : `⚠️ 模型返回无效回答（${answer ? `"${answer}"` : "空内容"}）。\n\n原始响应长度: ${rawContent.length} 字符\n模型: ${env_1.env.deepseekModel}\n如有疑问请联系管理员。`;
         if (env_1.env.pageAgentDebug) {
             logger_1.logger.debug("page.agent.answer.model_response", {
                 conversationId: input.conversationId,
-                rawAnswerPreview: previewText(String(result.data?.choices?.[0]?.message?.content ?? ""), 220),
+                rawAnswerPreview: previewText(rawContent, 220),
+                answerLength: answer.length,
+                isTooShort,
+                isNonAnswer,
                 finalAnswerPreview: previewText(finalAnswer, 220),
             });
         }
@@ -335,7 +353,10 @@ const answerPageQuestion = async (input, requestUserId) => {
         };
     }
     catch (error) {
-        const answer = buildFallbackAnswer(input);
+        const errorDetail = error?.response?.data?.error?.message
+            || error?.message
+            || String(error);
+        const answer = `⚠️ 模型调用失败：${errorDetail}\n\n模型: ${env_1.env.deepseekModel}\n请检查模型配置或联系管理员。`;
         await store_1.pageAgentMessageStore.create({
             conversationId: input.conversationId,
             userId,
@@ -370,7 +391,8 @@ const answerPageQuestion = async (input, requestUserId) => {
             pageType: input.pageType,
             route: input.route,
             usedSiteSearch,
-            error,
+            errorDetail,
+            statusCode: error?.response?.status,
             durationMs: Date.now() - startedAt,
         });
         return {
@@ -519,7 +541,13 @@ const streamPageAnswer = async (input, userId, response) => {
         });
         llmResponse.data.on("end", () => {
             (async () => {
-                const finalAnswer = normalizeAiContent(fullAnswer) || buildFallbackAnswer(input);
+                const normalized = normalizeAiContent(fullAnswer);
+                const minLength = 10;
+                const isTooShort = normalized.length < minLength;
+                const isNonAnswer = /^(已基于当前页面|根据当前页面|已识别|好的|收到|明白了?)[，。]?$/.test(normalized);
+                const finalAnswer = (normalized && !isTooShort && !isNonAnswer)
+                    ? normalized
+                    : `⚠️ 模型返回无效回答（${normalized ? `"${normalized}"` : "空内容"}）。\n\n原始响应长度: ${fullAnswer.length} 字符\n模型: ${env_1.env.deepseekModel}\n如有疑问请联系管理员。`;
                 // 保存完整回答
                 await store_1.pageAgentMessageStore.create({
                     conversationId: input.conversationId,
@@ -536,7 +564,17 @@ const streamPageAnswer = async (input, userId, response) => {
                     model: env_1.env.deepseekModel,
                 });
                 await store_1.pageAgentConversationStore.touch(input.conversationId);
-                response.write(`data: ${JSON.stringify({ done: true, sources: [currentPageSource, ...searchSources] })}\n\n`);
+                response.write(`data: ${JSON.stringify({
+                    done: true,
+                    sources: [currentPageSource, ...searchSources],
+                    meta: {
+                        usedCurrentPage: true,
+                        usedSiteSearch,
+                        usedHistory: historyMessages.length > 0,
+                        usedUserProfile: Boolean(userProfile),
+                        model: env_1.env.deepseekModel,
+                    },
+                })}\n\n`);
                 response.end();
                 logger_1.logger.info("page.agent.stream.finish", {
                     userId,
@@ -551,8 +589,8 @@ const streamPageAnswer = async (input, userId, response) => {
         llmResponse.data.on("error", (err) => {
             (async () => {
                 streamError = err;
-                const fallback = buildFallbackAnswer(input);
-                response.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
+                const errorAnswer = `⚠️ 模型流式调用失败：${err.message}\n\n模型: ${env_1.env.deepseekModel}\n请检查模型配置或联系管理员。`;
+                response.write(`data: ${JSON.stringify({ token: errorAnswer })}\n\n`);
                 response.write(`data: ${JSON.stringify({ done: true, error: err.message })}\n\n`);
                 response.end();
                 await store_1.pageAgentMessageStore.create({
@@ -560,8 +598,8 @@ const streamPageAnswer = async (input, userId, response) => {
                     userId,
                     role: "assistant",
                     messageType: "answer",
-                    content: fallback,
-                    sanitizedContent: fallback,
+                    content: errorAnswer,
+                    sanitizedContent: errorAnswer,
                     pageType: input.pageType,
                     route: input.route,
                     pageTitle: input.pageTitle,
@@ -582,17 +620,20 @@ const streamPageAnswer = async (input, userId, response) => {
         });
     }
     catch (error) {
-        const fallback = buildFallbackAnswer(input);
-        response.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
-        response.write(`data: ${JSON.stringify({ done: true, error: error.message })}\n\n`);
+        const errorDetail = error?.response?.data?.error?.message
+            || error?.message
+            || String(error);
+        const errorAnswer = `⚠️ 模型流式调用失败：${errorDetail}\n\n模型: ${env_1.env.deepseekModel}\n请检查模型配置或联系管理员。`;
+        response.write(`data: ${JSON.stringify({ token: errorAnswer })}\n\n`);
+        response.write(`data: ${JSON.stringify({ done: true, error: errorDetail })}\n\n`);
         response.end();
         await store_1.pageAgentMessageStore.create({
             conversationId: input.conversationId,
             userId,
             role: "assistant",
             messageType: "answer",
-            content: fallback,
-            sanitizedContent: fallback,
+            content: errorAnswer,
+            sanitizedContent: errorAnswer,
             pageType: input.pageType,
             route: input.route,
             pageTitle: input.pageTitle,
@@ -604,7 +645,8 @@ const streamPageAnswer = async (input, userId, response) => {
         logger_1.logger.error("page.agent.stream.failed", {
             userId,
             conversationId: input.conversationId,
-            error: error.message,
+            errorDetail,
+            statusCode: error?.response?.status,
             durationMs: Date.now() - startedAt,
         });
     }

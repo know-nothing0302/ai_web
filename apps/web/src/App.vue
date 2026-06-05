@@ -110,6 +110,7 @@ const handleFeedbackSubmit = async (payload: {
 };
 
 const ensurePageAgentConversation = async (): Promise<string> => {
+  // 优先使用当前会话ID
   if (pageAgentConversationId.value) {
     logPageAgentClient("conversation.reuse", {
       conversationId: pageAgentConversationId.value,
@@ -117,6 +118,25 @@ const ensurePageAgentConversation = async (): Promise<string> => {
     });
     return pageAgentConversationId.value;
   }
+  // 尝试从 localStorage 恢复上次会话
+  try {
+    const savedId = localStorage.getItem("ai-web-last-conversation");
+    if (savedId) {
+      logPageAgentClient("conversation.restore.localStorage", { conversationId: savedId });
+      try {
+        const messages = await getPageAgentConversationMessages(savedId);
+        if (messages.length > 0) {
+          pageAgentMessages.value = messages;
+          pageAgentConversationId.value = savedId;
+          pageAgentTitleSet.value = true;
+          return savedId;
+        }
+      } catch {
+        // 会话可能已过期，清除并创建新的
+        localStorage.removeItem("ai-web-last-conversation");
+      }
+    }
+  } catch { /* localStorage 不可用 */ }
   logPageAgentClient("conversation.create.start", {
     pageType: currentPageAgentContext.value?.pageType ?? "article_list",
     route: currentPageAgentContext.value?.route ?? route.fullPath,
@@ -131,6 +151,9 @@ const ensurePageAgentConversation = async (): Promise<string> => {
     conversationId: conversation.id,
   });
   pageAgentConversationId.value = conversation.id;
+  try {
+    localStorage.setItem("ai-web-last-conversation", conversation.id);
+  } catch { /* localStorage 不可用 */ }
   return conversation.id;
 };
 
@@ -194,7 +217,7 @@ const submitPageAgentQuestion = async (): Promise<void> => {
             };
           }
         },
-        onDone: (sources) => {
+        onDone: (sources, meta) => {
           if (pageAgentRequestToken.value !== token) return;
           streamDone = true;
           const idx = pageAgentMessages.value.findIndex((m) => m.id === msgId);
@@ -202,6 +225,7 @@ const submitPageAgentQuestion = async (): Promise<void> => {
             pageAgentMessages.value[idx] = {
               ...pageAgentMessages.value[idx],
               sources,
+              meta,
             };
           }
           pageAgentLoading.value = false;
@@ -210,15 +234,20 @@ const submitPageAgentQuestion = async (): Promise<void> => {
             updatePageAgentConversationTitle(conversationId, text.slice(0, 30))
               .catch((err) => console.error("标题更新失败", err));
           }
+          // 持久化当前会话ID
+          try {
+            localStorage.setItem("ai-web-last-conversation", conversationId);
+          } catch { /* localStorage 不可用 */ }
         },
         onError: (err) => {
           if (pageAgentRequestToken.value !== token) return;
           streamDone = true;
           const idx = pageAgentMessages.value.findIndex((m) => m.id === msgId);
           if (idx >= 0) {
+            // 始终显示错误信息，覆盖可能的部分内容
             pageAgentMessages.value[idx] = {
               ...pageAgentMessages.value[idx],
-              text: pageAgentMessages.value[idx].text || `[错误] ${err}`,
+              text: `⚠️ 请求失败：${err}`,
             };
           }
           pageAgentLoading.value = false;
@@ -285,6 +314,9 @@ const selectPageAgentConversation = async (conversationId: string): Promise<void
     const messages = await getPageAgentConversationMessages(conversationId);
     pageAgentMessages.value = messages;
     pageAgentConversationId.value = conversationId;
+    try {
+      localStorage.setItem("ai-web-last-conversation", conversationId);
+    } catch { /* localStorage 不可用 */ }
   } catch {
     pageAgentMessages.value = [];
   } finally {
@@ -299,6 +331,9 @@ const resetPageAgentConversation = (): void => {
   pageAgentRequestToken.value = Date.now();
   pageAgentLoading.value = false;
   pageAgentTitleSet.value = false;
+  try {
+    localStorage.removeItem("ai-web-last-conversation");
+  } catch { /* localStorage 不可用 */ }
 };
 
 watch(
@@ -314,6 +349,10 @@ watch(
     pageAgentRequestToken.value = Date.now();
     pageAgentLoading.value = false;
     pageAgentTitleSet.value = false;
+    // 清除 localStorage 中的旧会话，避免路由切换后错误恢复
+    try {
+      localStorage.removeItem("ai-web-last-conversation");
+    } catch { /* localStorage 不可用 */ }
   }
 );
 

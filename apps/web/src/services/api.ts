@@ -443,7 +443,7 @@ export const askPageAgentStream = (
   payload: PageAgentRequestPayload,
   callbacks: {
     onToken: (token: string) => void;
-    onDone: (sources: PageAgentSource[]) => void;
+    onDone: (sources: PageAgentSource[], meta?: PageAgentResponse["meta"]) => void;
     onError: (error: string) => void;
   }
 ): AbortController => {
@@ -481,7 +481,7 @@ export const askPageAgentStream = (
           try {
             const data = JSON.parse(line.slice(6));
             if (data.token) callbacks.onToken(data.token);
-            if (data.done) callbacks.onDone(data.sources ?? []);
+            if (data.done) callbacks.onDone(data.sources ?? [], data.meta);
             if (data.error) callbacks.onError(data.error);
           } catch { /* skip malformed line */ }
         }
