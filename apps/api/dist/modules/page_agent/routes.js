@@ -42,6 +42,19 @@ const getAuthenticatedUserId = (request) => {
     return env_1.env.devAuthBypass ? "dev-mock-id" : undefined;
 };
 exports.pageAgentRouter = (0, express_1.Router)();
+// DEBUG: catch-all 入口日志 — 诊断 PageAgent 请求是否到达
+exports.pageAgentRouter.use((req, _res, next) => {
+    logger_1.logger.info("page.agent.router.enter", {
+        method: req.method,
+        path: req.path,
+        originalUrl: req.originalUrl,
+        hasSession: Boolean(req.session),
+        hasUser: Boolean(req.session?.user),
+        userId: req.session?.user?.id ?? "none",
+        bodyKeys: Object.keys(req.body ?? {}),
+    });
+    next();
+});
 exports.pageAgentRouter.post("/conversations", auth_1.requireAuth, async (request, response) => {
     logger_1.logger.info("page.agent.conversation.create.request", {
         hasSessionUser: Boolean(request.session.user),
@@ -172,16 +185,26 @@ exports.pageAgentRouter.post("/qa", auth_1.requireAuth, rate_limit_1.pageAgentQa
 });
 // SSE 流式 — 代替原 /qa 用于前端实时渲染
 exports.pageAgentRouter.post("/qa/stream", auth_1.requireAuth, rate_limit_1.pageAgentQaRateLimiter, (request, response) => {
+    logger_1.logger.info("page.agent.route.enter", {
+        userId: getAuthenticatedUserId(request),
+        questionLength: request.body?.question?.length ?? 0,
+        conversationId: String(request.body?.conversationId ?? "missing"),
+        hasSession: Boolean(request.session),
+        hasUser: Boolean(request.session?.user),
+    });
     const parsed = pageAgentSchema.safeParse(request.body);
     if (!parsed.success) {
+        logger_1.logger.warn("page.agent.route.schema_fail", { errors: parsed.error.flatten() });
         response.status(400).json({ message: "参数错误", errors: zod_1.z.flattenError(parsed.error) });
         return;
     }
     const userId = getAuthenticatedUserId(request);
     if (!userId) {
+        logger_1.logger.warn("page.agent.route.no_userid", { sessionUser: request.session?.user?.id });
         response.status(401).json({ message: "未登录" });
         return;
     }
+    logger_1.logger.info("page.agent.route.dispatched", { userId, conversationId: parsed.data.conversationId });
     (0, service_1.streamPageAnswer)(parsed.data, userId, response);
 });
 exports.pageAgentRouter.post("/messages/:id/feedback", auth_1.requireAuth, async (request, response) => {

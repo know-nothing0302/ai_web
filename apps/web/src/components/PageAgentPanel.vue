@@ -279,6 +279,9 @@ const filterOptions = [
                 <span v-if="message.text.trim()" class="text-[11px] text-[#6e89a3]">
                   {{ message.meta?.usedSiteSearch ? "已结合站内检索" : "已基于当前页面回答" }}
                 </span>
+                <span v-else-if="loading" class="text-[11px] text-[#6e89a3] animate-pulse">
+                  ● 正在分析...
+                </span>
                 <span v-else class="text-[11px] text-[#e57373]">
                   ⚠️ 回答异常
                 </span>

@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ls apps/web/tsconfig*.json\",\"description\":\"Find tsconfig files\"}",
+  "error": "Exit code 2\nls: cannot access 'apps/web/tsconfig*.json': No such file or directory",
+  "timestamp": "2026-06-05T14:09:17.042Z",
+  "retry_count": 3
+}

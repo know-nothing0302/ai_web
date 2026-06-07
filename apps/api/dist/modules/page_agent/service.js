@@ -501,7 +501,18 @@ const streamPageAnswer = async (input, userId, response) => {
     let fullAnswer = "";
     let streamBuffer = "";
     let streamError = null;
+    // DEBUG: log prompt size to help diagnose empty answers
+    const msgSizes = messages.map((m) => `${m.role}:${m.content.length}ch`);
+    logger_1.logger.info("page.agent.stream.debug.prompt", {
+        userId,
+        conversationId: input.conversationId,
+        model: env_1.env.deepseekModel,
+        messageCount: messages.length,
+        totalPromptChars: messages.reduce((sum, m) => sum + m.content.length, 0),
+        msgSizes,
+    });
     try {
+        const apiCallStart = Date.now();
         const llmResponse = await axios_1.default.post(`${env_1.env.deepseekApiBaseUrl}/v1/chat/completions`, {
             model: env_1.env.deepseekModel,
             messages,
@@ -514,7 +525,10 @@ const streamPageAnswer = async (input, userId, response) => {
             responseType: "stream",
             timeout: 120000,
         });
+        let chunkCount = 0;
+        let contentChunkCount = 0;
         llmResponse.data.on("data", (chunk) => {
+            chunkCount++;
             streamBuffer += chunk.toString();
             const lines = streamBuffer.split("\n");
             // 最后一行可能不完整，保留到下次拼接
@@ -541,6 +555,17 @@ const streamPageAnswer = async (input, userId, response) => {
         });
         llmResponse.data.on("end", () => {
             (async () => {
+                // DEBUG: log stream summary before normalization
+                logger_1.logger.info("page.agent.stream.debug.end", {
+                    userId,
+                    conversationId: input.conversationId,
+                    totalChunks: chunkCount,
+                    contentChunks: contentChunkCount,
+                    fullAnswerLength: fullAnswer.length,
+                    fullAnswerPreview: fullAnswer.slice(0, 200),
+                    streamBufferRemaining: streamBuffer.length,
+                    apiCallDurationMs: Date.now() - apiCallStart,
+                });
                 const normalized = normalizeAiContent(fullAnswer);
                 const minLength = 10;
                 const isTooShort = normalized.length < minLength;
@@ -548,6 +573,16 @@ const streamPageAnswer = async (input, userId, response) => {
                 const finalAnswer = (normalized && !isTooShort && !isNonAnswer)
                     ? normalized
                     : `⚠️ 模型返回无效回答（${normalized ? `"${normalized}"` : "空内容"}）。\n\n原始响应长度: ${fullAnswer.length} 字符\n模型: ${env_1.env.deepseekModel}\n如有疑问请联系管理员。`;
+                // DEBUG: log normalization result
+                logger_1.logger.info("page.agent.stream.debug.normalized", {
+                    userId,
+                    conversationId: input.conversationId,
+                    rawLength: fullAnswer.length,
+                    normalizedLength: normalized.length,
+                    isTooShort,
+                    isNonAnswer,
+                    finalAnswerPreview: finalAnswer.slice(0, 200),
+                });
                 // 保存完整回答
                 await store_1.pageAgentMessageStore.create({
                     conversationId: input.conversationId,

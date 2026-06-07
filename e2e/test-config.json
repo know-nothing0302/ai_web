@@ -1,86 +1,13 @@
 {
-  "task_id": "fb-review-20260603-1",
+  "task_id": "fb-review-20260605-1",
   "pages": [
     {
-      "path": "/articles/49032412-8c12-45ae-9219-794a6d83d017",
-      "title": "AI徐医",
-      "protected": false,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"},
-        {"type": "text", "value": "arXiv", "desc": "来源信息显示 arXiv（修复：来源从论文编号改为 arxiv.org 显示）"}
-      ]
-    },
-    {
-      "path": "/admin/birthday",
-      "title": "生日推送",
-      "protected": true,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
-      ]
-    },
-    {
-      "path": "/admin/stats",
-      "title": "统计分析",
-      "protected": true,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
-      ]
-    },
-    {
       "path": "/",
-      "title": "首页",
-      "protected": false,
+      "title": "AI在徐医",
       "checks": [
         {"type": "visible", "selector": "body", "desc": "页面 body 可见"},
-        {"type": "visible", "selector": "[placeholder*='搜索']", "desc": "首页搜索框存在"}
-      ]
-    },
-    {
-      "path": "/articles/9bf17e77-0e8d-4e60-a68d-602966e14d11",
-      "title": "AI徐医",
-      "protected": false,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
-      ]
-    },
-    {
-      "path": "/admin/feedback-review",
-      "title": "反馈审批",
-      "protected": true,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
-      ]
-    },
-    {
-      "path": "/profile",
-      "title": "个人中心",
-      "protected": true,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
-      ]
-    },
-    {
-      "path": "/articles/7aff87a9-8422-4a20-949f-605f239683ed",
-      "title": "AI徐医",
-      "protected": false,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
-      ]
-    },
-    {
-      "path": "/articles/d2015ef4-c170-43b9-892f-d859ec5fe112",
-      "title": "AI徐医",
-      "protected": false,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
-      ]
-    },
-    {
-      "path": "/articles/044a0f77-840b-4b0e-81f8-a78e7558ae25",
-      "title": "AI徐医",
-      "protected": false,
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"}
+        {"type": "visible", "selector": "button:has-text('AI 智能分析与搜索')", "desc": "PageAgent 启动按钮可见"},
+        {"type": "text", "value": "AI在徐医", "desc": "站点标题可见"}
       ]
     }
   ],

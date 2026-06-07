@@ -272,9 +272,8 @@ const submitPageAgentQuestion = async (): Promise<void> => {
       buildPageAgentClientErrorMessage(stage, error)
     );
   } finally {
-    if (pageAgentRequestToken.value === token) {
-      pageAgentLoading.value = false;
-    }
+    // loading 由 onDone / onError 回调关闭，不在此处关闭
+    // askPageAgentStream 非 await，finally 会在流结束前就执行
   }
 };
 
@@ -294,17 +293,6 @@ const loadPageAgentConversations = async (): Promise<void> => {
   pageAgentConversationsLoading.value = true;
   try {
     pageAgentConversations.value = await listPageAgentConversations();
-    // Auto-load most recent conversation messages on fresh open (e.g. after page refresh)
-    if (pageAgentConversations.value.length > 0 && pageAgentMessages.value.length === 0) {
-      try {
-        const latestConv = pageAgentConversations.value[0];
-        const messages = await getPageAgentConversationMessages(latestConv.id);
-        pageAgentMessages.value = messages;
-        pageAgentConversationId.value = latestConv.id;
-      } catch {
-        // Auto-load failed, keep showing conversation list
-      }
-    }
   } catch {
     // silently fail — non-critical
   } finally {
@@ -576,7 +564,7 @@ watch(
       :loading-conversations="pageAgentConversationsLoading"
       :verbosity="pageAgentVerbosity"
       :page-type="currentPageAgentContext?.pageType"
-      @close="pageAgentOpen = false; pageAgentConversations = []"
+      @close="pageAgentOpen = false; pageAgentConversations = []; pageAgentMessages = []; pageAgentConversationId = ''; pageAgentTitleSet = false"
       @submit="submitPageAgentQuestion"
       @stop="stopPageAgentRequest"
       @copy="copyPageAgentMessage"

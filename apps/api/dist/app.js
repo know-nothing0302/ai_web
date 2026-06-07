@@ -34,6 +34,19 @@ const webCorsOrigin = (() => {
         return env_1.env.webBaseUrl;
     }
 })();
+// DEBUG: 全局请求日志 — 诊断 /qa/stream 是否到达 Express
+exports.app.use((req, _res, next) => {
+    if (req.originalUrl.includes("page-agent")) {
+        logger_1.logger.info("app.global.enter", {
+            method: req.method,
+            url: req.originalUrl,
+            hasSession: Boolean(req.session),
+            hasUser: Boolean(req.session?.user),
+            contentType: req.get("content-type"),
+        });
+    }
+    next();
+});
 exports.app.use((0, cors_1.default)({
     origin: webCorsOrigin,
     credentials: true,

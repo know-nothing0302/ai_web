@@ -448,9 +448,8 @@ export const askPageAgentStream = (
   }
 ): AbortController => {
   const controller = new AbortController();
-  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
-  fetch(`${baseUrl}/api/page-agent/qa/stream`, {
+  fetch(`${apiBase}/page-agent/qa/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
