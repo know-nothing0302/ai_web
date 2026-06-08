@@ -542,7 +542,11 @@ watch(
 
     <!-- 主内容区 -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10 relative">
-      <div v-if="pageError" class="glass-panel rounded-2xl border p-8 text-center">
+      <div v-if="auth.loading" class="glass-panel rounded-2xl border p-16 text-center">
+        <div class="w-10 h-10 border-3 border-[#81d4fa] border-t-[#0288d1] rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-[#4f6b8a]">正在验证身份...</p>
+      </div>
+      <div v-else-if="pageError" class="glass-panel rounded-2xl border p-8 text-center">
         <h2 class="text-lg font-semibold text-[#0f4069]">页面加载异常</h2>
         <p class="mt-2 text-[#4f6b8a]">遇到意外错误，请刷新页面重试。</p>
         <button

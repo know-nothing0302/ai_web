@@ -34,29 +34,52 @@ const message = ref("");
 const loading = ref(false);
 const channels = ref<Channel[]>([]);
 const pushBatches = ref<PushScheduleBatch[]>([]);
+const loadError = ref(false);
 
 const buildDefaultChannelCodes = (): string[] =>
   channels.value.slice(0, 2).map((item) => item.code);
 
 const load = async (): Promise<void> => {
-  const [channelItems, subscriptions, user, schedule] = await Promise.all([
-    listChannels(),
-    getMySubscriptions(),
-    getCurrentUser(),
-    getPushSchedule().catch(() => ({ timezone: "Asia/Shanghai", batches: [] as PushScheduleBatch[] })),
-  ]);
-  channels.value = channelItems;
-  currentUser.value = user;
-  pushBatches.value = schedule.batches;
-  // 每位用户只有一条订阅记录
-  if (subscriptions.length > 0) {
-    const sub = subscriptions[0];
-    frequency.value = sub.frequency;
-    channelCodes.value =
-      sub.channelCodes.length > 0 ? sub.channelCodes : buildDefaultChannelCodes();
-    enabled.value = sub.enabled;
-  } else {
-    channelCodes.value = buildDefaultChannelCodes();
+  loading.value = true;
+  loadError.value = false;
+  try {
+    const [channelItems, subscriptions, user, schedule] = await Promise.all([
+      listChannels().catch((err) => {
+        console.error("[SubscriptionPage] 加载栏目失败", err);
+        return [] as Channel[];
+      }),
+      getMySubscriptions().catch((err) => {
+        console.error("[SubscriptionPage] 加载订阅失败", err);
+        return [] as Awaited<ReturnType<typeof getMySubscriptions>>;
+      }),
+      getCurrentUser().catch((err) => {
+        console.error("[SubscriptionPage] 加载用户信息失败", err);
+        return null;
+      }),
+      getPushSchedule().catch((err) => {
+        console.error("[SubscriptionPage] 加载推送时间失败", err);
+        return { timezone: "Asia/Shanghai", batches: [] as PushScheduleBatch[] };
+      }),
+    ]);
+    channels.value = channelItems;
+    currentUser.value = user;
+    pushBatches.value = schedule.batches;
+    // 每位用户只有一条订阅记录
+    if (subscriptions.length > 0) {
+      const sub = subscriptions[0];
+      frequency.value = sub.frequency;
+      channelCodes.value =
+        sub.channelCodes.length > 0 ? sub.channelCodes : buildDefaultChannelCodes();
+      enabled.value = sub.enabled;
+    } else {
+      channelCodes.value = buildDefaultChannelCodes();
+    }
+  } catch (err) {
+    // Promise.all 本身不会抛异常（因为每个子promise都有catch），但保留兜底
+    console.error("[SubscriptionPage] 加载数据失败", err);
+    loadError.value = true;
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -118,6 +141,21 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="max-w-3xl mx-auto">
+    <!-- 加载中 -->
+    <div v-if="loading" class="glass-panel rounded-3xl p-16 border text-center">
+      <div class="w-10 h-10 border-3 border-[#81d4fa] border-t-[#0288d1] rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-[#4f6b8a]">正在加载订阅配置...</p>
+    </div>
+
+    <!-- 加载失败 -->
+    <div v-else-if="loadError" class="glass-panel rounded-3xl p-12 border text-center">
+      <h2 class="text-lg font-semibold text-[#0f4069] mb-2">加载失败</h2>
+      <p class="text-[#4f6b8a] mb-4">无法获取订阅配置，请检查网络后重试。</p>
+      <button type="button" class="btn-primary" @click="load">重新加载</button>
+    </div>
+
+    <!-- 正常内容 -->
+    <template v-else>
     <div class="text-center mb-10">
       <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#e1f5fe] text-[#0288d1] mb-4 ring-1 ring-[#81d4fa]">
         <BellRing class="w-8 h-8" />
@@ -233,5 +271,6 @@ onBeforeUnmount(() => {
 
       </div>
     </section>
+    </template>
   </div>
 </template>
