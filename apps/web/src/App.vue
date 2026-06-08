@@ -44,6 +44,7 @@ const pageAgentConversationId = ref("");
 const pageAgentIntroActive = ref(true);
 const pageAgentConversations = ref<PageAgentConversation[]>([]);
 const pageAgentConversationsLoading = ref(false);
+const pageAgentConversationsHasMore = ref(false);
 const pageAgentTitleSet = ref(false);
 const pageAgentVerbosity = ref<"concise" | "detailed">("concise");
 const feedbackOpen = ref(false);
@@ -118,25 +119,7 @@ const ensurePageAgentConversation = async (): Promise<string> => {
     });
     return pageAgentConversationId.value;
   }
-  // 尝试从 localStorage 恢复上次会话
-  try {
-    const savedId = localStorage.getItem("ai-web-last-conversation");
-    if (savedId) {
-      logPageAgentClient("conversation.restore.localStorage", { conversationId: savedId });
-      try {
-        const messages = await getPageAgentConversationMessages(savedId);
-        if (messages.length > 0) {
-          pageAgentMessages.value = messages;
-          pageAgentConversationId.value = savedId;
-          pageAgentTitleSet.value = true;
-          return savedId;
-        }
-      } catch {
-        // 会话可能已过期，清除并创建新的
-        localStorage.removeItem("ai-web-last-conversation");
-      }
-    }
-  } catch { /* localStorage 不可用 */ }
+  // 默认创建新对话，不再自动恢复上次会话
   logPageAgentClient("conversation.create.start", {
     pageType: currentPageAgentContext.value?.pageType ?? "article_list",
     route: currentPageAgentContext.value?.route ?? route.fullPath,
@@ -288,11 +271,32 @@ const stopPageAgentRequest = (): void => {
   pageAgentLoading.value = false;
 };
 
+const PAGE_AGENT_CONV_PAGE_SIZE = 5;
+
 const loadPageAgentConversations = async (): Promise<void> => {
   if (pageAgentConversationsLoading.value) return;
   pageAgentConversationsLoading.value = true;
   try {
-    pageAgentConversations.value = await listPageAgentConversations();
+    const result = await listPageAgentConversations({ limit: PAGE_AGENT_CONV_PAGE_SIZE, offset: 0 });
+    pageAgentConversations.value = result.items;
+    pageAgentConversationsHasMore.value = result.hasMore;
+  } catch {
+    // silently fail — non-critical
+  } finally {
+    pageAgentConversationsLoading.value = false;
+  }
+};
+
+const loadMorePageAgentConversations = async (): Promise<void> => {
+  if (pageAgentConversationsLoading.value || !pageAgentConversationsHasMore.value) return;
+  pageAgentConversationsLoading.value = true;
+  try {
+    const result = await listPageAgentConversations({
+      limit: PAGE_AGENT_CONV_PAGE_SIZE,
+      offset: pageAgentConversations.value.length,
+    });
+    pageAgentConversations.value = [...pageAgentConversations.value, ...result.items];
+    pageAgentConversationsHasMore.value = result.hasMore;
   } catch {
     // silently fail — non-critical
   } finally {
@@ -319,6 +323,8 @@ const selectPageAgentConversation = async (conversationId: string): Promise<void
 const resetPageAgentConversation = (): void => {
   pageAgentConversationId.value = "";
   pageAgentMessages.value = [];
+  pageAgentConversations.value = [];
+  pageAgentConversationsHasMore.value = false;
   pageAgentQuestion.value = "";
   pageAgentRequestToken.value = Date.now();
   pageAgentLoading.value = false;
@@ -562,15 +568,17 @@ watch(
       :messages="pageAgentMessages"
       :conversations="pageAgentConversations"
       :loading-conversations="pageAgentConversationsLoading"
+      :conversations-has-more="pageAgentConversationsHasMore"
       :verbosity="pageAgentVerbosity"
       :page-type="currentPageAgentContext?.pageType"
-      @close="pageAgentOpen = false; pageAgentConversations = []; pageAgentMessages = []; pageAgentConversationId = ''; pageAgentTitleSet = false"
+      @close="pageAgentOpen = false; pageAgentConversations = []; pageAgentConversationsHasMore = false; pageAgentMessages = []; pageAgentConversationId = ''; pageAgentTitleSet = false"
       @submit="submitPageAgentQuestion"
       @stop="stopPageAgentRequest"
       @copy="copyPageAgentMessage"
       @update:question="pageAgentQuestion = $event"
       @update:verbosity="pageAgentVerbosity = $event"
       @load-conversations="loadPageAgentConversations"
+      @load-more-conversations="loadMorePageAgentConversations"
       @select-conversation="selectPageAgentConversation"
       @new-conversation="resetPageAgentConversation"
     />

@@ -1016,7 +1016,7 @@ export const pageAgentConversationStore = {
     }
     return mapPageAgentConversation(result.rows[0]);
   },
-  async listByUser(userId: string, limit: number): Promise<PageAgentConversation[]> {
+  async listByUser(userId: string, limit: number, offset = 0): Promise<PageAgentConversation[]> {
     const result = await query<PageAgentConversationRow>(
       `
       SELECT *
@@ -1024,8 +1024,9 @@ export const pageAgentConversationStore = {
       WHERE user_id = $1
       ORDER BY last_message_at DESC
       LIMIT $2
+      OFFSET $3
       `,
-      [userId, Math.max(1, Math.min(limit, 50))]
+      [userId, Math.max(1, Math.min(limit, 50)), Math.max(0, offset)]
     );
     return result.rows.map(mapPageAgentConversation);
   },

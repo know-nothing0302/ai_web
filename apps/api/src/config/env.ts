@@ -52,6 +52,7 @@ export const env = {
   pushTimezone: process.env.PUSH_TIMEZONE ?? "Asia/Shanghai",
   profileAnalysisCron: process.env.PROFILE_ANALYSIS_CRON ?? "0 3 * * 0",
   dailyPushCron: process.env.DAILY_PUSH_CRON ?? "0 20 * * *",
+  dailyPushCron2: process.env.DAILY_PUSH_CRON_2 ?? "0 11 * * *",
   weeklyPushCron: process.env.WEEKLY_PUSH_CRON ?? "0 20 * * 0",
   deferredInstantPushCron: process.env.DEFERRED_INSTANT_PUSH_CRON ?? "0 8 * * *",
   instantPushWindowStartHour: toInt(process.env.INSTANT_PUSH_WINDOW_START_HOUR, 8),

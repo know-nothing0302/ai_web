@@ -12,6 +12,7 @@ const props = defineProps<{
   messages: PageAgentMessage[];
   conversations: PageAgentConversation[];
   loadingConversations: boolean;
+  conversationsHasMore: boolean;
   verbosity: "concise" | "detailed";
   pageType?: string;
 }>();
@@ -24,6 +25,7 @@ const emit = defineEmits<{
   "update:question": [value: string];
   "update:verbosity": [value: "concise" | "detailed"];
   "load-conversations": [];
+  "load-more-conversations": [];
   "select-conversation": [id: string];
   "new-conversation": [];
 }>();
@@ -76,7 +78,6 @@ watch(
   () => props.visible,
   (open) => {
     if (open) {
-      emit("load-conversations");
       convSearch.value = "";
       convFilter.value = "all";
     }
@@ -164,6 +165,15 @@ const filterOptions = [
           <h2 class="text-sm font-semibold text-[#0f4069]">AI 智能分析与搜索</h2>
           <div class="flex items-center gap-1">
             <button
+              v-if="conversations.length === 0 && !loadingConversations"
+              type="button"
+              class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#e1f5fe]"
+              @click="emit('load-conversations')"
+            >
+              <MessageSquare class="h-3.5 w-3.5" />
+              历史对话
+            </button>
+            <button
               v-if="messages.length > 0 || conversations.length > 0"
               type="button"
               class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#e1f5fe]"
@@ -210,7 +220,8 @@ const filterOptions = [
         class="max-h-[44vh] min-h-[190px] overflow-y-auto px-4 py-4"
       >
         <div v-if="messages.length === 0 && !loadingConversations && conversations.length === 0" class="rounded-2xl bg-[#f8fbfe] px-4 py-5 text-center text-sm text-[#7b95ad]">
-          可以直接问当前页面内容
+          <p>可以直接问当前页面内容</p>
+          <p class="mt-1 text-xs text-[#9bb5cc]">点击上方「历史对话」查看最近记录</p>
         </div>
         <div v-else-if="messages.length === 0 && loadingConversations" class="flex items-center justify-center py-8 text-sm text-[#7b95ad]">
           加载历史对话…
@@ -256,6 +267,15 @@ const filterOptions = [
           >
             <span class="line-clamp-1 text-[#0f4069]">{{ conv.title || conv.pageTitle || "未命名对话" }}</span>
             <span class="mt-0.5 block text-[11px] text-[#8aa3bc]">{{ formatTime(conv.createdAt) }}</span>
+          </button>
+          <button
+            v-if="conversationsHasMore"
+            type="button"
+            class="w-full rounded-xl px-3 py-2 text-center text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#eaf7ff]"
+            :disabled="loadingConversations"
+            @click="emit('load-more-conversations')"
+          >
+            {{ loadingConversations ? '加载中...' : '加载更多' }}
           </button>
         </div>
         <div v-else class="space-y-4">

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.pushRouter = void 0;
 const express_1 = require("express");
 const zod_1 = require("zod");
+const env_1 = require("../../config/env");
 const store_1 = require("../../lib/store");
 const auth_1 = require("../../middleware/auth");
 const service_1 = require("./service");
@@ -116,6 +117,16 @@ exports.pushRouter.post("/verify", auth_1.requireAdminOrInternalToken, async (re
     }
     const summary = await service_1.pushService.verifyLatestByChannelCode(parsed.data);
     response.json(summary);
+});
+exports.pushRouter.get("/schedule", (_request, response) => {
+    response.json({
+        timezone: env_1.env.pushTimezone,
+        batches: [
+            { label: "午间推送", cron: env_1.env.dailyPushCron2, description: "每日第二批，推送前一日晚间至当日午间发布的内容" },
+            { label: "晚间推送", cron: env_1.env.dailyPushCron, description: "每日主要批次，推送当日午间至当日晚间发布的内容" },
+            { label: "每周速览", cron: env_1.env.weeklyPushCron, description: "每周日汇总本周精华" },
+        ],
+    });
 });
 exports.pushRouter.get("/records", auth_1.requireAdminOrInternalToken, async (request, response) => {
     const parsed = recordsQuerySchema.safeParse(request.query);

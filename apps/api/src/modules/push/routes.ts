@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { env } from "../../config/env";
 import { pushRecordStore } from "../../lib/store";
 import { requireAdmin, requireAdminOrInternalToken } from "../../middleware/auth";
 import { pushService } from "./service";
@@ -135,6 +136,17 @@ pushRouter.post("/verify", requireAdminOrInternalToken, async (request, response
   }
   const summary = await pushService.verifyLatestByChannelCode(parsed.data);
   response.json(summary);
+});
+
+pushRouter.get("/schedule", (_request, response) => {
+  response.json({
+    timezone: env.pushTimezone,
+    batches: [
+      { label: "午间推送", cron: env.dailyPushCron2, description: "每日第二批，推送前一日晚间至当日午间发布的内容" },
+      { label: "晚间推送", cron: env.dailyPushCron, description: "每日主要批次，推送当日午间至当日晚间发布的内容" },
+      { label: "每周速览", cron: env.weeklyPushCron, description: "每周日汇总本周精华" },
+    ],
+  });
 });
 
 pushRouter.get("/records", requireAdminOrInternalToken, async (request, response) => {

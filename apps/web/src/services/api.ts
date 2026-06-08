@@ -504,9 +504,15 @@ export const createPageAgentConversation = async (payload: {
   return result.data;
 };
 
-export const listPageAgentConversations = async (): Promise<PageAgentConversation[]> => {
-  const result = await request.get<{ items: PageAgentConversation[] }>("/page-agent/conversations");
-  return result.data.items;
+export const listPageAgentConversations = async (params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<{ items: PageAgentConversation[]; hasMore: boolean }> => {
+  const result = await request.get<{ items: PageAgentConversation[]; hasMore: boolean }>(
+    "/page-agent/conversations",
+    { params }
+  );
+  return result.data;
 };
 
 export const updatePageAgentConversationTitle = async (
@@ -837,4 +843,20 @@ export const updateAnnotation = async (
 
 export const deleteAnnotation = async (articleId: string, annotationId: string): Promise<void> => {
   await request.delete(`/articles/${articleId}/annotations/${annotationId}`);
+};
+
+// --- Push schedule ---
+
+export interface PushScheduleBatch {
+  label: string;
+  cron: string;
+  description: string;
+}
+
+export const getPushSchedule = async (): Promise<{
+  timezone: string;
+  batches: PushScheduleBatch[];
+}> => {
+  const result = await request.get<{ timezone: string; batches: PushScheduleBatch[] }>("/push/schedule");
+  return result.data;
 };

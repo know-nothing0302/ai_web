@@ -144,8 +144,13 @@ pageAgentRouter.get("/conversations", requireAuth, async (request, response) => 
     response.status(401).json({ message: "未登录" });
     return;
   }
-  const items = await pageAgentConversationStore.listByUser(userId, 20);
-  response.json({ items });
+  const limit = Math.max(1, Math.min(Number(request.query.limit) || 5, 50));
+  const offset = Math.max(0, Number(request.query.offset) || 0);
+  // 多取一条判断是否还有更多
+  const items = await pageAgentConversationStore.listByUser(userId, limit + 1, offset);
+  const hasMore = items.length > limit;
+  const result = hasMore ? items.slice(0, limit) : items;
+  response.json({ items: result, hasMore });
 });
 
 pageAgentRouter.get("/conversations/:id/messages", requireAuth, async (request, response) => {

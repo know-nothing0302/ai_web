@@ -78,7 +78,8 @@ const loadHistory = async (page = 1): Promise<void> => {
 const loadConversations = async (): Promise<void> => {
   conversationsLoading.value = true;
   try {
-    conversations.value = await listPageAgentConversations();
+    const result = await listPageAgentConversations({ limit: 5, offset: 0 });
+    conversations.value = result.items;
   } catch {
     conversations.value = [];
   } finally {

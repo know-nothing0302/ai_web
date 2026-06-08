@@ -54,6 +54,21 @@ export const initPushJobs = (): void => {
       });
     }
   }, { timezone: env.pushTimezone });
+  cron.schedule(env.dailyPushCron2, async () => {
+    logger.info("push.job.daily2.start", { cron: env.dailyPushCron2 });
+    try {
+      const pushedCount = await pushService.pushDailyDigest();
+      logger.info("push.job.daily2.finish", {
+        cron: env.dailyPushCron2,
+        pushedCount,
+      });
+    } catch (error) {
+      logger.error("push.job.daily2.failed", {
+        cron: env.dailyPushCron2,
+        error,
+      });
+    }
+  }, { timezone: env.pushTimezone });
   cron.schedule(env.weeklyPushCron, async () => {
     logger.info("push.job.weekly.start", {
       cron: env.weeklyPushCron,

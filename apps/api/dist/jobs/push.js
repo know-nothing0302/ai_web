@@ -62,6 +62,22 @@ const initPushJobs = () => {
             });
         }
     }, { timezone: env_1.env.pushTimezone });
+    node_cron_1.default.schedule(env_1.env.dailyPushCron2, async () => {
+        logger_1.logger.info("push.job.daily2.start", { cron: env_1.env.dailyPushCron2 });
+        try {
+            const pushedCount = await service_1.pushService.pushDailyDigest();
+            logger_1.logger.info("push.job.daily2.finish", {
+                cron: env_1.env.dailyPushCron2,
+                pushedCount,
+            });
+        }
+        catch (error) {
+            logger_1.logger.error("push.job.daily2.failed", {
+                cron: env_1.env.dailyPushCron2,
+                error,
+            });
+        }
+    }, { timezone: env_1.env.pushTimezone });
     node_cron_1.default.schedule(env_1.env.weeklyPushCron, async () => {
         logger_1.logger.info("push.job.weekly.start", {
             cron: env_1.env.weeklyPushCron,

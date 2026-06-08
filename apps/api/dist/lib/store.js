@@ -666,14 +666,15 @@ exports.pageAgentConversationStore = {
         }
         return mapPageAgentConversation(result.rows[0]);
     },
-    async listByUser(userId, limit) {
+    async listByUser(userId, limit, offset = 0) {
         const result = await (0, db_1.query)(`
       SELECT *
       FROM page_agent_conversations
       WHERE user_id = $1
       ORDER BY last_message_at DESC
       LIMIT $2
-      `, [userId, Math.max(1, Math.min(limit, 50))]);
+      OFFSET $3
+      `, [userId, Math.max(1, Math.min(limit, 50)), Math.max(0, offset)]);
         return result.rows.map(mapPageAgentConversation);
     },
     async touch(id) {

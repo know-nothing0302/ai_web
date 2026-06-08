@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
-import { BellRing, Tags, Zap, CheckCircle2 } from "lucide-vue-next";
+import { BellRing, Tags, Zap, CheckCircle2, Clock } from "lucide-vue-next";
 
 import { buildSubscriptionContext, setPageAgentContext } from "../page_agent/context";
 import {
   getCurrentUser,
   getMySubscriptions,
+  getPushSchedule,
   listChannels,
   saveMySubscription,
   type Channel,
   type User,
+  type PushScheduleBatch,
 } from "../services/api";
 
 type SubscriptionFrequency = "daily" | "weekly" | "instant";
@@ -31,18 +33,21 @@ const enabled = ref(true);
 const message = ref("");
 const loading = ref(false);
 const channels = ref<Channel[]>([]);
+const pushBatches = ref<PushScheduleBatch[]>([]);
 
 const buildDefaultChannelCodes = (): string[] =>
   channels.value.slice(0, 2).map((item) => item.code);
 
 const load = async (): Promise<void> => {
-  const [channelItems, subscriptions, user] = await Promise.all([
+  const [channelItems, subscriptions, user, schedule] = await Promise.all([
     listChannels(),
     getMySubscriptions(),
     getCurrentUser(),
+    getPushSchedule().catch(() => ({ timezone: "Asia/Shanghai", batches: [] as PushScheduleBatch[] })),
   ]);
   channels.value = channelItems;
   currentUser.value = user;
+  pushBatches.value = schedule.batches;
   // 每位用户只有一条订阅记录
   if (subscriptions.length > 0) {
     const sub = subscriptions[0];
@@ -168,6 +173,25 @@ onBeforeUnmount(() => {
               </div>
             </label>
           </div>
+        </div>
+
+        <!-- 推送时间说明 -->
+        <div v-if="pushBatches.length > 0" class="space-y-2">
+          <label class="flex items-center gap-2 text-sm font-medium text-[#0f4069]">
+            <Clock class="w-4 h-4 text-[#0288d1]" />
+            下次推送时间
+          </label>
+          <div class="space-y-1.5">
+            <div
+              v-for="batch in pushBatches"
+              :key="batch.label"
+              class="flex items-center justify-between rounded-xl border border-[#81d4fa]/50 bg-white px-4 py-2.5 text-sm"
+            >
+              <span class="font-medium text-[#0f4069]">{{ batch.label }}</span>
+              <span class="text-xs text-[#4f6b8a]">{{ batch.description }}</span>
+            </div>
+          </div>
+          <p class="text-xs text-[#8aa3bc]">以上时间为北京时间（Asia/Shanghai），服务器定时执行</p>
         </div>
 
         <hr class="border-[#b3e5fc]" />
