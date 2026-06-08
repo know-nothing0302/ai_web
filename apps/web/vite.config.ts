@@ -5,6 +5,9 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig(({ command }) => ({
   base: command === "serve" ? "/" : "/ai-web/",
   plugins: [vue(), tailwindcss()],
+  build: {
+    target: "es2019",
+  },
   server: {
     port: 5173,
     allowedHosts: ["idapps.xzhmu.edu.cn"],
