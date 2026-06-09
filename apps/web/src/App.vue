@@ -451,7 +451,7 @@ watch(
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#03a9f4] to-[#0277bd] flex items-center justify-center shadow-[0_0_15px_rgba(2,136,209,0.38)]">
               <Bot class="w-6 h-6 text-white" />
             </div>
-            <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#0288d1] to-[#01579b] tracking-tight">
+            <span class="text-base sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#0288d1] to-[#01579b] tracking-tight whitespace-nowrap">
               AI在徐医
             </span>
           </div>
