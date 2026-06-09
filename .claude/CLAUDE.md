@@ -65,48 +65,200 @@ Say "setup omc" or run `/oh-my-claudecode:omc-setup`.
 <!-- OMC:END -->
 
 <!-- User customizations -->
-## AI 徐医主站 — 项目约定
 
-### 安全铁律
-- **SQL 注入**：只用参数化查询 `query("...WHERE col = $1", [value])`。绝对禁止字符串拼接。
-- **输入校验**：所有 API 入参必须经 Zod schema 校验，`schema.safeParse()` 失败返回 400。
-- **鉴权**：路由层面中间件控制（`requireAuth`/`requireAdmin`/`requireInternalToken`等），禁止 handler 内手动检查。
-- **XSS**：`v-html` 仅用于可信内容（如 markdown 渲染），用户输入不直接 `v-html`。
-- **敏感信息**：`.env` 不入库，不硬编码密钥/token/密码。新变量先注册到 `config/env.ts`。
+## 元认知前置（收到任务后第一件事）
 
-### 项目结构
-- 后端：`apps/api/src/modules/<name>/routes.ts` → Express Router，挂载在 `app.ts`
-- 数据库：pg Pool 原生 SQL，无 ORM。Schema 变更在 `db.ts` 的 `schemaSql` 末尾追加 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...`
-- 环境变量：集中在 `apps/api/src/config/env.ts`，不直接读 `process.env`
-- 前端：`views/` 放页面组件，`components/` 放可复用组件，base path `/ai-web/`
+**收到任何开发指令，禁止直接动手。** 必须先完成以下自检，显式输出分析结果：
 
-### 常见低级错误
-- ❌ `process.env.X` 直接读 → ✅ `import { env } from "../config/env"`
-- ❌ SQL 拼接 → ✅ `query("...WHERE id = $1", [id])`
-- ❌ 新路由不加 Zod → ✅ 先写 schema 再写 handler
-- ❌ handler 内手动鉴权 → ✅ 路由定义时加中间件
-- ❌ 新增环境变量不更新 `env.ts` → ✅ 先在 env.ts 注册
-- ❌ `apps/api` 和 `apps/web` 互相 import 类型 → ✅ 各自定义
+### 第一步：任务分类
 
-### 关键路径
-| 路径 | 说明 |
+判断任务属于哪种类型（单选）：
+
+| 类型 | 标志词 |
 |---|---|
-| CAS 登录 | `/api/auth/cas/login` → CAS → `/api/auth/cas/callback` → Session |
-| 文章发布 | `POST /api/articles` (admin) |
-| 订阅推送 | cron 定时（daily 20:00 / weekly 周日 20:00）→ 企微推送 |
-| PageAgent | `PageAgentPanel.vue` ↔ `POST /api/page-agent/messages` ↔ DeepSeek |
+| 🐛 Bug 修复 | 修/报错/不工作/异常/崩溃/空白/500 |
+| 🏗 新功能 | 加/新增/实现/做一个/支持/接入 |
+| 🔧 重构/清理 | 重构/整理/简化/去重/优化结构 |
+| 🎨 UI 调整 | 样式/布局/响应式/颜色/间距/宽高 |
+| 🔒 安全相关 | 鉴权/权限/登录/Token/SQL/注入 |
+| 🚀 部署 | 部署/上线/发版/publish/release |
 
-### 开发命令
-```bash
-npm run dev:api     # 后端开发（端口 3000）
-npm run dev:web     # 前端开发（端口 5173）
-npm run build:api   # 后端编译（tsc）
-npm run build:web   # 前端编译（vue-tsc + vite build）
+### 第二步：技能选择
+
+根据任务类型，列出**必须加载**的技能（从场景路由表查）：
+
+```
+任务类型: {X}
+必须加载: [skill-a, skill-b]
+可选:     [skill-c]
 ```
 
-### 通知 Hermes
-```bash
-CC_TASK_ID=<TASK> cc-notify done "<简述>"
-CC_TASK_ID=<TASK> cc-notify blocked "<原因>"
-CC_TASK_ID=<TASK> cc-notify failed "<失败原因>"
+如果用户指令中已包含关键词（tdd/autopilot/ralph 等），在可选列表中标出。
+
+### 第三步：闸门预告
+
+根据任务涉及的代码区域，预告将通过哪些闸门：
+
 ```
+闸门预告:
+  编译: [是/否]
+  TDD:  [是/否]（涉及 {模块/函数}）
+  安全: [是/否]（涉及 {敏感点}）
+```
+
+### 第四步：输出摘要，等待确认
+
+将以上三步汇总为一段简短摘要，告知用户你的计划，然后**等待确认**再动手。
+
+格式：
+> 📋 **任务分析**: {类型} | 技能: {列表} | 闸门: {列表}
+> 🎯 **执行计划**: {1-2 句话的路线}
+> ⏳ 确认后开始。
+
+**禁止在输出分析摘要前执行任何修改操作。**
+
+---
+
+## 场景路由
+
+任务类型决定加载什么技能。**判定任务类型后，必须先用 Skill 工具加载对应技能，再动手。**
+
+| 触发条件 | 必须加载的技能 | 原因 |
+|---|---|---|
+| 修 Bug / 异常行为 | `systematic-debugging` | 先诊断根因，禁止直觉式修改 |
+| 新功能 / 多步骤改动 | `brainstorming` → `writing-plans` | 先厘清需求，再出方案，最后实现 |
+| 方案已定，可并行改 | `dispatching-parallel-agents` + `subagent-driven-development` | 前后端同时改动 |
+| 改动涉及 Vue 组件 | `vue` | Composition API / setup / KeepAlive 语法约束 |
+| 改动涉及 Express/Node | `node` | 错误处理、async、中间件模式 |
+| 涉及鉴权/SQL/Token/用户数据 | `security-review` | 防越权、注入、泄露 |
+| 纯代码清理（不改逻辑） | `simplify` | 去冗余、提复用 |
+
+### 关键词自动触发
+
+以下关键词出现时，对应 OMC 技能自动加载（不需要手动 Skill 调用）：`autopilot` / `ralph` / `ulw` / `ccg` / `ralplan` / `tdd` / `deslop` / `deepsearch` / `ultrathink`
+
+---
+
+## 质量闸门
+
+以下闸门是**硬约束**——不通过 = 不能声称"完成"，更不能部署。
+
+### 闸门 A：编译（所有代码改动强制）
+
+```
+1. npx tsc --noEmit -p apps/api/tsconfig.json   # 后端 TypeScript
+2. npm run build:api 2>&1 | tail -10             # 后端构建
+3. npm run build:web 2>&1 | tail -10             # 前端构建（如涉及前端文件）
+```
+
+任一步未通过 → 修复 → 从第 1 步重跑。三步全绿 = 编译闸门通过。
+
+### 闸门 B：TDD（触发条件）
+
+以下场景**必须先写测试，跑红，再写实现**：
+- `apps/api/src/modules/*/` 下的业务逻辑（非纯 CRUD 透传）
+- `middleware/auth.ts` 的鉴权分支
+- `jobs/push.ts` 的调度/时间计算
+- `lib/` 下的数据处理/工具函数
+
+不需要 TDD：Tailwind 样式、迁移脚本、文档/注释。
+
+### 闸门 C：安全审查（触发条件）
+
+以下场景**必须运行** `security-review` 技能：
+- 新增/修改 SQL 查询
+- 改动 CAS / Session / Token 逻辑
+- 处理用户输入的新代码
+- 企微 API 调用（Token 传递）
+
+### 闸门 D：改动范围自检（提交前强制）
+
+```bash
+git diff --stat          # 确认范围
+git diff --name-only     # 逐文件检查
+```
+
+发现修改了任务范围外的文件 → 回滚越界改动。
+
+### 闸门 E：提交规范
+
+**时机**：闸门 A-D 全部通过后才能 commit。禁止先 commit 再补验证。
+
+**消息格式**：`<type>: <简述>`，type 用 `fix` / `feat` / `refactor` / `style` / `chore`。
+
+**分支**：不在 main 上直接改。功能开发走 `feature/<描述>`，修复走 `fix/<描述>`。
+
+**push**：commit 后立即 push，不攒多个 commit 一起推。
+
+---
+
+## 部署调度
+
+cc-ai-web 直接调度 cc-ops，不经过 Hermes。
+
+### 部署前条件
+
+全部质量闸门通过 + git commit + git push 完成。
+
+### 调度 cc-ops 部署
+
+cc-ops 是部署专用 CC（tmux 会话名 `cc-ops`，工作目录 `/opt/cc-ops`）。两步：
+
+**1. 检查 cc-ops 是否就绪**
+
+```bash
+# 会话存在？
+tmux has-session -t cc-ops 2>&1
+
+# 就绪？（❯ 提示符可见，不在执行中）
+tmux capture-pane -t cc-ops -p -S -5
+```
+
+**2. 派发部署任务**
+
+```bash
+tmux send-keys -t cc-ops "部署 ai_web 到生产 .45" Enter
+```
+
+如果 cc-ops 不存在或不可用 → 告知用户需要先启动 cc-ops。
+
+### 派发内容模板
+
+派发给 cc-ops 的指令至少包含：
+
+```
+项目: ai_web
+分支: {当前分支名}
+提交: {commit hash}
+部署目标: xyd-45 (172.30.4.45)
+服务: /opt/idapps/ai_web/ai_web_service.sh restart
+构建: npm run build:api && npm run build:web
+验证: curl http://127.0.0.1:3000/api/health
+```
+
+### 部署后验证（cc-ai-web 自己验）
+
+派发 cc-ops 后，不等通知，直接 SSH 验证：
+
+```
+1. git log 到位 → ssh xyd-45 "cd /opt/idapps/ai_web && git log --oneline -3"
+2. 进程存活 → ssh xyd-45 "pgrep -f 'node dist/server.js'"
+3. 健康检查 → ssh xyd-45 "curl -s http://127.0.0.1:3000/api/health"
+4. 功能验证 → curl 对应端点确认修复生效
+```
+
+四步全绿 → 报告"部署成功"。任一步失败 → 精确报告哪步失败 + 输出。
+
+---
+
+## Pipeline 任务约束（feedback 流水线）
+
+以下在 Hermes 通过 feedback 流水线派发任务时生效：
+
+- ⛔ 禁止修改任务文档未列出的文件
+- ⛔ 禁止重命名已有 API 路由或函数
+- ⛔ 禁止添加任务文档未要求的"优化"或"加固"
+- ✅ 只做任务文档明确列出的修改项
+
+验收标准：TypeScript 编译 → 后端构建 → 前端构建 → git diff 自检 → commit+push
+完成后写 inbox 文件：`/home/ubuntu/hermes-cc-cowork/inbox/{任务ID}.done.json`
