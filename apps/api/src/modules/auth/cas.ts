@@ -143,7 +143,9 @@ authRouter.get("/me", (request, response) => {
 authRouter.get("/cas/login", (request, response) => {
   const parsedQuery = loginQuerySchema.safeParse(request.query);
   const redirectPath = normalizeRedirectPath(parsedQuery.data?.redirect);
-  const serviceUrl = buildCasServiceUrl(redirectPath);
+  // 将 redirect 存入 session，避免 CAS Server 清除 service URL 上的额外查询参数
+  request.session.returnTo = redirectPath;
+  const serviceUrl = env.casServiceUrl;
   if (env.devAuthBypass) {
     response.redirect(
       `${env.appBaseUrl}/api/auth/cas/callback?ticket=DEV_BYPASS&redirect=${encodeURIComponent(redirectPath)}`
@@ -164,9 +166,15 @@ authRouter.get("/cas/callback", async (request, response) => {
     response.status(400).json({ message: "ticket参数无效" });
     return;
   }
+  // 优先从 session 读取 redirect（避免 CAS Server 清除 service URL 上的额外参数），
+  // 其次从 query 读取（兼容 devAuthBypass / 旧链接），最后回退到 "/"
   const parsedQuery = loginQuerySchema.safeParse(request.query);
-  const redirectPath = normalizeRedirectPath(parsedQuery.data?.redirect);
-  const serviceUrl = buildCasServiceUrl(redirectPath);
+  const queryRedirect = parsedQuery.data?.redirect;
+  const sessionRedirect = request.session.returnTo;
+  const redirectPath = normalizeRedirectPath(sessionRedirect ?? queryRedirect);
+  // 用后即弃
+  delete request.session.returnTo;
+  const serviceUrl = env.casServiceUrl;
   const ticket = parsed.data.ticket;
   if (env.devAuthBypass && ticket === "DEV_BYPASS") {
     request.session.user = buildDevUser();
