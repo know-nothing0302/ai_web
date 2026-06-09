@@ -30,6 +30,8 @@ export const router = createRouter({
 
 let lastTrackedRoute = "";
 
+const CAS_RETURN_KEY = "cas_return_to";
+
 router.beforeEach(async (to) => {
   document.title = typeof to.meta.title === "string" ? to.meta.title : defaultTitle;
 
@@ -41,10 +43,28 @@ router.beforeEach(async (to) => {
   await auth.ensureInitialized();
 
   if (!auth.user) {
-    const redirect = encodeURIComponent(to.fullPath || "/");
-    window.location.href = `${apiBase}/auth/cas/login?redirect=${redirect}`;
+    // 存储目标路径到 sessionStorage，CAS 回调后由 App.vue 读取并跳转。
+    // sessionStorage 按 origin 隔离，CAS 跨站 redirect 后仍然可用，
+    // 彻底绕过 express-session 在 redirect 链中丢失数据的问题。
+    const target = to.fullPath || "/";
+    try {
+      sessionStorage.setItem(CAS_RETURN_KEY, target);
+    } catch { /* sessionStorage 不可用 */ }
+    window.location.href = `${apiBase}/auth/cas/login`;
     return false;
   }
+
+  // 登录后：如果在当前页首次完成认证，跳转到 CAS 前存储的目标路径
+  const returnTo = (() => {
+    try { return sessionStorage.getItem(CAS_RETURN_KEY); } catch { return null; }
+  })();
+  if (returnTo) {
+    try { sessionStorage.removeItem(CAS_RETURN_KEY); } catch { /* noop */ }
+    if (returnTo !== "/" && returnTo !== to.fullPath) {
+      return { path: returnTo, replace: true };
+    }
+  }
+
   return true;
 });
 

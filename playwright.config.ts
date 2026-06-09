@@ -42,5 +42,14 @@ export default defineConfig({
       },
       dependencies: ["setup"],
     },
+    // Cold — 不使用预认证 state，用于测试 CAS 重定向等 auth 流程
+    {
+      name: "cold",
+      use: {
+        browserName: "chromium",
+        // 不设 storageState — 每次测试从零开始
+      },
+      testMatch: /cas-redirect\.spec\.ts|cas-inspect\.spec\.ts/,
+    },
   ],
 });

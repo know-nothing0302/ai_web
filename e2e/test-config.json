@@ -1,15 +1,5 @@
 {
-  "task_id": "fb-review-20260605-1",
-  "pages": [
-    {
-      "path": "/",
-      "title": "AI在徐医",
-      "checks": [
-        {"type": "visible", "selector": "body", "desc": "页面 body 可见"},
-        {"type": "visible", "selector": "button:has-text('AI 智能分析与搜索')", "desc": "PageAgent 启动按钮可见"},
-        {"type": "text", "value": "AI在徐医", "desc": "站点标题可见"}
-      ]
-    }
-  ],
+  "task_id": "fb-review-20260609-1",
+  "pages": [{"path":"/subscription","title":"AI在徐医","checks":[{"type":"visible","selector":"body","desc":"页面 body 可见"}]}],
   "api_endpoints": ["/api/health", "/api/auth/me", "/api/articles?page=1&pageSize=3"]
 }

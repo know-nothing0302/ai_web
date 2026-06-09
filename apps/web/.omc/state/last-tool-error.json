@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"ls apps/web/tsconfig*.json\",\"description\":\"Find tsconfig files\"}",
-  "error": "Exit code 2\nls: cannot access 'apps/web/tsconfig*.json': No such file or directory",
-  "timestamp": "2026-06-05T14:09:17.042Z",
-  "retry_count": 3
+  "tool_input_preview": "{\"command\":\"cd /opt/idapps/ai_web/apps/web/dist/assets && echo \\\"=== features count ===\\\" && echo -n \\\"||=: \\\" && grep -c '||=' *.js 2>/dev/null | grep -v ':0' | wc -l && echo -n \\\"??: \\\" && grep -c '...",
+  "error": "Exit code 2\n/bin/bash: eval: line 1: unexpected EOF while looking for matching `\"'\n/bin/bash: eval: line 2: syntax error: unexpected end of file",
+  "timestamp": "2026-06-08T09:20:23.694Z",
+  "retry_count": 1
 }

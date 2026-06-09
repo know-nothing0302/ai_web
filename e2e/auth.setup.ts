@@ -68,16 +68,23 @@ setup("CAS 登录 — 保存认证状态", async ({ page }) => {
   ).then(() => true).catch(() => false);
 
   if (onCasPage) {
-    // 3. 真实 CAS 登录 — 填写表单
+    // 3. 真实 CAS 登录 — 需要点击"登录"按钮触发 JS 加密，不可用 Enter
     await page.waitForLoadState("domcontentloaded");
     const usernameInput = page.locator("#username");
     const passwordInput = page.locator("#password");
+    const loginBtn = page.locator("#login_submit");
     await usernameInput.waitFor({ state: "visible", timeout: 10000 });
     await usernameInput.fill(CAS_CONFIG.username);
     await passwordInput.fill(CAS_CONFIG.password);
 
-    // ⚠️ CAS 登录按钮是 javascript:void(0)，必须用 Enter 提交
-    await passwordInput.press("Enter");
+    // CAS 用 <a id="login_submit" href="javascript:void(0);"> 作为登录按钮，
+    // 依赖 JS 对 #password 做 pwdEncryptSalt 加密后写入 #saltPassword 再提交表单。
+    // fill() 不触发 input 事件，可能加密不执行 → Enter 提交的是明文密码 → CAS 拒绝。
+    // 必须 click 登录按钮触发完整的 JS 事件链。
+    await loginBtn.click();
+
+    // 等 CAS 处理（可能显示错误提示或重定向）
+    await page.waitForTimeout(3000);
   }
 
   // 4. 等待回到应用

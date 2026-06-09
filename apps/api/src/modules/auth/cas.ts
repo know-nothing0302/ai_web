@@ -143,9 +143,18 @@ authRouter.get("/me", (request, response) => {
 authRouter.get("/cas/login", (request, response) => {
   const parsedQuery = loginQuerySchema.safeParse(request.query);
   const redirectPath = normalizeRedirectPath(parsedQuery.data?.redirect);
-  // 将 redirect 存入 session，避免 CAS Server 清除 service URL 上的额外查询参数
-  request.session.returnTo = redirectPath;
   const serviceUrl = env.casServiceUrl;
+  // 将 redirect 存入独立 cookie + session 双保险：
+  // - cas_redirect cookie: 浏览器自动回传，不受 session store 影响（主要机制）
+  // - session.returnTo: 确保 session 被创建（saveUninitialized: false 时必需）+ fallback
+  request.session.returnTo = redirectPath;
+  response.cookie("cas_redirect", redirectPath, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.nodeEnv === "production",
+    maxAge: 5 * 60 * 1000, // 5 分钟有效
+    path: "/",
+  });
   if (env.devAuthBypass) {
     response.redirect(
       `${env.appBaseUrl}/api/auth/cas/callback?ticket=DEV_BYPASS&redirect=${encodeURIComponent(redirectPath)}`
@@ -166,14 +175,15 @@ authRouter.get("/cas/callback", async (request, response) => {
     response.status(400).json({ message: "ticket参数无效" });
     return;
   }
-  // 优先从 session 读取 redirect（避免 CAS Server 清除 service URL 上的额外参数），
-  // 其次从 query 读取（兼容 devAuthBypass / 旧链接），最后回退到 "/"
+  // 三级读取 redirect：cookie（主要）→ session（fallback）→ query（兼容旧链接）→ "/"（默认）
   const parsedQuery = loginQuerySchema.safeParse(request.query);
   const queryRedirect = parsedQuery.data?.redirect;
+  const cookieRedirect = request.cookies?.cas_redirect;
   const sessionRedirect = request.session.returnTo;
-  const redirectPath = normalizeRedirectPath(sessionRedirect ?? queryRedirect);
+  const redirectPath = normalizeRedirectPath(cookieRedirect ?? sessionRedirect ?? queryRedirect);
   // 用后即弃
   delete request.session.returnTo;
+  response.clearCookie("cas_redirect", { path: "/" });
   const serviceUrl = env.casServiceUrl;
   const ticket = parsed.data.ticket;
   if (env.devAuthBypass && ticket === "DEV_BYPASS") {
@@ -195,7 +205,14 @@ authRouter.get("/cas/callback", async (request, response) => {
     return;
   }
   request.session.user = user;
-  response.redirect(buildWebRedirectUrl(redirectPath));
+  // 显式 save 后再 redirect，确保前端 /me 能立即读到用户
+  request.session.save((saveErr) => {
+    if (saveErr) {
+      response.status(500).json({ message: "会话保存失败" });
+      return;
+    }
+    response.redirect(buildWebRedirectUrl(redirectPath));
+  });
 });
 
 authRouter.post("/logout", (request, response) => {
