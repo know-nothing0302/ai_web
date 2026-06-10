@@ -22,19 +22,29 @@ const profileOutputSchema = zod_1.z.object({
 const buildFallbackProfile = (input) => {
     const interestTopics = [...new Set(input.channelCodes)].slice(0, 3);
     return {
-        preferenceSummary: input.recentFeedback.length > 0
-            ? "用户倾向于更具体、结构化的回答。"
-            : "用户偏好需要结合后续提问和反馈继续观察。",
+        preferenceSummary: profile_prompts_1.preferenceSummaryFallbackByUserType[input.userType],
         interestTopics,
         responsePreferences: {
             style: "structured",
         },
-        personaPrompt: input.recentFeedback.length > 0
-            ? "回答时优先分点说明，先给结论，再给步骤，必要时补充示例。"
-            : "回答时保持简洁清晰，必要时分点说明。",
+        personaPrompt: profile_prompts_1.personaPromptFallbackByUserType[input.userType],
         confidence: "low",
     };
 };
+/**
+ * 确保 LLM 输出或 fallback 中 personaPrompt 和 preferenceSummary 不为空。
+ * LLM 可能返回空字符串，此时用用户类型对应的默认值兜底。
+ */
+const ensureNonEmptyProfile = (parsed, userType) => ({
+    ...parsed,
+    personaPrompt: parsed.personaPrompt.trim() ||
+        profile_prompts_1.personaPromptFallbackByUserType[userType],
+    preferenceSummary: parsed.preferenceSummary.trim() ||
+        profile_prompts_1.preferenceSummaryFallbackByUserType[userType],
+    responsePreferences: Object.keys(parsed.responsePreferences).length > 0
+        ? parsed.responsePreferences
+        : { style: "structured" },
+});
 /**
  * 根据学工号前缀推断用户类型。
  * 1 开头 → teacher（教职工），2 开头 → undergraduate（本科生），
@@ -175,12 +185,14 @@ const runUserProfileAnalysisJob = async (input) => {
                         timeout: 60000,
                     })
                     : undefined;
-                const parsed = llmResult
+                const raw = llmResult
                     ? profileOutputSchema.parse(JSON.parse(llmResult.data?.choices?.[0]?.message?.content ?? "{}"))
                     : buildFallbackProfile({
                         channelCodes: payload.subscriptions.channelCodes,
                         recentFeedback: recentFeedback.map((item) => item.content),
+                        userType,
                     });
+                const parsed = ensureNonEmptyProfile(raw, userType);
                 await store_1.userProfileStore.upsertByUser(userId, {
                     profileVersion: (existingProfile?.profileVersion ?? 0) + 1,
                     preferenceSummary: parsed.preferenceSummary,

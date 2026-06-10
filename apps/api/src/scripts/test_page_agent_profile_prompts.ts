@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import {
   buildUserProfileAnalysisSystemPrompt,
   buildUserProfileAnalysisUserPrompt,
+  personaPromptFallbackByUserType,
+  preferenceSummaryFallbackByUserType,
 } from "../modules/page_agent/profile_prompts.js";
 
 const run = (): void => {
-  // ── RED-1: system prompt 必须接受 userType 参数并包含分层指令 ──
+  // ── 1: system prompt 必须接受 userType 参数并包含分层指令 ──
   const teacherSystem = buildUserProfileAnalysisSystemPrompt("teacher");
   assert.ok(
     teacherSystem.includes("教师") || teacherSystem.includes("teacher"),
@@ -43,7 +45,7 @@ const run = (): void => {
     "未知类型应保持中性"
   );
 
-  // ── RED-2: user prompt 必须接受 userType 和 professionalContext ──
+  // ── 2: user prompt 必须接受 userType 和 professionalContext ──
   const userPrompt = buildUserProfileAnalysisUserPrompt({
     subscriptions: {
       channelCodes: ["medical-frontier"],
@@ -76,6 +78,31 @@ const run = (): void => {
     "医学影像学",
     "user prompt 应包含 professionalContext.major"
   );
+
+  // ── 3: system prompt 必须要求 non-empty personaPrompt 和 preferenceSummary ──
+  assert.ok(
+    teacherSystem.includes("非空字符串") || teacherSystem.includes("不得输出空字符串"),
+    "system prompt 应要求 personaPrompt/preferenceSummary 非空"
+  );
+  assert.ok(
+    teacherSystem.includes("style 字段") || teacherSystem.includes("不得输出空对象"),
+    "system prompt 应要求 responsePreferences 至少包含 style"
+  );
+
+  // ── 4: fallback 常量覆盖全部 4 种类型且非空 ──
+  const userTypes: Array<"teacher" | "undergraduate" | "graduate" | "unknown"> = [
+    "teacher",
+    "undergraduate",
+    "graduate",
+    "unknown",
+  ];
+  for (const ut of userTypes) {
+    const pp = personaPromptFallbackByUserType[ut];
+    const ps = preferenceSummaryFallbackByUserType[ut];
+    assert.ok(typeof pp === "string" && pp.trim().length > 0, `${ut} personaPrompt fallback 非空`);
+    assert.ok(pp.length <= 500, `${ut} personaPrompt fallback ≤500 字`);
+    assert.ok(typeof ps === "string" && ps.trim().length > 0, `${ut} preferenceSummary fallback 非空`);
+  }
 
   console.log("[AIWEB] test_page_agent_profile_prompts PASS");
 };
