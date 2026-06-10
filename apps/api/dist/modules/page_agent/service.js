@@ -272,6 +272,13 @@ const answerPageQuestion = async (input, requestUserId) => {
                 })),
             });
         }
+        const llmCallStart = Date.now();
+        logger_1.logger.info("page.agent.answer.llm_call_start", {
+            userId,
+            conversationId: input.conversationId,
+            model: env_1.env.deepseekModel,
+            messageCount: messages.length,
+        });
         const result = await axios_1.default.post(`${env_1.env.deepseekApiBaseUrl}/v1/chat/completions`, {
             model: env_1.env.deepseekModel,
             messages,
@@ -284,6 +291,12 @@ const answerPageQuestion = async (input, requestUserId) => {
                 }
                 : undefined,
             timeout: 60000,
+        });
+        logger_1.logger.info("page.agent.answer.llm_call_ok", {
+            userId,
+            conversationId: input.conversationId,
+            status: result.status,
+            llmCallDurationMs: Date.now() - llmCallStart,
         });
         const rawContent = String(result.data?.choices?.[0]?.message?.content ?? "");
         const answer = normalizeAiContent(rawContent);
@@ -428,9 +441,20 @@ const streamPageAnswer = async (input, userId, response) => {
     // 1. 验证会话
     const conversation = await store_1.pageAgentConversationStore.getById(input.conversationId);
     if (!conversation || conversation.userId !== userId) {
+        logger_1.logger.warn("page.agent.stream.conversation_reject", {
+            userId,
+            conversationId: input.conversationId,
+            exists: Boolean(conversation),
+            ownerMatch: conversation?.userId === userId,
+        });
         response.status(403).json({ message: "会话不存在或无权限" });
         return;
     }
+    logger_1.logger.info("page.agent.stream.conversation_ok", {
+        userId,
+        conversationId: input.conversationId,
+        pageType: conversation.pageType,
+    });
     // 2. 准备上下文
     const userProfile = await store_1.userProfileStore.getByUserId(userId);
     const historyMessages = (await store_1.pageAgentMessageStore.listRecentByConversation(input.conversationId, 8))
@@ -447,6 +471,13 @@ const streamPageAnswer = async (input, userId, response) => {
         title: input.pageTitle || "当前页面",
         url: input.route,
     };
+    logger_1.logger.info("page.agent.stream.context_loaded", {
+        userId,
+        conversationId: input.conversationId,
+        hasUserProfile: Boolean(userProfile),
+        historyCount: historyMessages.length,
+        searchSourceCount: searchSources.length,
+    });
     // 3. 保存用户消息
     await store_1.pageAgentMessageStore.create({
         conversationId: input.conversationId,
@@ -461,12 +492,21 @@ const streamPageAnswer = async (input, userId, response) => {
         contextPayload: input.context,
         sourcesPayload: [],
     });
+    logger_1.logger.info("page.agent.stream.user_msg_saved", {
+        userId,
+        conversationId: input.conversationId,
+        questionLength: sanitizedQuestion.length,
+    });
     // 4. 设置 SSE headers
     response.setHeader("Content-Type", "text/event-stream");
     response.setHeader("Cache-Control", "no-cache");
     response.setHeader("Connection", "keep-alive");
     response.setHeader("X-Accel-Buffering", "no");
     response.flushHeaders();
+    logger_1.logger.info("page.agent.stream.sse_ready", {
+        userId,
+        conversationId: input.conversationId,
+    });
     // 5. 如果未配置 LLM，推送 fallback
     if (!env_1.env.deepseekApiBaseUrl) {
         const fallback = buildFallbackAnswer(input);
@@ -515,6 +555,12 @@ const streamPageAnswer = async (input, userId, response) => {
         msgSizes,
     });
     try {
+        logger_1.logger.info("page.agent.stream.llm_call_start", {
+            userId,
+            conversationId: input.conversationId,
+            model: env_1.env.deepseekModel,
+            messageCount: messages.length,
+        });
         const apiCallStart = Date.now();
         const llmResponse = await axios_1.default.post(`${env_1.env.deepseekApiBaseUrl}/v1/chat/completions`, {
             model: env_1.env.deepseekModel,
@@ -529,10 +575,25 @@ const streamPageAnswer = async (input, userId, response) => {
             responseType: "stream",
             timeout: 120000,
         });
+        logger_1.logger.info("page.agent.stream.llm_call_ok", {
+            userId,
+            conversationId: input.conversationId,
+            status: llmResponse.status,
+            apiCallDurationMs: Date.now() - apiCallStart,
+        });
         let chunkCount = 0;
         let contentChunkCount = 0;
+        let firstChunkLogged = false;
         llmResponse.data.on("data", (chunk) => {
             chunkCount++;
+            if (!firstChunkLogged) {
+                firstChunkLogged = true;
+                logger_1.logger.info("page.agent.stream.first_chunk", {
+                    userId,
+                    conversationId: input.conversationId,
+                    chunkSize: chunk.length,
+                });
+            }
             streamBuffer += chunk.toString();
             const lines = streamBuffer.split("\n");
             // 最后一行可能不完整，保留到下次拼接

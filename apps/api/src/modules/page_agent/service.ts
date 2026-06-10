@@ -315,6 +315,13 @@ export const answerPageQuestion = async (
         })),
       });
     }
+    const llmCallStart = Date.now();
+    logger.info("page.agent.answer.llm_call_start", {
+      userId,
+      conversationId: input.conversationId,
+      model: env.deepseekModel,
+      messageCount: messages.length,
+    });
     const result = await axios.post(
       `${env.deepseekApiBaseUrl}/v1/chat/completions`,
       {
@@ -332,6 +339,12 @@ export const answerPageQuestion = async (
         timeout: 60000,
       }
     );
+    logger.info("page.agent.answer.llm_call_ok", {
+      userId,
+      conversationId: input.conversationId,
+      status: result.status,
+      llmCallDurationMs: Date.now() - llmCallStart,
+    });
     const rawContent = String(result.data?.choices?.[0]?.message?.content ?? "");
     const answer = normalizeAiContent(rawContent);
     // 若模型返回过短（< 10 字符）或仅为空洞确认，视为无效回答
@@ -479,9 +492,20 @@ export const streamPageAnswer = async (
   // 1. 验证会话
   const conversation = await pageAgentConversationStore.getById(input.conversationId);
   if (!conversation || conversation.userId !== userId) {
+    logger.warn("page.agent.stream.conversation_reject", {
+      userId,
+      conversationId: input.conversationId,
+      exists: Boolean(conversation),
+      ownerMatch: conversation?.userId === userId,
+    });
     response.status(403).json({ message: "会话不存在或无权限" });
     return;
   }
+  logger.info("page.agent.stream.conversation_ok", {
+    userId,
+    conversationId: input.conversationId,
+    pageType: conversation.pageType,
+  });
 
   // 2. 准备上下文
   const userProfile = await userProfileStore.getByUserId(userId);
@@ -501,6 +525,13 @@ export const streamPageAnswer = async (
     title: input.pageTitle || "当前页面",
     url: input.route,
   };
+  logger.info("page.agent.stream.context_loaded", {
+    userId,
+    conversationId: input.conversationId,
+    hasUserProfile: Boolean(userProfile),
+    historyCount: historyMessages.length,
+    searchSourceCount: searchSources.length,
+  });
 
   // 3. 保存用户消息
   await pageAgentMessageStore.create({
@@ -516,6 +547,11 @@ export const streamPageAnswer = async (
     contextPayload: input.context,
     sourcesPayload: [],
   });
+  logger.info("page.agent.stream.user_msg_saved", {
+    userId,
+    conversationId: input.conversationId,
+    questionLength: sanitizedQuestion.length,
+  });
 
   // 4. 设置 SSE headers
   response.setHeader("Content-Type", "text/event-stream");
@@ -523,6 +559,10 @@ export const streamPageAnswer = async (
   response.setHeader("Connection", "keep-alive");
   response.setHeader("X-Accel-Buffering", "no");
   response.flushHeaders();
+  logger.info("page.agent.stream.sse_ready", {
+    userId,
+    conversationId: input.conversationId,
+  });
 
   // 5. 如果未配置 LLM，推送 fallback
   if (!env.deepseekApiBaseUrl) {
@@ -576,6 +616,12 @@ export const streamPageAnswer = async (
   });
 
   try {
+    logger.info("page.agent.stream.llm_call_start", {
+      userId,
+      conversationId: input.conversationId,
+      model: env.deepseekModel,
+      messageCount: messages.length,
+    });
     const apiCallStart = Date.now();
     const llmResponse: AxiosResponse<Stream> = await axios.post(
       `${env.deepseekApiBaseUrl}/v1/chat/completions`,
@@ -594,11 +640,26 @@ export const streamPageAnswer = async (
         timeout: 120000,
       }
     );
+    logger.info("page.agent.stream.llm_call_ok", {
+      userId,
+      conversationId: input.conversationId,
+      status: llmResponse.status,
+      apiCallDurationMs: Date.now() - apiCallStart,
+    });
 
     let chunkCount = 0;
     let contentChunkCount = 0;
+    let firstChunkLogged = false;
     llmResponse.data.on("data", (chunk: Buffer) => {
       chunkCount++;
+      if (!firstChunkLogged) {
+        firstChunkLogged = true;
+        logger.info("page.agent.stream.first_chunk", {
+          userId,
+          conversationId: input.conversationId,
+          chunkSize: chunk.length,
+        });
+      }
       streamBuffer += chunk.toString();
       const lines = streamBuffer.split("\n");
       // 最后一行可能不完整，保留到下次拼接
