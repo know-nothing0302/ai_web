@@ -97,6 +97,11 @@ export const env = {
   oraclePassword: process.env.ORACLE_PASSWORD ?? "",
   oracleConnectString: process.env.ORACLE_CONNECT_STRING ?? "",
   birthdayPushMode: (process.env.BIRTHDAY_PUSH_MODE ?? "test") as "test" | "production",
+  deepseekUserIdSecret: firstNonEmpty(
+    process.env.DEEPSEEK_USER_ID_SECRET,
+    process.env.SESSION_SECRET,
+    "ai-web-default-user-id-secret"
+  ),
   postgresHost: process.env.POSTGRES_HOST ?? "localhost",
   postgresPort: toInt(process.env.POSTGRES_PORT, 5432),
   postgresUser: process.env.POSTGRES_USER ?? "postgres",

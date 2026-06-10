@@ -2,6 +2,7 @@ import axios from "axios";
 
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
+import { hashUserIdForDeepSeek } from "../page_agent/user_id_hash";
 
 export interface ArticleAiOptimizeInput {
   title?: string;
@@ -86,6 +87,9 @@ export const optimizeArticleDraft = async (
     {
       model: env.deepseekModel,
       temperature: 0.2,
+      ...(input.requestUserId
+        ? { user_id: hashUserIdForDeepSeek(input.requestUserId) }
+        : {}),
       messages: [
         {
           role: "system",

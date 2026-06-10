@@ -20,6 +20,7 @@ import {
   preferenceSummaryFallbackByUserType,
   ProfileUserType,
 } from "./profile_prompts";
+import { hashUserIdForDeepSeek } from "./user_id_hash";
 
 const profileOutputSchema = z.object({
   preferenceSummary: z.string().trim().default(""),
@@ -205,6 +206,7 @@ export const runUserProfileAnalysisJob = async (input: {
                   },
                 ],
                 temperature: 0.2,
+                user_id: hashUserIdForDeepSeek(userId),
                 response_format: {
                   type: "json_object",
                 },

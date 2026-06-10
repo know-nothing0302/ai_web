@@ -14,6 +14,7 @@ import {
 import { Article } from "../../lib/types";
 import { buildPageAgentMessages } from "./prompts";
 import { sanitizeForModel, truncateForModel } from "./sanitize";
+import { hashUserIdForDeepSeek } from "./user_id_hash";
 import {
   PageAgentRequestBody,
   PageAgentResponse,
@@ -319,6 +320,7 @@ export const answerPageQuestion = async (
         model: env.deepseekModel,
         messages,
         temperature: 0.2,
+        user_id: hashUserIdForDeepSeek(userId),
       },
       {
         headers: env.deepseekApiKey
@@ -581,6 +583,7 @@ export const streamPageAnswer = async (
         messages,
         temperature: 0.2,
         stream: true,
+        user_id: hashUserIdForDeepSeek(userId),
       },
       {
         headers: env.deepseekApiKey
