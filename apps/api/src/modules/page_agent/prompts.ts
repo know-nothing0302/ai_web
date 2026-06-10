@@ -123,7 +123,7 @@ export const buildPageAgentMessages = (input: {
   if (input.userProfile?.personaPrompt.trim()) {
     messages.push({
       role: "system",
-      content: `用户专属回答偏好：${input.userProfile.personaPrompt.trim()}`,
+      content: `【回答风格指令】你必须遵循以下回答要求：\n${input.userProfile.personaPrompt.trim()}`,
     });
   }
 

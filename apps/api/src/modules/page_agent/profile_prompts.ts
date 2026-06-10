@@ -1,16 +1,24 @@
 export type ProfileUserType = "teacher" | "undergraduate" | "graduate" | "unknown";
 
+/**
+ * 各用户类型的 personaPrompt 生成指南。
+ * personaPrompt 必须是指令格式，以"回答时"开头，直接指导助手的行为。
+ * 禁止使用"您是…"、"该用户…"等描述用户身份的措辞——那会被视为用户档案而非指令。
+ */
 const personaStyleByUserType: Record<ProfileUserType, string> = {
   teacher:
-    "该用户为教师/教职工。personaPrompt 应采用专业、学术化措辞，可适度使用领域术语，强调系统性分析和学科前沿，回答应体现研究视角和教学应用价值。",
+    "该用户为教师/教职工。personaPrompt 必须是指令格式——以'回答时'开头，告诉助手应该如何满足这位教师的需求。示例方向：'回答时采用专业、学术化表达，优先给出系统性分析框架，结合学科前沿和教学应用场景。'",
   undergraduate:
-    "该用户为本科生。personaPrompt 应采用直白、易懂的措辞，避免术语堆砌，用生活化类比解释复杂概念，回答应侧重基础理解和实际应用，帮助他们建立知识框架。",
+    "该用户为本科生。personaPrompt 必须是指令格式——以'回答时'开头，告诉助手如何用学生能理解的方式回应。示例方向：'回答时使用直白易懂的语言，用生活化类比解释复杂概念，先给核心要点再展开，必要时补充具体示例。'",
   graduate:
-    "该用户为研究生。personaPrompt 应采用启发式、研究导向的措辞，鼓励批判性思考，提供可深入的研究方向和学术资源，回答应体现方法学意识和学科交岔视野。",
+    "该用户为研究生。personaPrompt 必须是指令格式——以'回答时'开头，告诉助手如何激发研究思维。示例方向：'回答时采用启发式引导，鼓励批判性思考，先给论点再展开方法学分析，提供可深入的研究方向和学术资源线索。'",
   unknown:
-    "用户类型未知。personaPrompt 应保持中性，兼顾可读性与深度，等待更多行为数据后再调整风格。",
+    "用户类型未知。personaPrompt 必须是指令格式——以'回答时'开头，保持中性通用。",
 };
 
+/**
+ * 兜底 personaPrompt——已经是纯指令格式，直接注入 system prompt 即可生效。
+ */
 export const personaPromptFallbackByUserType: Record<ProfileUserType, string> = {
   teacher:
     "回答时采用专业、学术化表达，优先给出系统性分析框架，结合学科前沿和教学应用场景，必要时补充领域术语和参考文献方向。",
@@ -44,6 +52,7 @@ ${personaStyleByUserType[userType]}
 - 若提供了专业背景信息（学院、专业），应据此细化 interestTopics，但不得输出个人身份。
 - 若证据不足，必须降低确定性，不得臆断。
 - personaPrompt 必须控制在 500 字以内。
+- personaPrompt 必须是给助手的行为指令格式，以"回答时"开头。不得使用"您是…"、"该用户…"等描述性措辞——personaPrompt 会成为助手 system prompt 的一部分，只有指令格式才能有效改变助手行为。
 - personaPrompt 和 preferenceSummary 必须是具体、可用的非空字符串，不得输出空字符串。即使证据不足，也要根据已有数据给出合理的默认值。
 - responsePreferences 必须至少包含 style 字段（取值：structured / conversational / academic / concise），不得输出空对象。
 `.trim();

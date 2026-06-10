@@ -773,8 +773,11 @@ exports.pageAgentMessageStore = {
     },
     async listDistinctUserIdsForProfileAnalysis(limit) {
         const result = await (0, db_1.query)(`
-      SELECT DISTINCT user_id
-      FROM page_agent_messages
+      SELECT DISTINCT user_id FROM (
+        SELECT user_id FROM page_agent_messages
+        UNION
+        SELECT user_id FROM subscriptions
+      ) AS candidates
       ORDER BY user_id ASC
       LIMIT $1
       `, [Math.max(1, Math.min(limit, 200))]);

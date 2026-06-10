@@ -1167,8 +1167,11 @@ export const pageAgentMessageStore = {
   async listDistinctUserIdsForProfileAnalysis(limit: number): Promise<string[]> {
     const result = await query<{ user_id: string }>(
       `
-      SELECT DISTINCT user_id
-      FROM page_agent_messages
+      SELECT DISTINCT user_id FROM (
+        SELECT user_id FROM page_agent_messages
+        UNION
+        SELECT user_id FROM subscriptions
+      ) AS candidates
       ORDER BY user_id ASC
       LIMIT $1
       `,
