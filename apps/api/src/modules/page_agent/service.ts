@@ -308,6 +308,7 @@ export const answerPageQuestion = async (
       logger.debug("page.agent.answer.prompt_preview", {
         conversationId: input.conversationId,
         messageCount: messages.length,
+        hasUserIdParam: true,
         promptMessages: messages.map((item) => ({
           role: item.role,
           preview: previewText(item.content, 220),

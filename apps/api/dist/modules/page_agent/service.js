@@ -10,6 +10,7 @@ const logger_1 = require("../../lib/logger");
 const store_1 = require("../../lib/store");
 const prompts_1 = require("./prompts");
 const sanitize_1 = require("./sanitize");
+const user_id_hash_1 = require("./user_id_hash");
 const normalizeAiContent = (content) => {
     let normalized = String(content ?? "").trim();
     // DeepSeek R1/V4 推理模型使用 <｜end▁of▁thinking｜> 标记分隔思考与回答
@@ -264,6 +265,7 @@ const answerPageQuestion = async (input, requestUserId) => {
             logger_1.logger.debug("page.agent.answer.prompt_preview", {
                 conversationId: input.conversationId,
                 messageCount: messages.length,
+                hasUserIdParam: true,
                 promptMessages: messages.map((item) => ({
                     role: item.role,
                     preview: previewText(item.content, 220),
@@ -274,6 +276,7 @@ const answerPageQuestion = async (input, requestUserId) => {
             model: env_1.env.deepseekModel,
             messages,
             temperature: 0.2,
+            user_id: (0, user_id_hash_1.hashUserIdForDeepSeek)(userId),
         }, {
             headers: env_1.env.deepseekApiKey
                 ? {
@@ -518,6 +521,7 @@ const streamPageAnswer = async (input, userId, response) => {
             messages,
             temperature: 0.2,
             stream: true,
+            user_id: (0, user_id_hash_1.hashUserIdForDeepSeek)(userId),
         }, {
             headers: env_1.env.deepseekApiKey
                 ? { Authorization: `Bearer ${env_1.env.deepseekApiKey}` }
