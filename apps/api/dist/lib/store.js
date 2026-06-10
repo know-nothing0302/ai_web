@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.recordAnalyticsEventSafely = exports.annotationStore = exports.analyticsEventStore = exports.feedbackLikeStore = exports.feedbackStore = exports.pushRecordStore = exports.wecomTagMappingStore = exports.wecomConfigStore = exports.userProfileAnalysisJobStore = exports.userProfileStore = exports.pageAgentMessageStore = exports.pageAgentConversationStore = exports.subscriptionStore = exports.articleStore = exports.articleChannelStore = void 0;
+exports.recordAnalyticsEventSafely = exports.userStore = exports.annotationStore = exports.analyticsEventStore = exports.feedbackLikeStore = exports.feedbackStore = exports.pushRecordStore = exports.wecomTagMappingStore = exports.wecomConfigStore = exports.userProfileAnalysisJobStore = exports.userProfileStore = exports.pageAgentMessageStore = exports.pageAgentConversationStore = exports.subscriptionStore = exports.articleStore = exports.articleChannelStore = void 0;
 const db_1 = require("./db");
 const logger_1 = require("./logger");
 const mapArticle = (row) => ({
@@ -1763,6 +1763,13 @@ exports.annotationStore = {
     async remove(id, userId) {
         const result = await (0, db_1.query)(`DELETE FROM user_annotations WHERE id = $1 AND user_id = $2`, [id, userId]);
         return (result.rowCount ?? 0) > 0;
+    },
+};
+exports.userStore = {
+    async getByXh(xh) {
+        const result = await (0, db_1.query)(`SELECT xh, user_type, xm, xymc, zymc, nj, xslx
+       FROM users WHERE xh = $1 LIMIT 1`, [xh]);
+        return result.rows[0];
     },
 };
 const recordAnalyticsEventSafely = async (input) => {

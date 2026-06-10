@@ -9,12 +9,14 @@ import {
   subscriptionStore,
   userProfileAnalysisJobStore,
   userProfileStore,
+  userStore,
 } from "../../lib/store";
 import { UserProfileAnalysisTriggerMode } from "../../lib/types";
 import { sanitizeForModel } from "./sanitize";
 import {
   buildUserProfileAnalysisSystemPrompt,
   buildUserProfileAnalysisUserPrompt,
+  ProfileUserType,
 } from "./profile_prompts";
 
 const profileOutputSchema = z.object({
@@ -45,6 +47,41 @@ const buildFallbackProfile = (input: {
         : "回答时保持简洁清晰，必要时分点说明。",
     confidence: "low" as const,
   };
+};
+
+/**
+ * 根据学工号前缀推断用户类型。
+ * 1 开头 → teacher（教职工），2 开头 → undergraduate（本科生），
+ * 3 开头 → graduate（研究生），其余 → unknown。
+ */
+const detectUserType = (xh: string): ProfileUserType => {
+  const first = xh.charAt(0);
+  if (first === "1") return "teacher";
+  if (first === "2") return "undergraduate";
+  if (first === "3") return "graduate";
+  return "unknown";
+};
+
+/**
+ * 从 Oracle 同步的 users 表获取专业背景（仅组织归属，不含身份信息）。
+ * 返回脱敏后的院系/专业/年级，供画像分析使用。
+ */
+const getProfessionalContext = async (
+  xh: string
+): Promise<{ college?: string; major?: string; grade?: string } | undefined> => {
+  try {
+    const row = await userStore.getByXh(xh);
+    if (!row) return undefined;
+    const ctx: { college?: string; major?: string; grade?: string } = {};
+    if (row.xymc?.trim()) ctx.college = sanitizeForModel(row.xymc.trim());
+    if (row.zymc?.trim()) ctx.major = sanitizeForModel(row.zymc.trim());
+    if (row.nj?.trim()) ctx.grade = sanitizeForModel(row.nj.trim());
+    // 只返回有内容的字段
+    return Object.keys(ctx).length > 0 ? ctx : undefined;
+  } catch {
+    // users 表查询失败不阻塞画像分析
+    return undefined;
+  }
 };
 
 export const runUserProfileAnalysisJob = async (input: {
@@ -109,6 +146,9 @@ export const runUserProfileAnalysisJob = async (input: {
           }))
           .slice(-10);
 
+        const userType = detectUserType(userId);
+        const professionalContext = await getProfessionalContext(userId);
+
         const payload = {
           subscriptions: {
             channelCodes: subscriptions.flatMap((item) => item.channelCodes),
@@ -127,6 +167,8 @@ export const runUserProfileAnalysisJob = async (input: {
           },
           recentQuestions,
           recentFeedback,
+          userType,
+          ...(professionalContext ? { professionalContext } : {}),
         };
 
         const llmResult = env.deepseekApiBaseUrl
@@ -137,7 +179,7 @@ export const runUserProfileAnalysisJob = async (input: {
                 messages: [
                   {
                     role: "system",
-                    content: buildUserProfileAnalysisSystemPrompt(),
+                    content: buildUserProfileAnalysisSystemPrompt(userType),
                   },
                   {
                     role: "user",
@@ -179,6 +221,7 @@ export const runUserProfileAnalysisJob = async (input: {
             questionCount: payload.questionStats.total,
             feedbackCount: recentFeedback.length,
             confidence: parsed.confidence,
+            userType,
           },
         });
 

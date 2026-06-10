@@ -2502,6 +2502,29 @@ export const annotationStore = {
   },
 };
 
+// ── users (Oracle 同步的师生基础信息) ──
+
+export interface UserRow {
+  xh: string;
+  user_type: "bks" | "yjs" | "jzg";
+  xm: string;
+  xymc?: string;
+  zymc?: string;
+  nj?: string;
+  xslx?: string;
+}
+
+export const userStore = {
+  async getByXh(xh: string): Promise<UserRow | undefined> {
+    const result = await query<UserRow>(
+      `SELECT xh, user_type, xm, xymc, zymc, nj, xslx
+       FROM users WHERE xh = $1 LIMIT 1`,
+      [xh]
+    );
+    return result.rows[0];
+  },
+};
+
 export const recordAnalyticsEventSafely = async (input: {
   eventType: AnalyticsEvent["eventType"];
   eventName: AnalyticsEvent["eventName"];

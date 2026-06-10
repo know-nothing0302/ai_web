@@ -35,6 +35,45 @@ const buildFallbackProfile = (input) => {
         confidence: "low",
     };
 };
+/**
+ * 根据学工号前缀推断用户类型。
+ * 1 开头 → teacher（教职工），2 开头 → undergraduate（本科生），
+ * 3 开头 → graduate（研究生），其余 → unknown。
+ */
+const detectUserType = (xh) => {
+    const first = xh.charAt(0);
+    if (first === "1")
+        return "teacher";
+    if (first === "2")
+        return "undergraduate";
+    if (first === "3")
+        return "graduate";
+    return "unknown";
+};
+/**
+ * 从 Oracle 同步的 users 表获取专业背景（仅组织归属，不含身份信息）。
+ * 返回脱敏后的院系/专业/年级，供画像分析使用。
+ */
+const getProfessionalContext = async (xh) => {
+    try {
+        const row = await store_1.userStore.getByXh(xh);
+        if (!row)
+            return undefined;
+        const ctx = {};
+        if (row.xymc?.trim())
+            ctx.college = (0, sanitize_1.sanitizeForModel)(row.xymc.trim());
+        if (row.zymc?.trim())
+            ctx.major = (0, sanitize_1.sanitizeForModel)(row.zymc.trim());
+        if (row.nj?.trim())
+            ctx.grade = (0, sanitize_1.sanitizeForModel)(row.nj.trim());
+        // 只返回有内容的字段
+        return Object.keys(ctx).length > 0 ? ctx : undefined;
+    }
+    catch {
+        // users 表查询失败不阻塞画像分析
+        return undefined;
+    }
+};
 const runUserProfileAnalysisJob = async (input) => {
     // 并发保护：跳过已有正在运行的任务
     const activeCheck = await (0, db_1.query)(`SELECT id FROM user_profile_analysis_jobs WHERE status IN ('pending', 'running') LIMIT 1`);
@@ -87,6 +126,8 @@ const runUserProfileAnalysisJob = async (input) => {
                     content: (0, sanitize_1.sanitizeForModel)(item.content),
                 }))
                     .slice(-10);
+                const userType = detectUserType(userId);
+                const professionalContext = await getProfessionalContext(userId);
                 const payload = {
                     subscriptions: {
                         channelCodes: subscriptions.flatMap((item) => item.channelCodes),
@@ -105,6 +146,8 @@ const runUserProfileAnalysisJob = async (input) => {
                     },
                     recentQuestions,
                     recentFeedback,
+                    userType,
+                    ...(professionalContext ? { professionalContext } : {}),
                 };
                 const llmResult = env_1.env.deepseekApiBaseUrl
                     ? await axios_1.default.post(`${env_1.env.deepseekApiBaseUrl}/v1/chat/completions`, {
@@ -112,7 +155,7 @@ const runUserProfileAnalysisJob = async (input) => {
                         messages: [
                             {
                                 role: "system",
-                                content: (0, profile_prompts_1.buildUserProfileAnalysisSystemPrompt)(),
+                                content: (0, profile_prompts_1.buildUserProfileAnalysisSystemPrompt)(userType),
                             },
                             {
                                 role: "user",
@@ -148,6 +191,7 @@ const runUserProfileAnalysisJob = async (input) => {
                         questionCount: payload.questionStats.total,
                         feedbackCount: recentFeedback.length,
                         confidence: parsed.confidence,
+                        userType,
                     },
                 });
                 successCount += 1;
