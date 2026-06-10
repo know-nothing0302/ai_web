@@ -621,6 +621,7 @@ export const streamPageAnswer = async (
       conversationId: input.conversationId,
       model: env.deepseekModel,
       messageCount: messages.length,
+      hasUserIdParam: true,
     });
     const apiCallStart = Date.now();
     const llmResponse: AxiosResponse<Stream> = await axios.post(

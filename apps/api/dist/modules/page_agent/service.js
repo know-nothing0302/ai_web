@@ -560,6 +560,7 @@ const streamPageAnswer = async (input, userId, response) => {
             conversationId: input.conversationId,
             model: env_1.env.deepseekModel,
             messageCount: messages.length,
+            hasUserIdParam: true,
         });
         const apiCallStart = Date.now();
         const llmResponse = await axios_1.default.post(`${env_1.env.deepseekApiBaseUrl}/v1/chat/completions`, {
