@@ -634,6 +634,11 @@ export const wecomClient = {
   ): Promise<WecomSendMessageResult> {
     return sendNewsNoticeCard({ totag: String(input.tagId) }, input);
   },
+  async sendNewsNoticeCardToAll(
+    input: WecomNewsNoticeContentInput
+  ): Promise<WecomSendMessageResult> {
+    return sendNewsNoticeCard({ touser: "@all" }, input);
+  },
   async sendTemplateCard(input: WecomTemplateCardRequest): Promise<WecomSendMessageResult> {
     return sendTemplateCard(input);
   },

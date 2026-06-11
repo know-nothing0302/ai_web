@@ -398,6 +398,25 @@ export const triggerInstantPush = async (channelCode: string): Promise<number> =
   return result.data.pushedCount;
 };
 
+export interface BroadcastResult {
+  recordId: string;
+  qywxUserId: string;
+  deliveryMode: string;
+  status: "success" | "failed";
+  wecomMsgid?: string;
+  responseCode?: string;
+  errorMessage?: string;
+}
+
+export const broadcastArticle = async (input: {
+  articleId: string;
+  title?: string;
+  summary?: string;
+}): Promise<BroadcastResult> => {
+  const result = await request.post<BroadcastResult>("/push/broadcast", input);
+  return result.data;
+};
+
 export const listChannels = async (): Promise<Channel[]> => {
   const result = await request.get<{ items: Channel[] }>("/channels");
   return result.data.items;

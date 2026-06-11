@@ -60,6 +60,12 @@ const tagSyncSchema = z
     }
   });
 
+const broadcastSchema = z.object({
+  articleId: z.string().trim().min(1),
+  title: z.string().trim().optional(),
+  summary: z.string().trim().optional(),
+});
+
 export const pushRouter = Router();
 
 const parseReferenceAt = (value?: string): Date | undefined => {
@@ -77,6 +83,16 @@ pushRouter.post("/instant", requireAdmin, async (request, response) => {
   }
   const count = await pushService.pushInstantByChannelCode(parsed.data.channelCode);
   response.json({ pushedCount: count });
+});
+
+pushRouter.post("/broadcast", requireAdmin, async (request, response) => {
+  const parsed = broadcastSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+  const result = await pushService.broadcastArticle(parsed.data);
+  response.json(result);
 });
 
 pushRouter.post("/daily", requireAdminOrInternalToken, async (request, response) => {

@@ -939,4 +939,103 @@ export const pushService = {
       deliveryMode: "user",
     });
   },
+  async broadcastArticle(input: { articleId: string; title?: string; summary?: string }): Promise<PushDeliveryResult> {
+    const article = await articleStore.getById(input.articleId);
+    if (!article) {
+      throw new Error(`文章 ${input.articleId} 不存在`);
+    }
+    const messageContext = buildMessageContext({
+      article,
+      title: input.title || article.title,
+      summary: input.summary || article.summary,
+    });
+    const record = await pushRecordStore.create({
+      articleId: article.id,
+      channelCode: article.channelCode,
+      qywxUserId: "@all",
+      deliveryMode: "broadcast",
+      messageType: "template_card.news_notice",
+      title: messageContext.title,
+      summary: messageContext.summary,
+      url: messageContext.url,
+      requestPayload: { touser: "@all", ...messageContext },
+    });
+    try {
+      const sendResult = await wecomClient.sendNewsNoticeCardToAll(messageContext);
+      await pushRecordStore.markSuccess(record.id, {
+        retryCount: sendResult.attempt - 1,
+        wecomErrcode: sendResult.result.errcode,
+        wecomErrmsg: sendResult.result.errmsg,
+        wecomMsgid: sendResult.result.msgid,
+        responseCode: sendResult.result.response_code,
+        responsePayload: {
+          request: sendResult.payload,
+          response: sendResult.result,
+        },
+      });
+      await recordAnalyticsEventSafely({
+        eventType: "push",
+        eventName: "push_sent",
+        articleId: article.id,
+        channelCode: article.channelCode,
+        sourceModule: "push.service",
+        eventPayload: {
+          recordId: record.id,
+          deliveryMode: "broadcast",
+        },
+      });
+      logger.info("push.broadcast.success", {
+        recordId: record.id,
+        articleId: article.id,
+        channelCode: article.channelCode,
+        msgid: sendResult.result.msgid,
+      });
+      return {
+        recordId: record.id,
+        qywxUserId: "@all",
+        deliveryMode: "broadcast",
+        status: "success",
+        wecomMsgid: sendResult.result.msgid,
+        responseCode: sendResult.result.response_code,
+      };
+    } catch (error) {
+      await pushRecordStore.markFailed(record.id, {
+        retryCount: error instanceof WecomApiError ? error.attempt - 1 : 0,
+        wecomErrcode: error instanceof WecomApiError ? error.errcode : undefined,
+        wecomErrmsg:
+          error instanceof WecomApiError
+            ? error.errmsg
+            : error instanceof WecomConfigError
+              ? error.message
+              : "unknown_error",
+        errorDetail: getErrorMessage(error),
+        responsePayload: getErrorPayload(error),
+      });
+      await recordAnalyticsEventSafely({
+        eventType: "push",
+        eventName: "push_failed",
+        articleId: article.id,
+        channelCode: article.channelCode,
+        sourceModule: "push.service",
+        eventPayload: {
+          recordId: record.id,
+          deliveryMode: "broadcast",
+          errorMessage: getErrorMessage(error),
+        },
+      });
+      logger.error("push.broadcast.failed", {
+        recordId: record.id,
+        articleId: article.id,
+        channelCode: article.channelCode,
+        error,
+      });
+      return {
+        recordId: record.id,
+        qywxUserId: "@all",
+        deliveryMode: "broadcast",
+        status: "failed",
+        errorMessage: getErrorMessage(error),
+      };
+    }
+  },
 };

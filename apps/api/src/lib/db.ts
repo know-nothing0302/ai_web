@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS push_records (
   subscription_user_id VARCHAR(64),
   qywx_user_id VARCHAR(128) NOT NULL,
   delivery_mode VARCHAR(16) NOT NULL DEFAULT 'user'
-    CHECK (delivery_mode IN ('user', 'tag', 'fallback_user', 'batch_user')),
+    CHECK (delivery_mode IN ('user', 'tag', 'fallback_user', 'batch_user', 'broadcast')),
   wecom_tag_id INT,
   wecom_tag_name VARCHAR(128),
   message_type VARCHAR(32) NOT NULL,
@@ -274,7 +274,7 @@ ALTER TABLE push_records
   DROP CONSTRAINT IF EXISTS push_records_delivery_mode_check;
 ALTER TABLE push_records
   ADD CONSTRAINT push_records_delivery_mode_check
-  CHECK (delivery_mode IN ('user', 'tag', 'fallback_user', 'batch_user'));
+  CHECK (delivery_mode IN ('user', 'tag', 'fallback_user', 'batch_user', 'broadcast'));
 
 CREATE INDEX IF NOT EXISTS idx_articles_created_by_user_id ON articles(created_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);

@@ -34,6 +34,21 @@ const { fontScale, SCALES, setScale } = useFontScale();
 const route = useRoute();
 const isAgentHovered = ref(false);
 const adminDropdownOpen = ref(false);
+const adminDropdownTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+
+const showAdminDropdown = () => {
+  if (adminDropdownTimer.value) {
+    clearTimeout(adminDropdownTimer.value);
+    adminDropdownTimer.value = null;
+  }
+  adminDropdownOpen.value = true;
+};
+
+const hideAdminDropdown = () => {
+  adminDropdownTimer.value = setTimeout(() => {
+    adminDropdownOpen.value = false;
+  }, 200);
+};
 const pageAgentOpen = ref(false);
 const pageAgentQuestion = ref("");
 const pageAgentLoading = ref(false);
@@ -473,8 +488,8 @@ watch(
               <div
                 v-else
                 class="relative"
-                @mouseenter="adminDropdownOpen = true"
-                @mouseleave="adminDropdownOpen = false"
+                @mouseenter="showAdminDropdown"
+                @mouseleave="hideAdminDropdown"
               >
                 <button
                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 border border-transparent"
@@ -487,6 +502,8 @@ watch(
                 <div
                   v-show="adminDropdownOpen"
                   class="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-[#0288d1]/15 py-1 min-w-[140px] z-50"
+                  @mouseenter="showAdminDropdown"
+                  @mouseleave="hideAdminDropdown"
                 >
                   <router-link
                     v-for="child in item.children"

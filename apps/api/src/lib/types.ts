@@ -89,7 +89,7 @@ export interface WecomTagMapping {
 
 export type PushRecordStatus = "pending" | "success" | "failed";
 
-export type PushDeliveryMode = "user" | "tag" | "fallback_user" | "batch_user";
+export type PushDeliveryMode = "user" | "tag" | "fallback_user" | "batch_user" | "broadcast";
 
 export interface PushRecord {
   id: string;

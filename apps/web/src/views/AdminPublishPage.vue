@@ -12,6 +12,7 @@ import {
   summarizeByAiXy,
   updateArticle,
   getCurrentUser,
+  broadcastArticle,
   type Article,
   type ArticleAiOptimizeResult,
   type Channel,
@@ -19,7 +20,7 @@ import {
 import { buildAdminContext, setPageAgentContext } from "../page_agent/context";
 import { renderMarkdown } from "../shared/markdown";
 
-const formCollapsed = ref(false);
+const formCollapsed = ref(true);
 const title = ref("");
 const channelCode = ref("");
 const content = ref("");
@@ -38,6 +39,8 @@ const loadingSave = ref(false);
 const loadingList = ref(false);
 const loadingBatch = ref(false);
 const loadingAiOptimize = ref(false);
+const loadingBroadcast = ref("");
+// 正在推送全体成员的文章 ID，用于按钮 loading 状态
 const channels = ref<Channel[]>([]);
 const articles = ref<Article[]>([]);
 const currentUserId = ref("");
@@ -399,6 +402,31 @@ const removeArticle = async (item: Article): Promise<void> => {
   } catch (error: any) {
     message.value = error.response?.data?.message || "删除失败";
     setTimeout(() => (message.value = ""), 3000);
+  }
+};
+
+const handleBroadcast = async (item: Article): Promise<void> => {
+  if (!window.confirm(`确认将《${item.title}》推送给企业微信全体成员吗？此操作不受订阅限制。`)) {
+    return;
+  }
+  loadingBroadcast.value = item.id;
+  try {
+    const result = await broadcastArticle({
+      articleId: item.id,
+      title: item.title,
+      summary: item.summary,
+    });
+    if (result.status === "success") {
+      message.value = `已成功推送《${item.title}》给全体成员`;
+    } else {
+      message.value = `推送失败：${result.errorMessage || "未知错误"}`;
+    }
+    setTimeout(() => (message.value = ""), 3000);
+  } catch (error: any) {
+    message.value = error.response?.data?.message || "推送请求失败";
+    setTimeout(() => (message.value = ""), 3000);
+  } finally {
+    loadingBroadcast.value = "";
   }
 };
 
@@ -818,6 +846,16 @@ onBeforeUnmount(() => {
               @click="toggleArticleStatus(item)"
             >
               {{ item.status === "published" ? "转为草稿" : "设为发布" }}
+            </button>
+            <!-- 推送给企业微信全体成员，不受订阅限制 -->
+            <button
+              type="button"
+              class="text-xs shrink-0 whitespace-nowrap rounded-lg border border-[#0288d1] px-3 py-2 text-[#0288d1] transition-colors hover:bg-[#e1f5fe] disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="loadingBroadcast !== ''"
+              @click="handleBroadcast(item)"
+            >
+              <span v-if="loadingBroadcast === item.id">推送中...</span>
+              <span v-else>推送给全体成员</span>
             </button>
             <button
               type="button"
