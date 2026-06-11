@@ -16,7 +16,7 @@ const run = async (): Promise<void> => {
     eventName: "page_view",
     userId: "u-2",
     pageRoute: "/",
-    pageTitle: "AI徐医",
+    pageTitle: "AI在徐医",
     sourceModule: "test",
   });
   const server = app.listen(0);

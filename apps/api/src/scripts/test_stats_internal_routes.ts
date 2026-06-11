@@ -28,7 +28,7 @@ const run = async (): Promise<void> => {
     eventName: "page_view",
     userId: "u-1",
     pageRoute: "/",
-    pageTitle: "AI徐医",
+    pageTitle: "AI在徐医",
     sourceModule: "test",
   });
   await analyticsEventStore.create({

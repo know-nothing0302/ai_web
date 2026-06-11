@@ -134,7 +134,7 @@ const doCopy = (text: string): void => {
 
 const doShare = (text: string): void => {
   const excerpt = text.slice(0, 200) + (text.length > 200 ? "…" : "");
-  const shareText = `[AI徐医 智能问答]\n${excerpt}\n\n—— 来自 AI徐医 智能助手`;
+  const shareText = `[AI在徐医 智能问答]\n${excerpt}\n\n—— 来自 AI在徐医 智能助手`;
   navigator.clipboard.writeText(shareText).then(() => {
     copyToast.value = "已复制分享内容";
     if (copyToastTimer) clearTimeout(copyToastTimer);

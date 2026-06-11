@@ -63,7 +63,7 @@ const { dialogPos, dragging, startDrag } = useDraggable();
       >
         <div>
           <h2 class="text-lg font-semibold text-[#0f4069]">
-            {{ pageTitle === 'AI徐医' ? '意见反馈' : `反馈 - ${pageTitle}` }}
+            {{ pageTitle === 'AI在徐医' ? '意见反馈' : `反馈 - ${pageTitle}` }}
           </h2>
           <p class="mt-1 text-sm text-[#6e89a3]">提交问题或建议，便于后续持续优化。</p>
         </div>
