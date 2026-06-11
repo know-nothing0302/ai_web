@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
-import { BellRing, Tags, Zap, CheckCircle2, Clock } from "lucide-vue-next";
+import { BellRing, Tags, Zap, CheckCircle2 } from "lucide-vue-next";
 
 import { buildSubscriptionContext, setPageAgentContext } from "../page_agent/context";
 import {
   getCurrentUser,
   getMySubscriptions,
-  getPushSchedule,
   listChannels,
   saveMySubscription,
   type Channel,
   type User,
-  type PushScheduleBatch,
 } from "../services/api";
 
 type SubscriptionFrequency = "daily" | "weekly" | "instant";
@@ -22,8 +20,8 @@ const frequencyOptions: Array<{
   description: string;
 }> = [
   { value: "instant", label: "即时", description: "发文即推" },
-  { value: "daily", label: "每日", description: "AI 汇总" },
-  { value: "weekly", label: "每周", description: "精华提炼" },
+  { value: "daily", label: "每日", description: "每日 11:00 / 20:00 发送" },
+  { value: "weekly", label: "每周", description: "每周日 20:00 发送" },
 ];
 
 const currentUser = ref<User | null>(null);
@@ -33,7 +31,6 @@ const enabled = ref(true);
 const message = ref("");
 const loading = ref(false);
 const channels = ref<Channel[]>([]);
-const pushBatches = ref<PushScheduleBatch[]>([]);
 const loadError = ref(false);
 
 const buildDefaultChannelCodes = (): string[] =>
@@ -43,7 +40,7 @@ const load = async (): Promise<void> => {
   loading.value = true;
   loadError.value = false;
   try {
-    const [channelItems, subscriptions, user, schedule] = await Promise.all([
+    const [channelItems, subscriptions, user] = await Promise.all([
       listChannels().catch((err) => {
         console.error("[SubscriptionPage] 加载栏目失败", err);
         return [] as Channel[];
@@ -56,14 +53,9 @@ const load = async (): Promise<void> => {
         console.error("[SubscriptionPage] 加载用户信息失败", err);
         return null;
       }),
-      getPushSchedule().catch((err) => {
-        console.error("[SubscriptionPage] 加载推送时间失败", err);
-        return { timezone: "Asia/Shanghai", batches: [] as PushScheduleBatch[] };
-      }),
     ]);
     channels.value = channelItems;
     currentUser.value = user;
-    pushBatches.value = schedule.batches;
     // 每位用户只有一条订阅记录
     if (subscriptions.length > 0) {
       const sub = subscriptions[0];
@@ -211,25 +203,6 @@ onBeforeUnmount(() => {
               </div>
             </label>
           </div>
-        </div>
-
-        <!-- 推送时间说明 -->
-        <div v-if="pushBatches.length > 0" class="space-y-2">
-          <label class="flex items-center gap-2 text-sm font-medium text-[#0f4069]">
-            <Clock class="w-4 h-4 text-[#0288d1]" />
-            下次推送时间
-          </label>
-          <div class="space-y-1.5">
-            <div
-              v-for="batch in pushBatches"
-              :key="batch.label"
-              class="flex items-center justify-between rounded-xl border border-[#81d4fa]/50 bg-white px-4 py-2.5 text-sm"
-            >
-              <span class="font-medium text-[#0f4069]">{{ batch.label }}</span>
-              <span class="text-xs text-[#4f6b8a]">{{ batch.description }}</span>
-            </div>
-          </div>
-          <p class="text-xs text-[#8aa3bc]">以上时间为北京时间（Asia/Shanghai），服务器定时执行</p>
         </div>
 
         <hr class="border-[#b3e5fc]" />
