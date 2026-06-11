@@ -162,7 +162,7 @@ const filterOptions = [
     >
       <header class="border-b border-[#b3e5fc]/35 px-4 py-3">
         <div class="flex items-center justify-between mb-2">
-          &nbsp;
+          <span class="text-xs font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#0288d1] to-[#01579b] whitespace-nowrap">AI在徐医 · 问答</span>
           <div class="flex items-center gap-1">
             <button
               v-if="conversations.length === 0 && !loadingConversations"
