@@ -5,7 +5,7 @@ import { reportPageView } from "./services/api";
 const appBase = import.meta.env.BASE_URL;
 const apiBase = appBase.endsWith("/") ? `${appBase}api` : `${appBase}/api`;
 
-const defaultTitle = "AI在徐医";
+const defaultTitle = "AI徐医";
 
 const routes = [
   { path: "/", component: () => import("./views/ArticlesPage.vue"), meta: { title: defaultTitle } },

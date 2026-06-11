@@ -134,7 +134,7 @@ const doCopy = (text: string): void => {
 
 const doShare = (text: string): void => {
   const excerpt = text.slice(0, 200) + (text.length > 200 ? "…" : "");
-  const shareText = `[AI在徐医 智能问答]\n${excerpt}\n\n—— 来自 AI在徐医 智能助手`;
+  const shareText = `[AI徐医 智能问答]\n${excerpt}\n\n—— 来自 AI徐医 智能助手`;
   navigator.clipboard.writeText(shareText).then(() => {
     copyToast.value = "已复制分享内容";
     if (copyToastTimer) clearTimeout(copyToastTimer);
@@ -162,7 +162,7 @@ const filterOptions = [
     >
       <header class="border-b border-[#b3e5fc]/35 px-4 py-3">
         <div class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-semibold text-[#0f4069]">AI 智能分析与搜索</h2>
+          &nbsp;
           <div class="flex items-center gap-1">
             <button
               v-if="conversations.length === 0 && !loadingConversations"
@@ -193,7 +193,6 @@ const filterOptions = [
         </div>
         <!-- Verbosity & Citation Controls -->
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-[11px] text-[#8aa3bc]">回答风格</span>
           <button
             type="button"
             class="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors"
