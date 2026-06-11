@@ -827,6 +827,7 @@ export const subscriptionStore = {
       DO UPDATE SET
         channel_codes = EXCLUDED.channel_codes,
         categories = EXCLUDED.categories,
+        frequency = EXCLUDED.frequency,
         qywx_user_id = EXCLUDED.qywx_user_id,
         qywx_user_name = EXCLUDED.qywx_user_name,
         enabled = EXCLUDED.enabled,
