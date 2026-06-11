@@ -8,7 +8,7 @@ const CAS = {
   password: process.env.E2E_CAS_PASSWORD || "",
 };
 
-const APP = "https://idapps.xzhmu.edu.cn/ai-web";
+const APP = process.env.E2E_BASE_URL ?? "";
 
 test("CAS 完整流程调试", async ({ browser }) => {
   test.setTimeout(90000);
@@ -79,7 +79,7 @@ test("CAS 完整流程调试", async ({ browser }) => {
 
       // 等待应用 URL 或继续 CAS
       try {
-        await page.waitForURL(/idapps\.xzhmu\.edu\.cn/, { timeout: 20000 });
+        await page.waitForURL(new RegExp(process.env.E2E_APP_HOST || ""), { timeout: 20000 });
         console.log(`STEP 5: 回到应用: ${page.url()}`);
       } catch {
         console.log(`STEP 5: 仍在 CAS: ${page.url()}`);

@@ -15,8 +15,8 @@ import { test, expect, BrowserContext } from "@playwright/test";
 const CAS = {
   username: process.env.E2E_CAS_USERNAME || "",
   password: process.env.E2E_CAS_PASSWORD || "",
-  loginUrlPattern: /authserver\.xzhmu\.edu\.cn/,
-  appUrlPattern: /idapps\.xzhmu\.edu\.cn/,
+  loginUrlPattern: new RegExp(process.env.E2E_CAS_HOST || "authserver"),
+  appUrlPattern: new RegExp(process.env.E2E_APP_HOST || ""),
 };
 
 test.describe("CAS 认证重定向", () => {
@@ -38,7 +38,7 @@ test.describe("CAS 认证重定向", () => {
     const page = await context.newPage();
 
     // Step 1: 直接访问订阅页（无任何 cookie）
-    await page.goto("https://idapps.xzhmu.edu.cn/ai-web/subscription", {
+    await page.goto(`${process.env.E2E_BASE_URL}/subscription`, {
       timeout: 15000,
       waitUntil: "domcontentloaded",
     });
@@ -128,7 +128,7 @@ test.describe("CAS 认证重定向", () => {
     test.setTimeout(60000);
     const page = await context.newPage();
 
-    await page.goto("https://idapps.xzhmu.edu.cn/ai-web/admin/stats", {
+    await page.goto(`${process.env.E2E_BASE_URL}/admin/stats`, {
       timeout: 15000,
       waitUntil: "domcontentloaded",
     });
@@ -147,14 +147,14 @@ test.describe("CAS 认证重定向", () => {
     test.setTimeout(60000);
     const page = await context.newPage();
 
-    await page.goto("https://idapps.xzhmu.edu.cn/ai-web/", {
+    await page.goto(`${process.env.E2E_BASE_URL}/`, {
       timeout: 15000,
       waitUntil: "domcontentloaded",
     });
 
     await loginIfNeeded(page, "/");
 
-    expect(page.url()).toContain("idapps.xzhmu.edu.cn");
+    expect(page.url()).toContain(process.env.E2E_APP_HOST || "");
     await expect(page.locator("body")).toBeVisible();
     await page.close();
   });
@@ -166,7 +166,7 @@ test.describe("CAS 认证重定向", () => {
     const page = await context.newPage();
 
     // 使用已有 session（context 中第一个测试的 cookie 已被保存）
-    await page.goto("https://idapps.xzhmu.edu.cn/ai-web/subscription", {
+    await page.goto(`${process.env.E2E_BASE_URL}/subscription`, {
       timeout: 15000,
       waitUntil: "domcontentloaded",
     });

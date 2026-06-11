@@ -54,7 +54,7 @@ function loadConfig(): TestConfig {
 
 // ── 导航辅助（已认证，直接 goto）──────────────────────────
 
-const BASE = "https://idapps.xzhmu.edu.cn/ai-web";
+const BASE = process.env.E2E_BASE_URL ?? "";
 
 async function gotoPage(page: import("@playwright/test").Page, pagePath: string) {
   await page.goto(`${BASE}${pagePath}`, { timeout: 15000 });

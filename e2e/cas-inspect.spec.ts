@@ -4,7 +4,7 @@
 import { test } from "@playwright/test";
 import * as fs from "fs";
 
-const APP = "https://idapps.xzhmu.edu.cn/ai-web";
+const APP = process.env.E2E_BASE_URL ?? "";
 
 test("CAS 页面结构诊断", async ({ page }) => {
   test.setTimeout(30000);

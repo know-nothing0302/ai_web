@@ -5,7 +5,7 @@
 
 import { Page, expect } from "@playwright/test";
 
-const BASE = "https://idapps.xzhmu.edu.cn/ai-web";
+const BASE = process.env.E2E_BASE_URL ?? "";
 
 /**
  * 导航到目标页面并验证加载正常
@@ -26,7 +26,6 @@ export async function assertPageLoads(page: Page, path: string): Promise<void> {
   await expect(page.locator("text=服务器错误")).not.toBeVisible();
   await expect(page.locator("text=页面不存在")).not.toBeVisible();
 
-  expect(page.url()).toContain("idapps.xzhmu.edu.cn");
   expect(page.url()).not.toContain("authserver");
 
   const realErrors = errors.filter(

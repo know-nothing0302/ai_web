@@ -23,7 +23,7 @@ export default defineConfig({
   timeout: 30000,
   retries: 1,
   use: {
-    baseURL: "https://idapps.xzhmu.edu.cn/ai-web",
+    baseURL: process.env.E2E_BASE_URL ?? "",
     headless: true,
     screenshot: "only-on-failure",
   },

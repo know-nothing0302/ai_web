@@ -10,7 +10,7 @@ import * as path from "path";
 import * as fs from "fs";
 
 const CAS_CONFIG = {
-  serviceBase: "https://idapps.xzhmu.edu.cn/ai-web",
+  serviceBase: process.env.E2E_BASE_URL ?? "",
   username: process.env.E2E_CAS_USERNAME || "",
   password: process.env.E2E_CAS_PASSWORD || "",
 };
@@ -63,7 +63,7 @@ setup("CAS 登录 — 保存认证状态", async ({ page }) => {
 
   // 2. 检测是否需要 CAS 登录（bypass 开启时不会跳转 CAS）
   const onCasPage = await page.waitForURL(
-    /authserver\.xzhmu\.edu\.cn/,
+    new RegExp(process.env.E2E_CAS_HOST || "authserver"),
     { timeout: 5000 }
   ).then(() => true).catch(() => false);
 
@@ -88,7 +88,7 @@ setup("CAS 登录 — 保存认证状态", async ({ page }) => {
   }
 
   // 4. 等待回到应用
-  await page.waitForURL(/idapps\.xzhmu\.edu\.cn/, { timeout: 20000 });
+  await page.waitForURL(new RegExp(process.env.E2E_APP_HOST || ""), { timeout: 20000 });
   await page.waitForLoadState("domcontentloaded");
   await page.waitForTimeout(3000);
 

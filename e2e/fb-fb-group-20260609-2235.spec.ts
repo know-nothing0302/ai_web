@@ -11,7 +11,7 @@ import { test, expect } from "@playwright/test";
 test("修复验证 — 文章详情页加载正常", async ({ page }) => {
   const targetPath = "/articles/dc081db8-6b13-48b5-ba83-bd81eefcade0";
 
-  await page.goto(`https://idapps.xzhmu.edu.cn/ai-web${targetPath}`);
+  await page.goto(`${process.env.E2E_BASE_URL}${targetPath}`);
   await page.waitForLoadState("domcontentloaded");
   await page.waitForTimeout(2000);
 
@@ -32,7 +32,7 @@ test("修复验证 — 移动端视口标题不换行", async ({ page }) => {
 
   // 模拟 iPhone SE 小屏 (375px)
   await page.setViewportSize({ width: 375, height: 667 });
-  await page.goto(`https://idapps.xzhmu.edu.cn/ai-web${targetPath}`);
+  await page.goto(`${process.env.E2E_BASE_URL}${targetPath}`);
   await page.waitForLoadState("domcontentloaded");
   await page.waitForTimeout(2000);
 
@@ -48,12 +48,12 @@ test("修复验证 — 移动端视口标题不换行", async ({ page }) => {
 });
 
 test("修复验证 — 无副作用（关键端点可达）", async ({ page }) => {
-  await page.goto("https://idapps.xzhmu.edu.cn/ai-web/");
+  await page.goto(`${process.env.E2E_BASE_URL}/`);
   await page.waitForLoadState("domcontentloaded");
 
   const apis = ["/api/health", "/api/auth/me", "/api/articles?page=1&pageSize=3"];
   for (const api of apis) {
-    const resp = await page.request.get(`https://idapps.xzhmu.edu.cn/ai-web${api}`);
+    const resp = await page.request.get(`${process.env.E2E_BASE_URL}${api}`);
     expect(resp.status()).toBe(200);
   }
 });

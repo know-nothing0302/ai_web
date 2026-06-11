@@ -36,6 +36,8 @@ export const env = {
   wecomCorpId: process.env.WECOM_CORP_ID ?? process.env.WX_CORP_ID ?? "",
   wecomAgentId: toInt(process.env.WECOM_AGENT_ID ?? process.env.WX_AGENT_ID, 0),
   wecomSecret: process.env.WECOM_SECRET ?? "",
+  wecomPushAgentId: toInt(process.env.WECOM_PUSH_AGENT_ID, 0),
+  wecomPushSecret: process.env.WECOM_PUSH_SECRET ?? "",
   wecomCallbackToken: process.env.WECOM_CALLBACK_TOKEN ?? "",
   wecomCallbackAesKey: process.env.WECOM_CALLBACK_AES_KEY ?? "",
   wecomInternalAuthToken: process.env.WECOM_INTERNAL_AUTH_TOKEN ?? "",
@@ -70,7 +72,7 @@ export const env = {
     "deepseek-chat"
   ),
   pageAgentDebug: (process.env.PAGE_AGENT_DEBUG ?? "true") === "true",
-  aiXyDefaultUserId: process.env.AI_XY_DEFAULT_USER_ID ?? "100002013029",
+  aiXyDefaultUserId: process.env.AI_XY_DEFAULT_USER_ID ?? "",
   aiXyDefaultKnowledgeGptId: process.env.AI_XY_DEFAULT_KNOWLEDGE_GPT_ID ?? "2550",
   aiXyDefaultChatType: process.env.AI_XY_DEFAULT_CHAT_TYPE ?? "ZSH_CHAT",
   aiXyDefaultGptType: process.env.AI_XY_DEFAULT_GPT_TYPE ?? "deepseekR1_zsh",
@@ -89,7 +91,7 @@ export const env = {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean),
-  adminUserIds: (process.env.ADMIN_USER_IDS ?? "100002013029")
+  adminUserIds: (process.env.ADMIN_USER_IDS ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean),

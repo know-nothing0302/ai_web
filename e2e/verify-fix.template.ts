@@ -8,7 +8,7 @@
  * 4. 根据修复内容在 "核心功能可用" 测试中添加验证断言
  * 5. 运行: cd /opt/idapps/ai_web && npx playwright test e2e/fb-{task_id}.spec.ts
  *
- * CAS 测试账号: 790020260042 / Py9W_mb4hE-NJwz
+ * CAS 测试账号: 通过环境变量 E2E_CAS_USERNAME / E2E_CAS_PASSWORD 配置
  * 未受保护页面（如公开文章页）直接用 page.goto()
  * 受保护页面（如 /admin/*）需先 casLogin(page, "{{PAGE_PATH}}")
  */
@@ -68,7 +68,7 @@ test("修复验证 — 无副作用（关键端点可达）", async ({ page }) =
   // 验证关键 API 端点可达
   const apis = ["/api/health", "/api/auth/me", "/api/articles?page=1&pageSize=3"];
   for (const api of apis) {
-    const resp = await page.request.get(`https://idapps.xzhmu.edu.cn/ai-web${api}`);
+    const resp = await page.request.get(`${process.env.E2E_BASE_URL}${api}`);
     expect(resp.status()).toBe(200);
   }
 });

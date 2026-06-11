@@ -6,10 +6,10 @@ import { test, expect, BrowserContext } from "@playwright/test";
 const CAS = {
   username: process.env.E2E_CAS_USERNAME || "",
   password: process.env.E2E_CAS_PASSWORD || "",
-  loginUrlPattern: /authserver\.xzhmu\.edu\.cn/,
+  loginUrlPattern: new RegExp(process.env.E2E_CAS_HOST || "authserver"),
 };
 
-const APP_URL = "https://idapps.xzhmu.edu.cn/ai-web";
+const APP_URL = process.env.E2E_BASE_URL ?? "";
 
 test.describe("CAS 认证重定向 [LOCAL VERIFY]", () => {
   test("[LOCAL] 未登录访问 /subscription → CAS 登录 → 回到 /subscription", async ({ browser }) => {
@@ -41,7 +41,7 @@ test.describe("CAS 认证重定向 [LOCAL VERIFY]", () => {
     await page.locator("#password").press("Enter");
 
     // Wait to come back to app
-    await page.waitForURL(/idapps\.xzhmu\.edu\.cn/, { timeout: 20000 });
+    await page.waitForURL(new RegExp(process.env.E2E_APP_HOST || ""), { timeout: 20000 });
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(5000);
 
@@ -50,7 +50,7 @@ test.describe("CAS 认证重定向 [LOCAL VERIFY]", () => {
     console.log("FINAL URL:", url);
     
     // Either we're at /subscription (fix works) or we need to check if page content is correct
-    expect(url).toContain("idapps.xzhmu.edu.cn");
+    expect(url).toContain(process.env.E2E_APP_HOST || "");
     
     await context.close();
   });

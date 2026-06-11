@@ -6,6 +6,47 @@ logs/
 *.lock
 .env
 .DS_Store
-apps/api/image/*.psd
 e2e/.auth/
 e2e/.env.e2e
+
+# Build output
+dist/
+
+# AI agent runtime state
+.omc/
+.superpowers/
+
+# Dev process docs (not for public)
+docs/superpowers/
+docs/extracted/
+docs/feedback-eval-template.md
+docs/rebuild_and_verify_flow.md
+docs/ECC-OMC-使用指南.md
+docs/wecom_subscription_push.md
+project.md
+TODO.md
+ai_web_sh_suggest.md
+
+# Internal API docs
+apps/api/docs/
+
+# Generated/derived files
+apps/api/registered_routes.json
+apps/api/route_probe.txt
+
+# Backup directories
+apps/api/dist/image.bak-*/
+
+# Dev test scripts
+apps/api/src/scripts/wecom_test.*
+apps/api/test_hang*.sh
+
+# E2E test artifacts
+e2e/test-config.json
+
+# Claude Code project config (internal, not for public)
+CLAUDE.md
+.claude/
+
+# PSD source files
+apps/api/image/*.psd

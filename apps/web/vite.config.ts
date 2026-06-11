@@ -10,7 +10,7 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: 5173,
-    allowedHosts: ["idapps.xzhmu.edu.cn"],
+    allowedHosts: [process.env.ALLOWED_HOST ?? "localhost"],
     proxy: {
       "/ai-web/api": {
         target: "http://localhost:3000",

@@ -98,7 +98,7 @@ test("修复验证 — 无副作用（关键端点可达）", async ({ page }) =
     "/api/push/schedule",
   ];
   for (const api of apis) {
-    const resp = await page.request.get(`https://idapps.xzhmu.edu.cn/ai-web${api}`);
+    const resp = await page.request.get(`${process.env.E2E_BASE_URL}${api}`);
     expect(resp.status()).toBe(200);
   }
 });
