@@ -140,7 +140,7 @@ write_pid_file() {
 }
 
 find_service_pid() {
-    pgrep -f -x "node dist/server.js" | head -1
+    pgrep -f "node dist/server.js" | head -1
 }
 
 find_service_user() {
@@ -348,6 +348,14 @@ stop_service() {
             return 0
         fi
     else
+        # PID 文件和 pgrep 都找不到 → 端口兜底（防止进程逃逸）
+        local port_pid=$(ss -tlnp 2>/dev/null | grep ":${PORT} " | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1)
+        if [ -n "$port_pid" ] && kill -0 "$port_pid" 2>/dev/null; then
+            log "${YELLOW}PID 文件缺失但端口 ${PORT} 被进程 $port_pid 占用，强制清理${NC}"
+            kill -TERM "$port_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL "$port_pid" 2>/dev/null || true
+        fi
         log "${YELLOW}$SERVICE_NAME 服务未运行${NC}"
         rm -f "$PID_FILE" 2>/dev/null || true
         release_lock

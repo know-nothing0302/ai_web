@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json && npm run copy-assets",
-    "copy-assets": "rm -rf dist/image/ && cp -r image/ dist/image/ && cp src/scripts/gen_birthday_card.py dist/scripts/",
+    "copy-assets": "rm -rf dist/image/ && mkdir -p dist/scripts && cp -r image/ dist/image/ && cp src/scripts/gen_birthday_card.py dist/scripts/",
     "start": "node dist/server.js",
     "test:article-extract-flow": "tsx src/scripts/test_article_extract_flow.ts",
     "test:wecom-template-cards": "tsx src/scripts/test_wecom_template_cards.ts",
