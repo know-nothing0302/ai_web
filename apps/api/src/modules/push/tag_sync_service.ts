@@ -88,16 +88,16 @@ const buildTagName = (
 const findOrCreateTag = async (
   tagName: string
 ): Promise<{ tagId: number; tagName: string }> => {
-  const existing = await wecomClient.listTags();
+  const existing = await wecomClient.listTags("push");
   const matched = existing.find((item) => item.tagName === tagName);
   if (matched) {
     return matched;
   }
   try {
-    return await wecomClient.createTag({ tagName });
+    return await wecomClient.createTag({ tagName }, "push");
   } catch (error) {
     if (error instanceof WecomApiError && error.errcode === 40071) {
-      const tags = await wecomClient.listTags();
+      const tags = await wecomClient.listTags("push");
       const duplicated = tags.find((item) => item.tagName === tagName);
       if (duplicated) {
         return duplicated;
@@ -146,11 +146,11 @@ const syncUserDiff = async (
 ): Promise<{ invalidUserIds: string[] }> => {
   const invalidUserIds: string[] = [];
   for (const batch of chunk(toAdd, TAG_BATCH_SIZE)) {
-    const result = await wecomClient.addTagUsers(tagId, batch);
+    const result = await wecomClient.addTagUsers(tagId, batch, "push");
     invalidUserIds.push(...result.invalidUserIds);
   }
   for (const batch of chunk(toRemove, TAG_BATCH_SIZE)) {
-    const result = await wecomClient.removeTagUsers(tagId, batch);
+    const result = await wecomClient.removeTagUsers(tagId, batch, "push");
     invalidUserIds.push(...result.invalidUserIds);
   }
   return {
@@ -181,7 +181,7 @@ export const tagSyncService = {
         input.frequency
       );
     const dbUserIds = uniq(subscriptions.map((item) => item.qywxUserId));
-    const remoteMembers = await wecomClient.getTagMembers(mapping.tagId);
+    const remoteMembers = await wecomClient.getTagMembers(mapping.tagId, "push");
     const remoteUserIds = uniq(remoteMembers.userIds);
     const remoteUserSet = new Set(remoteUserIds);
     const dbUserSet = new Set(dbUserIds);

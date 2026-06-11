@@ -206,7 +206,7 @@ const sendArticleToSubscription = async (input: {
     requestPayload: requestContext,
   });
   try {
-    const sendResult = await wecomClient.sendNewsNoticeCard(requestContext);
+    const sendResult = await wecomClient.sendNewsNoticeCard(requestContext, "push");
     await pushRecordStore.markSuccess(record.id, {
       retryCount: sendResult.attempt - 1,
       wecomErrcode: sendResult.result.errcode,
@@ -321,7 +321,7 @@ const sendArticleToTag = async (input: {
     const sendResult = await wecomClient.sendNewsNoticeCardToTag({
       tagId: input.tagId,
       ...messageContext,
-    });
+    }, "push");
     await pushRecordStore.markSuccess(record.id, {
       retryCount: sendResult.attempt - 1,
       wecomErrcode: sendResult.result.errcode,
@@ -456,7 +456,7 @@ const sendDigestToUsers = async (input: {
       const sendResult = await wecomClient.sendNewsNoticeCardToUsers({
         userIds: userBatch,
         ...messageContext,
-      });
+      }, "push");
       await pushRecordStore.markSuccess(record.id, {
         retryCount: sendResult.attempt - 1,
         wecomErrcode: sendResult.result.errcode,
@@ -961,7 +961,7 @@ export const pushService = {
       requestPayload: { touser: "@all", ...messageContext },
     });
     try {
-      const sendResult = await wecomClient.sendNewsNoticeCardToAll(messageContext);
+      const sendResult = await wecomClient.sendNewsNoticeCardToAll(messageContext, "push");
       await pushRecordStore.markSuccess(record.id, {
         retryCount: sendResult.attempt - 1,
         wecomErrcode: sendResult.result.errcode,

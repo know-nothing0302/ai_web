@@ -542,11 +542,55 @@ const syncEnvWecomConfig = async (): Promise<void> => {
   );
 };
 
+const syncEnvWecomPushConfig = async (): Promise<void> => {
+  if (!env.wecomCorpId || !env.wecomPushAgentId || !env.wecomPushSecret) {
+    return;
+  }
+  await pool.query(
+    `
+    INSERT INTO wecom_app_configs (
+      app_code,
+      corp_id,
+      agent_id,
+      secret,
+      callback_token,
+      callback_aes_key,
+      internal_auth_token,
+      base_url,
+      enabled
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+    ON CONFLICT (app_code)
+    DO UPDATE SET
+      corp_id = EXCLUDED.corp_id,
+      agent_id = EXCLUDED.agent_id,
+      secret = EXCLUDED.secret,
+      callback_token = EXCLUDED.callback_token,
+      callback_aes_key = EXCLUDED.callback_aes_key,
+      internal_auth_token = EXCLUDED.internal_auth_token,
+      base_url = EXCLUDED.base_url,
+      enabled = TRUE,
+      updated_at = NOW()
+    `,
+    [
+      "push",
+      env.wecomCorpId,
+      env.wecomPushAgentId,
+      env.wecomPushSecret,
+      env.wecomCallbackToken || null,
+      env.wecomCallbackAesKey || null,
+      env.wecomInternalAuthToken || null,
+      env.wecomBaseUrl,
+    ]
+  );
+};
+
 export const initDb = async (): Promise<void> => {
   await ensureDatabase();
   await pool.query(schemaSql);
   await pool.query(seedSql);
   await syncEnvWecomConfig();
+  await syncEnvWecomPushConfig();
 };
 
 export const query = async <T extends QueryResultRow = QueryResultRow>(

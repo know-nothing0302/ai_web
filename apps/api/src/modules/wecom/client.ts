@@ -287,16 +287,43 @@ const mergeConfig = (
   };
 };
 
-const getRuntimeConfig = async (): Promise<WecomRuntimeConfig> => {
-  if (cachedConfig && cachedConfig.expiresAt > Date.now()) {
-    return cachedConfig.config;
+const configCacheByAppCode = new Map<string, { expiresAt: number; config: WecomRuntimeConfig }>();
+
+const resolveRuntimeConfig = async (appCode?: string): Promise<WecomRuntimeConfig> => {
+  const effectiveAppCode = appCode || env.wecomAppCode;
+  if (effectiveAppCode === env.wecomAppCode) {
+    // Default app — use existing cache
+    if (cachedConfig && cachedConfig.expiresAt > Date.now()) {
+      return cachedConfig.config;
+    }
+  } else {
+    // Other apps — check per-appCode cache
+    const cached = configCacheByAppCode.get(effectiveAppCode);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.config;
+    }
   }
-  const databaseConfig = await wecomConfigStore.getEnabledConfig(env.wecomAppCode);
-  const config = mergeConfig(databaseConfig, getEnvConfig());
-  cachedConfig = {
-    expiresAt: Date.now() + CONFIG_CACHE_TTL_MS,
-    config,
-  };
+
+  const databaseConfig = await wecomConfigStore.getEnabledConfig(effectiveAppCode);
+  let envConfig = getEnvConfig();
+
+  // Override with push-specific env vars when resolving "push" app
+  if (effectiveAppCode === "push") {
+    envConfig = {
+      ...envConfig,
+      appCode: "push",
+      agentId: env.wecomPushAgentId || envConfig.agentId,
+      secret: env.wecomPushSecret || envConfig.secret,
+    };
+  }
+
+  const config = mergeConfig(databaseConfig, envConfig);
+
+  if (effectiveAppCode === env.wecomAppCode) {
+    cachedConfig = { expiresAt: Date.now() + CONFIG_CACHE_TTL_MS, config };
+  }
+  configCacheByAppCode.set(effectiveAppCode, { expiresAt: Date.now() + CONFIG_CACHE_TTL_MS, config });
+
   logger.info("wecom.config.loaded", {
     appCode: config.appCode,
     corpId: config.corpId,
@@ -307,6 +334,8 @@ const getRuntimeConfig = async (): Promise<WecomRuntimeConfig> => {
   });
   return config;
 };
+
+const getRuntimeConfig = (): Promise<WecomRuntimeConfig> => resolveRuntimeConfig();
 
 const clearTokenCache = (appCode: string): void => {
   tokenCache.delete(appCode);
@@ -510,9 +539,10 @@ const sendTextNoticeCard = async (
 
 const sendNewsNoticeCard = async (
   target: WecomMessageTarget,
-  input: WecomNewsNoticeContentInput
+  input: WecomNewsNoticeContentInput,
+  runtimeConfig?: WecomRuntimeConfig
 ): Promise<WecomSendMessageResult> => {
-  const config = await getRuntimeConfig();
+  const config = runtimeConfig ?? await getRuntimeConfig();
   const imageUrl = await getRandomWebImageUrl();
   const payload: WecomGenericTemplateCardRequest = {
     ...target,
@@ -620,30 +650,38 @@ export const wecomClient = {
     return sendTextNoticeCard({ totag: String(input.tagId) }, input);
   },
   async sendNewsNoticeCard(
-    input: WecomNewsNoticeContentInput & WecomMessageTargetToUser
+    input: WecomNewsNoticeContentInput & WecomMessageTargetToUser,
+    appCode?: string
   ): Promise<WecomSendMessageResult> {
-    return sendNewsNoticeCard({ touser: input.touser }, input);
+    const config = appCode ? await resolveRuntimeConfig(appCode) : undefined;
+    return sendNewsNoticeCard({ touser: input.touser }, input, config);
   },
   async sendNewsNoticeCardToUsers(
-    input: WecomNewsNoticeContentInput & { userIds: string[] }
+    input: WecomNewsNoticeContentInput & { userIds: string[] },
+    appCode?: string
   ): Promise<WecomSendMessageResult> {
-    return sendNewsNoticeCard({ touser: input.userIds.join("|") }, input);
+    const config = appCode ? await resolveRuntimeConfig(appCode) : undefined;
+    return sendNewsNoticeCard({ touser: input.userIds.join("|") }, input, config);
   },
   async sendNewsNoticeCardToTag(
-    input: WecomNewsNoticeContentInput & { tagId: number }
+    input: WecomNewsNoticeContentInput & { tagId: number },
+    appCode?: string
   ): Promise<WecomSendMessageResult> {
-    return sendNewsNoticeCard({ totag: String(input.tagId) }, input);
+    const config = appCode ? await resolveRuntimeConfig(appCode) : undefined;
+    return sendNewsNoticeCard({ totag: String(input.tagId) }, input, config);
   },
   async sendNewsNoticeCardToAll(
-    input: WecomNewsNoticeContentInput
+    input: WecomNewsNoticeContentInput,
+    appCode?: string
   ): Promise<WecomSendMessageResult> {
-    return sendNewsNoticeCard({ touser: "@all" }, input);
+    const config = appCode ? await resolveRuntimeConfig(appCode) : undefined;
+    return sendNewsNoticeCard({ touser: "@all" }, input, config);
   },
   async sendTemplateCard(input: WecomTemplateCardRequest): Promise<WecomSendMessageResult> {
     return sendTemplateCard(input);
   },
-  async createTag(input: { tagName: string; tagId?: number }): Promise<WecomTagInfo> {
-    const config = await getRuntimeConfig();
+  async createTag(input: { tagName: string; tagId?: number }, appCode?: string): Promise<WecomTagInfo> {
+    const config = appCode ? await resolveRuntimeConfig(appCode) : await getRuntimeConfig();
     const payload = {
       tagname: trimToLength(input.tagName, 32),
       ...(typeof input.tagId === "number" ? { tagid: input.tagId } : {}),
@@ -669,8 +707,8 @@ export const wecomClient = {
       tagName: payload.tagname,
     };
   },
-  async listTags(): Promise<WecomTagInfo[]> {
-    const config = await getRuntimeConfig();
+  async listTags(appCode?: string): Promise<WecomTagInfo[]> {
+    const config = appCode ? await resolveRuntimeConfig(appCode) : await getRuntimeConfig();
     const { data } = await requestWecom<WecomTagListResponse>(
       config,
       { method: "get" },
@@ -681,8 +719,8 @@ export const wecomClient = {
       tagName: item.tagname,
     }));
   },
-  async getTagMembers(tagId: number): Promise<WecomTagMemberResult> {
-    const config = await getRuntimeConfig();
+  async getTagMembers(tagId: number, appCode?: string): Promise<WecomTagMemberResult> {
+    const config = appCode ? await resolveRuntimeConfig(appCode) : await getRuntimeConfig();
     const { data, attempt } = await requestWecom<WecomTagGetResponse>(
       config,
       {
@@ -702,9 +740,10 @@ export const wecomClient = {
   },
   async addTagUsers(
     tagId: number,
-    userIds: string[]
+    userIds: string[],
+    appCode?: string
   ): Promise<WecomTagUsersChangeResult> {
-    const config = await getRuntimeConfig();
+    const config = appCode ? await resolveRuntimeConfig(appCode) : await getRuntimeConfig();
     const payload = {
       tagid: tagId,
       userlist: userIds,
@@ -725,9 +764,10 @@ export const wecomClient = {
   },
   async removeTagUsers(
     tagId: number,
-    userIds: string[]
+    userIds: string[],
+    appCode?: string
   ): Promise<WecomTagUsersChangeResult> {
-    const config = await getRuntimeConfig();
+    const config = appCode ? await resolveRuntimeConfig(appCode) : await getRuntimeConfig();
     const payload = {
       tagid: tagId,
       userlist: userIds,
@@ -748,6 +788,7 @@ export const wecomClient = {
   },
   resetConfigCache(): void {
     cachedConfig = undefined;
+    configCacheByAppCode.clear();
   },
   async uploadImage(filePath: string): Promise<string> {
     const config = await getRuntimeConfig();
