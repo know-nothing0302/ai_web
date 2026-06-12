@@ -65,7 +65,7 @@ const toArticleSource = (article: Article): PageAgentSource => ({
   type: "article",
   articleId: article.id,
   title: article.title,
-  url: `/articles/${article.id}`,
+  url: `/ai-web/articles/${article.id}`,
   originalUrl: article.originalUrl,
   summary: article.summary,
 });

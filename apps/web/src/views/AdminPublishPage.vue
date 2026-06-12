@@ -185,6 +185,7 @@ const clearForm = (): void => {
 };
 
 const fillFormForEdit = (item: Article): void => {
+  formCollapsed.value = false;
   editingArticleId.value = item.id;
   title.value = item.title;
   content.value = item.content;
