@@ -178,7 +178,7 @@ export const answerPageQuestion = async (
   const currentPageSource: PageAgentSource = {
     type: "current_page",
     title: input.pageTitle || "当前页面",
-    url: input.route,
+    url: `/ai-web${input.route}`,
   };
   const searchSources = usedSiteSearch ? await searchPublishedArticles(input, 3) : [];
   logger.info("page.agent.answer.context_loaded", {
@@ -525,7 +525,7 @@ export const streamPageAnswer = async (
   const currentPageSource: PageAgentSource = {
     type: "current_page",
     title: input.pageTitle || "当前页面",
-    url: input.route,
+    url: `/ai-web${input.route}`,
   };
   logger.info("page.agent.stream.context_loaded", {
     userId,
