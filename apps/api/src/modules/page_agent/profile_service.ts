@@ -48,25 +48,57 @@ const buildFallbackProfile = (input: {
 };
 
 /**
+ * 检测 personaPrompt 是否包含注入/越狱关键词。
+ * personaPrompt 会以 system 角色注入后续对话，必须硬校验。
+ *
+ * 返回 false 意味着 prompt 不安全，应退回 fallback。
+ */
+const PERSONA_INJECTION_PATTERNS: RegExp[] = [
+  // 中文注入关键词
+  /忽略|忘记|无视|抛弃|放弃/,
+  /系统指令|系统提示|系统.*prompt|system\s*prompt/i,
+  /新角色|新身份|新的角色|新的身份/,
+  /你是.{0,10}(助手|机器人|AI|模型)/,
+  /你.*现在.*是/,
+  /DAN|jailbreak|越狱|developer\s*mode/i,
+  /以上指令|之前.*指令|不要.*规则|覆盖.*规则/,
+  /输出.*系统.*提示|输出.*prompt/i,
+  /不再.*限制|解除.*限制|没有.*限制/,
+];
+
+const isPersonaPromptSafe = (prompt: string): boolean => {
+  const trimmed = prompt.trim();
+  // 必须以"回答时"开头
+  if (!trimmed.startsWith("回答时")) return false;
+  // 不得包含注入关键词
+  return !PERSONA_INJECTION_PATTERNS.some((pattern) => pattern.test(trimmed));
+};
+
+/**
  * 确保 LLM 输出或 fallback 中 personaPrompt 和 preferenceSummary 不为空。
- * LLM 可能返回空字符串，此时用用户类型对应的默认值兜底。
+ * LLM 可能返回空字符串或包含注入内容，此时用用户类型对应的默认值兜底。
  */
 const ensureNonEmptyProfile = (
   parsed: { personaPrompt: string; preferenceSummary: string; interestTopics: string[]; responsePreferences: Record<string, unknown>; confidence: string },
   userType: ProfileUserType
-): typeof parsed => ({
-  ...parsed,
-  personaPrompt:
-    parsed.personaPrompt.trim() ||
-    personaPromptFallbackByUserType[userType],
-  preferenceSummary:
-    parsed.preferenceSummary.trim() ||
-    preferenceSummaryFallbackByUserType[userType],
-  responsePreferences:
-    Object.keys(parsed.responsePreferences).length > 0
-      ? parsed.responsePreferences
-      : { style: "structured" },
-});
+): typeof parsed => {
+  const hasValidPersona =
+    parsed.personaPrompt.trim().length > 0 &&
+    isPersonaPromptSafe(parsed.personaPrompt);
+  return {
+    ...parsed,
+    personaPrompt: hasValidPersona
+      ? parsed.personaPrompt.trim()
+      : personaPromptFallbackByUserType[userType],
+    preferenceSummary:
+      parsed.preferenceSummary.trim() ||
+      preferenceSummaryFallbackByUserType[userType],
+    responsePreferences:
+      Object.keys(parsed.responsePreferences).length > 0
+        ? parsed.responsePreferences
+        : { style: "structured" },
+  };
+};
 
 /**
  * 根据学工号前缀推断用户类型。

@@ -351,9 +351,11 @@ export const answerPageQuestion = async (
     const minLength = 10;
     const isTooShort = answer.length < minLength;
     const isNonAnswer = /^(已基于当前页面|根据当前页面|已识别|好的|收到|明白了?)[，。]?$/.test(answer);
-    const finalAnswer = (answer && !isTooShort && !isNonAnswer)
-      ? answer
-      : `⚠️ 模型返回无效回答（${answer ? `"${answer}"` : "空内容"}）。\n\n原始响应长度: ${rawContent.length} 字符\n模型: ${env.deepseekModel}\n如有疑问请联系管理员。`;
+    const finalAnswer = sanitizeForModel(
+      (answer && !isTooShort && !isNonAnswer)
+        ? answer
+        : `⚠️ 模型返回无效回答（${answer ? `"${answer}"` : "空内容"}）。\n\n原始响应长度: ${rawContent.length} 字符\n如有疑问请联系管理员。`
+    );
     if (env.pageAgentDebug) {
       logger.debug("page.agent.answer.model_response", {
         conversationId: input.conversationId,
@@ -418,7 +420,7 @@ export const answerPageQuestion = async (
     const errorDetail = error?.response?.data?.error?.message
       || error?.message
       || String(error);
-    const answer = `⚠️ 模型调用失败：${errorDetail}\n\n模型: ${env.deepseekModel}\n请检查模型配置或联系管理员。`;
+    const answer = `⚠️ 模型调用失败，请稍后重试或联系管理员。`;
     await pageAgentMessageStore.create({
       conversationId: input.conversationId,
       userId,
@@ -701,9 +703,11 @@ export const streamPageAnswer = async (
         const minLength = 10;
         const isTooShort = normalized.length < minLength;
         const isNonAnswer = /^(已基于当前页面|根据当前页面|已识别|好的|收到|明白了?)[，。]?$/.test(normalized);
-        const finalAnswer = (normalized && !isTooShort && !isNonAnswer)
-          ? normalized
-          : `⚠️ 模型返回无效回答（${normalized ? `"${normalized}"` : "空内容"}）。\n\n原始响应长度: ${fullAnswer.length} 字符\n模型: ${env.deepseekModel}\n如有疑问请联系管理员。`;
+        const finalAnswer = sanitizeForModel(
+          (normalized && !isTooShort && !isNonAnswer)
+            ? normalized
+            : `⚠️ 模型返回无效回答（${normalized ? `"${normalized}"` : "空内容"}）。\n\n原始响应长度: ${fullAnswer.length} 字符\n如有疑问请联系管理员。`
+        );
         // DEBUG: log normalization result
         logger.info("page.agent.stream.debug.normalized", {
           userId,
@@ -757,9 +761,9 @@ export const streamPageAnswer = async (
     llmResponse.data.on("error", (err: Error) => {
       (async () => {
         streamError = err;
-        const errorAnswer = `⚠️ 模型流式调用失败：${err.message}\n\n模型: ${env.deepseekModel}\n请检查模型配置或联系管理员。`;
+        const errorAnswer = `⚠️ 模型流式调用失败，请稍后重试或联系管理员。`;
         response.write(`data: ${JSON.stringify({ token: errorAnswer })}\n\n`);
-        response.write(`data: ${JSON.stringify({ done: true, error: err.message })}\n\n`);
+        response.write(`data: ${JSON.stringify({ done: true, error: "stream_error" })}\n\n`);
         response.end();
         await pageAgentMessageStore.create({
           conversationId: input.conversationId,
@@ -790,9 +794,9 @@ export const streamPageAnswer = async (
     const errorDetail = error?.response?.data?.error?.message
       || error?.message
       || String(error);
-    const errorAnswer = `⚠️ 模型流式调用失败：${errorDetail}\n\n模型: ${env.deepseekModel}\n请检查模型配置或联系管理员。`;
+    const errorAnswer = `⚠️ 模型流式调用失败，请稍后重试或联系管理员。`;
     response.write(`data: ${JSON.stringify({ token: errorAnswer })}\n\n`);
-    response.write(`data: ${JSON.stringify({ done: true, error: errorDetail })}\n\n`);
+    response.write(`data: ${JSON.stringify({ done: true, error: "stream_error" })}\n\n`);
     response.end();
     await pageAgentMessageStore.create({
       conversationId: input.conversationId,
