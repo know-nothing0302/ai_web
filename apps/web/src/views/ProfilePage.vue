@@ -79,7 +79,7 @@ const loadConversations = async (): Promise<void> => {
   conversationsLoading.value = true;
   try {
     const result = await listPageAgentConversations();
-    conversations.value = result;
+    conversations.value = result.items;
   } catch {
     conversations.value = [];
   } finally {
