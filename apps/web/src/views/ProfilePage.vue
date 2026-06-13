@@ -78,8 +78,8 @@ const loadHistory = async (page = 1): Promise<void> => {
 const loadConversations = async (): Promise<void> => {
   conversationsLoading.value = true;
   try {
-    const result = await listPageAgentConversations({ limit: 5, offset: 0 });
-    conversations.value = result.items;
+    const result = await listPageAgentConversations();
+    conversations.value = result;
   } catch {
     conversations.value = [];
   } finally {
@@ -321,7 +321,7 @@ onMounted(() => {
                     'bg-[#f5f5f5] text-[#616161]': ['wontfix','snoozed'].includes(item.status),
                   }"
                 >
-                  {{ { pending: '待处理', evaluating: '评估中', approved: '已批准', wontfix: '暂缓', snoozed: '已搁置', in_progress: '处理中', testing: '测试中', verified: '已验证', deployed: '已上线', failed_testing: '测试未过', reverted: '已回退', duplicate: '重复提交' }[item.status] || item.status }}
+                  {{ { pending: '待处理', evaluating: '评估中', approved: '已批准', wontfix: '暂缓', snoozed: '已搁置', in_progress: '处理中', testing: '测试中', verified: '已验证', deployed: '部署中', failed_testing: '测试未过', reverted: '已回退', duplicate: '重复提交' }[item.status] || item.status }}
                 </span>
               </div>
               <p class="mt-2 text-sm text-[#4f6b8a] break-words">{{ item.content }}</p>

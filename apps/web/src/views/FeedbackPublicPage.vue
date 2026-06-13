@@ -63,7 +63,7 @@ const statusLabel = (status: string): string => {
   switch (status) {
     case "approved": return "已批准";
     case "verified": return "已验证";
-    case "deployed": return "已部署";
+    case "deployed": return "部署中";
     case "wontfix": return "暂缓";
     case "reverted": return "已回滚";
     default: return status;

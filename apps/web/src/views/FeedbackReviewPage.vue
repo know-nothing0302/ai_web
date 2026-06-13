@@ -19,7 +19,7 @@ const STATUS_TABS = [
   { key: "approved", label: "已批准" },
   { key: "in_progress", label: "处理中" },
   { key: "testing", label: "测试中" },
-  { key: "deployed", label: "已部署" },
+  { key: "deployed", label: "部署中" },
   { key: "verified", label: "已验证" },
   { key: "failed_testing", label: "测试失败" },
   { key: "reverted", label: "已回滚" },
@@ -43,6 +43,7 @@ const submitting = ref(false);
 const message = ref("");
 const expandedId = ref<string | null>(null);
 const rejectModal = ref<{ id: string; reason: string } | null>(null);
+const approveModal = ref<{ id: string; note: string } | null>(null);
 const editingNote = ref<{ id: string; note: string } | null>(null);
 const currentUser = ref<Awaited<ReturnType<typeof getCurrentUser>>>(null);
 
@@ -174,11 +175,20 @@ function handleRefresh() {
 }
 
 // --- Status Actions ---
-async function handleApprove(id: string) {
+function openApproveModal(id: string) {
+  approveModal.value = { id, note: "" };
+}
+
+async function submitApprove() {
+  if (!approveModal.value) return;
   submitting.value = true;
   try {
-    await updateFeedbackStatus(id, { status: "approved" });
-    showMessage("已批准");
+    await updateFeedbackStatus(approveModal.value.id, {
+      status: "approved",
+      adminNote: approveModal.value.note || undefined,
+    });
+    showMessage(approveModal.value.note ? "已批准（含补充指令）" : "已批准");
+    approveModal.value = null;
     await loadTab(activeTab.value);
   } catch {
     showMessage("操作失败");
@@ -397,7 +407,7 @@ onMounted(async () => {
                   type="button"
                   class="rounded-full border border-[#4fc3f7] bg-[#e1f5fe] px-3 py-1.5 text-xs font-medium text-[#0277bd] transition-colors hover:bg-[#b3e5fc]"
                   :disabled="submitting"
-                  @click="handleApprove(item.id)"
+                  @click="openApproveModal(item.id)"
                 >
                   <Check class="inline-block w-3 h-3 mr-1" />批准
                 </button>
@@ -523,6 +533,41 @@ onMounted(async () => {
         </div>
       </section>
     </template>
+
+    <!-- Approve Modal -->
+    <div
+      v-if="approveModal"
+      class="fixed inset-0 z-[70] flex items-center justify-center bg-[#0f4069]/18 px-4"
+    >
+      <section class="w-full max-w-md rounded-3xl border border-[#b3e5fc] bg-white p-6 shadow-xl">
+        <h3 class="text-lg font-semibold text-[#0f4069]">确认批准</h3>
+        <p class="mt-2 text-sm text-[#4f6b8a]">可选：补充修复指令或注意事项，这些信息将传递给 AI 辅助修复。</p>
+        <textarea
+          v-model="approveModal.note"
+          class="input-ai mt-4 w-full min-h-[100px] text-sm"
+          placeholder="补充指令（可选）&#10;例如：该修复需要同时更新 /admin 页面的对应按钮..."
+        ></textarea>
+        <div class="mt-4 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#f3f8fc]"
+            @click="approveModal = null"
+            :disabled="submitting"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="rounded-full border border-[#4fc3f7] bg-[#e1f5fe] px-4 py-2 text-sm font-medium text-[#0277bd] transition-colors hover:bg-[#b3e5fc] disabled:opacity-50"
+            :disabled="submitting"
+            @click="submitApprove"
+          >
+            <Loader2 v-if="submitting" class="inline-block w-3 h-3 mr-1 animate-spin" />
+            确认批准
+          </button>
+        </div>
+      </section>
+    </div>
 
     <!-- Reject Modal -->
     <div

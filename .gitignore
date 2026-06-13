@@ -50,3 +50,4 @@ CLAUDE.md
 
 # PSD source files
 apps/api/image/*.psd
+.env.test

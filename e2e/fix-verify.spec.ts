@@ -16,7 +16,7 @@ import * as path from "path";
 // ── 类型定义 ──
 
 interface PageCheck {
-  type: "visible" | "text" | "count" | "url";
+  type: "visible" | "text" | "count" | "url" | "darkMode";
   selector?: string;
   value?: string | number;
   desc: string;
@@ -77,6 +77,12 @@ async function runCheck(page: import("@playwright/test").Page, check: PageCheck)
       break;
     case "url":
       await expect(page, `[${check.desc}]`).toHaveURL(new RegExp(String(check.value)), { timeout: 5000 });
+      break;
+    case "darkMode":
+      // 启用暗色模式，验证指定元素可见
+      await page.evaluate(() => document.documentElement.classList.add("dark"));
+      await page.waitForTimeout(500);
+      await expect(page.locator(check.selector!), `[暗色模式] ${check.desc}`).toBeVisible({ timeout: 5000 });
       break;
   }
 }
