@@ -4,7 +4,6 @@ defineOptions({ name: "ArticlesPage" });
 import { RouterLink, useRoute } from "vue-router";
 import {
   Search,
-  Filter,
   Sparkles,
   ArrowRight,
   Activity,
@@ -17,7 +16,6 @@ import {
   Lightbulb,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
 } from "lucide-vue-next";
 import { listArticles, listChannels, getReadingHistory, submitFeedback, type Article } from "../services/api";
 import { buildArticleListContext, setPageAgentContext } from "../page_agent/context";
@@ -33,7 +31,6 @@ type ChannelItem = {
 };
 
 const keyword = ref("");
-const category = ref("");
 const channelCode = ref("");
 const route = useRoute();
 const loading = ref(false);
@@ -89,10 +86,6 @@ const onSearchBlur = (): void => {
   }, 200);
 };
 
-const categories = ref<{ value: string; label: string }[]>([{ value: "", label: "全部栏目" }]);
-const isCategoryDropdownOpen = ref(false);
-const categoryDropdownRef = ref<HTMLElement | null>(null);
-
 const channelIconMap: Record<string, unknown> = {
   "daily-ai-summary": Newspaper,
   "policy-ethics": ShieldCheck,
@@ -109,10 +102,6 @@ const totalPages = computed(() => {
   return Math.max(1, Math.ceil(items.value.length / pageSize));
 });
 
-const selectedCategoryLabel = computed(() => {
-  return categories.value.find((item) => item.value === category.value)?.label || "全部栏目";
-});
-
 const paginatedItems = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   return items.value.slice(start, start + pageSize);
@@ -125,7 +114,6 @@ const resetToFirstPage = (): void => {
 function syncSearchParamsToUrl(): void {
   const query: Record<string, string> = {};
   if (keyword.value) query.keyword = keyword.value;
-  if (category.value) query.category = category.value;
   if (channelCode.value) query.channelCode = channelCode.value;
   if (currentPage.value > 1) query.page = String(currentPage.value);
   const qs = new URLSearchParams(query).toString();
@@ -164,7 +152,6 @@ const goNextPage = (): void => {
 const load = async (silent = false): Promise<void> => {
   console.info("[AIWEB] ArticlesPage 开始加载资讯列表", {
     keyword: keyword.value || "",
-    category: category.value || "",
     channelCode: channelCode.value || "",
     channel: activeChannel.value,
   });
@@ -172,7 +159,6 @@ const load = async (silent = false): Promise<void> => {
   try {
     items.value = await listArticles({
       keyword: keyword.value || undefined,
-      category: category.value || undefined,
       channelCode: channelCode.value || undefined,
       status: "published",
     });
@@ -206,51 +192,9 @@ const openChannel = (channel: ChannelItem | null): void => {
   load();
 };
 
-const handleCategoryChange = (): void => {
-  activeChannel.value = "";
-  channelCode.value = "";
-  resetToFirstPage();
-  syncSearchParamsToUrl();
-  load();
-};
-
-const toggleCategoryDropdown = (): void => {
-  isCategoryDropdownOpen.value = !isCategoryDropdownOpen.value;
-};
-
-const closeCategoryDropdown = (): void => {
-  isCategoryDropdownOpen.value = false;
-};
-
-const selectCategory = (value: string): void => {
-  category.value = value;
-  closeCategoryDropdown();
-  handleCategoryChange();
-};
-
-const handleDocumentClick = (event: MouseEvent): void => {
-  const target = event.target;
-  if (!(target instanceof Node)) {
-    return;
-  }
-  if (!categoryDropdownRef.value?.contains(target)) {
-    closeCategoryDropdown();
-  }
-};
-
-const handleDocumentKeydown = (event: KeyboardEvent): void => {
-  if (event.key === "Escape") {
-    closeCategoryDropdown();
-  }
-};
-
 const loadChannels = async (): Promise<void> => {
   try {
     const data = await listChannels();
-    categories.value = [
-      { value: "", label: "全部栏目" },
-      ...data.map((item) => ({ value: item.name, label: item.name })),
-    ];
     channels.value = data.map((item) => ({
       key: item.code,
       label: item.name,
@@ -264,14 +208,10 @@ const loadChannels = async (): Promise<void> => {
 
 onMounted(async () => {
   console.group("[AIWEB] ArticlesPage");
-  console.log("[AIWEB] ArticlesPage onMounted 入口", { hasKeyword: !!route.query.keyword, hasCategory: !!route.query.category, hasChannelCode: !!route.query.channelCode, page: route.query.page });
-
-  document.addEventListener("click", handleDocumentClick);
-  document.addEventListener("keydown", handleDocumentKeydown);
+  console.log("[AIWEB] ArticlesPage onMounted 入口", { hasKeyword: !!route.query.keyword, hasChannelCode: !!route.query.channelCode, page: route.query.page });
 
   // Restore search state from URL query params
   if (route.query.keyword) keyword.value = route.query.keyword as string;
-  if (route.query.category) category.value = route.query.category as string;
   if (route.query.channelCode) channelCode.value = route.query.channelCode as string;
   if (route.query.page) currentPage.value = Math.max(1, parseInt(route.query.page as string, 10) || 1);
 
@@ -287,8 +227,6 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener("click", handleDocumentClick);
-  document.removeEventListener("keydown", handleDocumentKeydown);
   setPageAgentContext(null);
 });
 
@@ -311,7 +249,6 @@ watchEffect(() => {
       route: route.fullPath,
       pageTitle: "资讯发现",
       keyword: keyword.value,
-      category: category.value,
       channelCode: channelCode.value,
       channelName: activeChannelName,
       currentPage: currentPage.value,
@@ -342,7 +279,7 @@ watchEffect(() => {
           <p class="text-sm text-[#4f6b8a] max-w-2xl">聚合政策、科研、校内动态和学习资源，帮助你快速建立 AI 认知与行动路径。</p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_220px_auto] gap-3 w-full md:w-[700px] min-w-0">
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 w-full md:w-[480px] min-w-0">
           <div class="flex items-center h-12 rounded-2xl border border-[#81d4fa]/70 bg-white px-3 shadow-[0_0_0_3px_rgba(129,212,250,0.12)] focus-within:border-[#0288d1] focus-within:shadow-[0_0_0_4px_rgba(2,136,209,0.15)] transition-all">
             <Search class="w-4 h-4 text-[#0288d1] mr-2 shrink-0" />
             <input
@@ -353,41 +290,6 @@ watchEffect(() => {
               class="w-full h-full bg-transparent border-0 outline-none text-sm text-[#355878] placeholder:text-[#7d97b1]"
               placeholder="搜索政策、医学AI..."
             />
-          </div>
-          <div
-            ref="categoryDropdownRef"
-            class="relative flex items-center h-12 rounded-2xl border border-[#81d4fa]/70 bg-white px-3 shadow-[0_0_0_3px_rgba(129,212,250,0.12)] focus-within:border-[#0288d1] focus-within:shadow-[0_0_0_4px_rgba(2,136,209,0.15)] transition-all"
-            :class="isCategoryDropdownOpen ? 'border-[#0288d1] shadow-[0_0_0_4px_rgba(2,136,209,0.15)]' : ''"
-          >
-            <Filter class="w-4 h-4 text-[#0288d1] mr-2 shrink-0" />
-            <button
-              type="button"
-              class="w-full h-full text-left bg-transparent border-0 outline-none cursor-pointer text-sm text-[#355878] pr-7 truncate"
-              :aria-expanded="isCategoryDropdownOpen"
-              aria-haspopup="listbox"
-              @click="toggleCategoryDropdown"
-            >
-              {{ selectedCategoryLabel }}
-            </button>
-            <ChevronDown class="w-4 h-4 text-[#4f6b8a] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-transform" :class="isCategoryDropdownOpen ? 'rotate-180' : ''" />
-            <transition name="category-dropdown">
-              <div
-                v-if="isCategoryDropdownOpen"
-                class="absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-72 overflow-y-auto rounded-2xl border border-[#81d4fa]/70 bg-white p-1.5 shadow-[0_14px_30px_-14px_rgba(2,136,209,0.45)] backdrop-blur-sm"
-                role="listbox"
-              >
-                <button
-                  v-for="c in categories"
-                  :key="c.value"
-                  type="button"
-                  class="w-full text-left px-3 py-2 rounded-xl text-sm transition-colors"
-                  :class="category === c.value ? 'bg-[#0288d1] text-white shadow-sm' : 'text-[#355878] hover:bg-[#e1f5fe] hover:text-[#01579b]'"
-                  @click="selectCategory(c.value)"
-                >
-                  {{ c.label }}
-                </button>
-              </div>
-            </transition>
           </div>
           <button
             type="button"
@@ -547,17 +449,6 @@ watchEffect(() => {
 </template>
 
 <style scoped>
-.category-dropdown-enter-active,
-.category-dropdown-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.category-dropdown-enter-from,
-.category-dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-6px) scale(0.98);
-}
-
 .bg-read {
   background: #f3f7fb;
   border-color: rgba(2, 119, 189, 0.12);

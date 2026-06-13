@@ -167,8 +167,8 @@
   --color-ai-surface-strong: rgba(15, 23, 42, 0.94);
   --color-ai-border: rgba(56, 189, 248, 0.2);
   --color-ai-shadow: rgba(0, 0, 0, 0.36);
-  --color-ai-text: #e2e8f0;
-  --color-ai-text-muted: #94a3b8;
+  --color-ai-text: #f1f5f9;
+  --color-ai-text-muted: #cbd5e1;
 }
 
 .dark {

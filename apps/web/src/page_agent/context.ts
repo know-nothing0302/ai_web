@@ -50,7 +50,7 @@ export const buildArticleListContext = (input: {
   route: string;
   pageTitle: string;
   keyword: string;
-  category: string;
+  category?: string;
   channelCode: string;
   channelName?: string;
   currentPage: number;
