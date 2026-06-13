@@ -12,7 +12,7 @@ import {
   summarizeByAiXy,
   updateArticle,
   getCurrentUser,
-  broadcastArticle,
+  pushTargetedArticle,
   type Article,
   type ArticleAiOptimizeResult,
   type Channel,
@@ -39,8 +39,7 @@ const loadingSave = ref(false);
 const loadingList = ref(false);
 const loadingBatch = ref(false);
 const loadingAiOptimize = ref(false);
-const loadingBroadcast = ref("");
-// 正在推送全体成员的文章 ID，用于按钮 loading 状态
+const loadingTargetedPush = ref("");
 const channels = ref<Channel[]>([]);
 const articles = ref<Article[]>([]);
 const currentUserId = ref("");
@@ -406,28 +405,42 @@ const removeArticle = async (item: Article): Promise<void> => {
   }
 };
 
-const handleBroadcast = async (item: Article): Promise<void> => {
-  if (!window.confirm(`确认将《${item.title}》推送给企业微信全体成员吗？此操作不受订阅限制。`)) {
+const handleTargetedPush = async (targetGroup: "teachers" | "students"): Promise<void> => {
+  if (selectedArticleIds.value.length === 0) {
+    message.value = "请先选择要推送的文章";
+    setTimeout(() => (message.value = ""), 3000);
     return;
   }
-  loadingBroadcast.value = item.id;
+  const label = targetGroup === "teachers" ? "教师" : "学生";
+  if (!window.confirm(`确认将已选择的 ${selectedArticleIds.value.length} 篇文章推送给${label}吗？`)) {
+    return;
+  }
+  loadingTargetedPush.value = targetGroup;
   try {
-    const result = await broadcastArticle({
-      articleId: item.id,
-      title: item.title,
-      summary: item.summary,
-    });
-    if (result.status === "success") {
-      message.value = `已成功推送《${item.title}》给全体成员`;
-    } else {
-      message.value = `推送失败：${result.errorMessage || "未知错误"}`;
-    }
+    const results = await Promise.allSettled(
+      selectedArticleIds.value.map((id) => {
+        const item = articles.value.find((a) => a.id === id);
+        return pushTargetedArticle({
+          articleId: id,
+          targetGroup,
+          title: item?.title,
+          summary: item?.summary,
+        });
+      })
+    );
+    const successCount = results.filter((r) => r.status === "fulfilled" && r.value.status === "success").length;
+    const failureCount = results.length - successCount;
+    message.value =
+      failureCount === 0
+        ? `已成功推送 ${successCount} 篇文章给${label}`
+        : `推送完成：成功 ${successCount} 篇，失败 ${failureCount} 篇`;
     setTimeout(() => (message.value = ""), 3000);
+    clearSelection();
   } catch (error: any) {
     message.value = error.response?.data?.message || "推送请求失败";
     setTimeout(() => (message.value = ""), 3000);
   } finally {
-    loadingBroadcast.value = "";
+    loadingTargetedPush.value = "";
   }
 };
 
@@ -790,6 +803,24 @@ onBeforeUnmount(() => {
             >
               删除
             </button>
+            <button
+              type="button"
+              class="text-sm shrink-0 whitespace-nowrap rounded-lg border border-[#0288d1] px-3 py-2 text-[#0288d1] transition-colors hover:bg-[#e1f5fe] disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="selectedCount === 0 || loadingTargetedPush !== ''"
+              @click="handleTargetedPush('teachers')"
+            >
+              <span v-if="loadingTargetedPush === 'teachers'">推送中...</span>
+              <span v-else>推送教师</span>
+            </button>
+            <button
+              type="button"
+              class="text-sm shrink-0 whitespace-nowrap rounded-lg border border-[#0288d1] px-3 py-2 text-[#0288d1] transition-colors hover:bg-[#e1f5fe] disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="selectedCount === 0 || loadingTargetedPush !== ''"
+              @click="handleTargetedPush('students')"
+            >
+              <span v-if="loadingTargetedPush === 'students'">推送中...</span>
+              <span v-else>推送学生</span>
+            </button>
           </div>
           <div class="relative flex-1 md:w-48">
             <Filter class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0288d1]" />
@@ -847,16 +878,6 @@ onBeforeUnmount(() => {
               @click="toggleArticleStatus(item)"
             >
               {{ item.status === "published" ? "转为草稿" : "设为发布" }}
-            </button>
-            <!-- 推送给企业微信全体成员，不受订阅限制 -->
-            <button
-              type="button"
-              class="text-xs shrink-0 whitespace-nowrap rounded-lg border border-[#0288d1] px-3 py-2 text-[#0288d1] transition-colors hover:bg-[#e1f5fe] disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="loadingBroadcast !== ''"
-              @click="handleBroadcast(item)"
-            >
-              <span v-if="loadingBroadcast === item.id">推送中...</span>
-              <span v-else>推送给全体成员</span>
             </button>
             <button
               type="button"

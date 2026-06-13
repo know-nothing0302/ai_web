@@ -930,6 +930,19 @@ export const subscriptionStore = {
     );
     return result.rows.map(mapSubscription);
   },
+  async listAllEnabledUserIds(): Promise<string[]> {
+    const result = await query<{ qywx_user_id: string }>(
+      `
+      SELECT DISTINCT qywx_user_id
+      FROM subscriptions
+      WHERE enabled = TRUE
+        AND qywx_user_id IS NOT NULL
+        AND qywx_user_id <> ''
+      ORDER BY qywx_user_id
+      `
+    );
+    return result.rows.map((row) => row.qywx_user_id);
+  },
   async getEnabledByChannelCodeAndUserId(
     channelCode: string,
     userId: string,

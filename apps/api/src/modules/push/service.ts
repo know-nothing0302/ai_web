@@ -1038,4 +1038,146 @@ export const pushService = {
       };
     }
   },
+  async pushTargetedArticle(input: {
+    articleId: string;
+    targetGroup: "teachers" | "students";
+    title?: string;
+    summary?: string;
+  }): Promise<PushDeliveryResult> {
+    const article = await articleStore.getById(input.articleId);
+    if (!article) {
+      throw new Error(`文章 ${input.articleId} 不存在`);
+    }
+
+    const allUserIds = await subscriptionStore.listAllEnabledUserIds();
+
+    const isTeacherId = (id: string): boolean => id.startsWith("10000");
+    const isStudentId = (id: string): boolean => {
+      const first = id.charAt(0);
+      return first === "2" || first === "3" || first === "5";
+    };
+
+    const filterFn = input.targetGroup === "teachers" ? isTeacherId : isStudentId;
+    const targetLabel = input.targetGroup === "teachers" ? "教师" : "学生";
+    const targetUserIds = allUserIds.filter(filterFn);
+
+    if (targetUserIds.length === 0) {
+      throw new Error(`未找到${targetLabel}用户的企微订阅记录`);
+    }
+
+    const messageContext = buildMessageContext({
+      article,
+      title: input.title || article.title,
+      summary: input.summary || article.summary,
+    });
+
+    const record = await pushRecordStore.create({
+      articleId: article.id,
+      channelCode: article.channelCode,
+      qywxUserId: `targeted:${input.targetGroup}`,
+      deliveryMode: "batch_user",
+      messageType: "template_card.news_notice",
+      title: messageContext.title,
+      summary: messageContext.summary,
+      url: messageContext.url,
+      requestPayload: {
+        targetGroup: input.targetGroup,
+        targetCount: targetUserIds.length,
+        ...messageContext,
+      },
+    });
+
+    try {
+      const sendResult = await wecomClient.sendNewsNoticeCardToUsers(
+        {
+          userIds: targetUserIds,
+          ...messageContext,
+        },
+        "push"
+      );
+      await pushRecordStore.markSuccess(record.id, {
+        retryCount: sendResult.attempt - 1,
+        wecomErrcode: sendResult.result.errcode,
+        wecomErrmsg: sendResult.result.errmsg,
+        wecomMsgid: sendResult.result.msgid,
+        responseCode: sendResult.result.response_code,
+        responsePayload: {
+          request: sendResult.payload,
+          response: sendResult.result,
+          invalidUserIds: sendResult.invalidUserIds,
+        },
+      });
+      await recordAnalyticsEventSafely({
+        eventType: "push",
+        eventName: "push_sent",
+        articleId: article.id,
+        channelCode: article.channelCode,
+        sourceModule: "push.service",
+        eventPayload: {
+          recordId: record.id,
+          deliveryMode: "batch_user",
+          targetGroup: input.targetGroup,
+          targetCount: targetUserIds.length,
+          invalidUserIds: sendResult.invalidUserIds,
+        },
+      });
+      logger.info("push.targeted.success", {
+        recordId: record.id,
+        articleId: article.id,
+        channelCode: article.channelCode,
+        targetGroup: input.targetGroup,
+        targetCount: targetUserIds.length,
+        msgid: sendResult.result.msgid,
+      });
+      return {
+        recordId: record.id,
+        qywxUserId: `targeted:${input.targetGroup}`,
+        deliveryMode: "batch_user",
+        status: "success",
+        wecomMsgid: sendResult.result.msgid,
+        responseCode: sendResult.result.response_code,
+      };
+    } catch (error) {
+      await pushRecordStore.markFailed(record.id, {
+        retryCount: error instanceof WecomApiError ? error.attempt - 1 : 0,
+        wecomErrcode: error instanceof WecomApiError ? error.errcode : undefined,
+        wecomErrmsg:
+          error instanceof WecomApiError
+            ? error.errmsg
+            : error instanceof WecomConfigError
+              ? error.message
+              : "unknown_error",
+        errorDetail: getErrorMessage(error),
+        responsePayload: getErrorPayload(error),
+      });
+      await recordAnalyticsEventSafely({
+        eventType: "push",
+        eventName: "push_failed",
+        articleId: article.id,
+        channelCode: article.channelCode,
+        sourceModule: "push.service",
+        eventPayload: {
+          recordId: record.id,
+          deliveryMode: "batch_user",
+          targetGroup: input.targetGroup,
+          targetCount: targetUserIds.length,
+          errorMessage: getErrorMessage(error),
+        },
+      });
+      logger.error("push.targeted.failed", {
+        recordId: record.id,
+        articleId: article.id,
+        channelCode: article.channelCode,
+        targetGroup: input.targetGroup,
+        error,
+      });
+      return {
+        recordId: record.id,
+        qywxUserId: `targeted:${input.targetGroup}`,
+        deliveryMode: "batch_user",
+        status: "failed",
+        errorMessage: getErrorMessage(error),
+      };
+    }
+  },
 };

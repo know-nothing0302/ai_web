@@ -417,6 +417,16 @@ export const broadcastArticle = async (input: {
   return result.data;
 };
 
+export const pushTargetedArticle = async (input: {
+  articleId: string;
+  targetGroup: "teachers" | "students";
+  title?: string;
+  summary?: string;
+}): Promise<BroadcastResult> => {
+  const result = await request.post<BroadcastResult>("/push/targeted", input);
+  return result.data;
+};
+
 export const listChannels = async (): Promise<Channel[]> => {
   const result = await request.get<{ items: Channel[] }>("/channels");
   return result.data.items;
