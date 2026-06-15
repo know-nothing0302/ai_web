@@ -132,6 +132,21 @@ const buildRecentWindow = (referenceAt: Date, hours: number): DigestWindow => ({
   endAt: toIsoString(referenceAt),
 });
 
+const buildBeijingDayWindow = (referenceAt: Date, daysBack: number): DigestWindow => {
+  const beijingTime = new Date(referenceAt.getTime() + CHINA_TIME_OFFSET_MS);
+  const todayStartBeijing = Date.UTC(
+    beijingTime.getUTCFullYear(),
+    beijingTime.getUTCMonth(),
+    beijingTime.getUTCDate()
+  );
+  const startBeijing = todayStartBeijing - daysBack * 24 * 60 * 60 * 1000;
+  const endBeijing = startBeijing + 24 * 60 * 60 * 1000;
+  return {
+    startAt: toIsoString(new Date(startBeijing - CHINA_TIME_OFFSET_MS)),
+    endAt: toIsoString(new Date(endBeijing - CHINA_TIME_OFFSET_MS)),
+  };
+};
+
 const getArticlePublishedMs = (article: Article): number =>
   new Date(article.publishedAt ?? article.updatedAt ?? article.createdAt).getTime();
 
@@ -886,7 +901,9 @@ export const pushService = {
     });
   },
   async pushDailyDigest(referenceAt = new Date()): Promise<number> {
-    const articles = await articleStore.listPublishedWithin(buildRecentWindow(referenceAt, 24));
+    const articles = await articleStore.listPublishedByCreatedWindow(
+      buildBeijingDayWindow(referenceAt, 1)
+    );
     return pushDigestByFrequency({
       frequency: "daily",
       articles,

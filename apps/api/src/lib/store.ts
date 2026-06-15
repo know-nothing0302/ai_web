@@ -641,6 +641,40 @@ export const articleStore = {
     );
     return result.rows.map(mapArticle);
   },
+  async listPublishedByCreatedWindow(input: {
+    startAt: string;
+    endAt: string;
+  }): Promise<Article[]> {
+    const result = await query<ArticleRow>(
+      `
+      SELECT
+        articles.id,
+        articles.created_by_user_id,
+        articles.title,
+        articles.summary,
+        articles.content,
+        articles.source_content,
+        articles.original_url,
+        articles.channel_code,
+        channels.name AS channel_name,
+        articles.category,
+        articles.tags,
+        articles.status,
+        articles.author,
+        articles.published_at,
+        articles.created_at,
+        articles.updated_at
+      FROM articles
+      LEFT JOIN article_channels channels ON channels.code = articles.channel_code
+      WHERE articles.status = 'published'
+        AND articles.created_at > $1
+        AND articles.created_at <= $2
+      ORDER BY articles.created_at DESC
+      `,
+      [input.startAt, input.endAt]
+    );
+    return result.rows.map(mapArticle);
+  },
   async create(input: Omit<Article, "id" | "createdAt" | "updatedAt">): Promise<Article> {
     const result = await query<ArticleRow>(
       `
