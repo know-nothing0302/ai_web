@@ -453,7 +453,7 @@ watch(
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col font-sans relative text-[#1e3a5f]">
+  <div class="min-h-screen flex flex-col font-sans relative text-[#1e3a5f] dark:text-[#e2e8f0]">
     <NeuralBackground />
     
     <!-- 顶部导航栏 -->
@@ -472,14 +472,14 @@ watch(
           </div>
 
           <!-- Navigation -->
-          <nav class="hidden md:flex items-center gap-1 bg-white/70 p-1 rounded-2xl border border-[#0288d1]/20 backdrop-blur-xl">
+          <nav class="hidden md:flex items-center gap-1 bg-white/70 dark:bg-slate-800/70 p-1 rounded-2xl border border-[#0288d1]/20 dark:border-slate-600/30 backdrop-blur-xl">
             <template v-for="item in navItems" :key="item.path || item.name">
               <!-- Regular nav item -->
               <router-link
                 v-if="!item.children"
                 :to="item.path"
                 class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300"
-                :class="route.path === item.path ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border border-[#0288d1]/25' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] border border-transparent'"
+                :class="route.path === item.path ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border border-[#0288d1]/25 dark:bg-sky-900/50 dark:text-[#7dd3fc] dark:border-sky-600/30' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] border border-transparent dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] dark:hover:bg-slate-700/50'"
               >
                 <component :is="item.icon" class="w-4 h-4" />
                 {{ item.name }}
@@ -493,7 +493,7 @@ watch(
               >
                 <button
                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 border border-transparent"
-                  :class="isAdminChildActive(item) ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border-[#0288d1]/25' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe]'"
+                  :class="isAdminChildActive(item) ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border-[#0288d1]/25 dark:bg-sky-900/50 dark:text-[#7dd3fc] dark:border-sky-600/30' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] dark:hover:bg-slate-700/50'"
                 >
                   <component :is="item.icon" class="w-4 h-4" />
                   {{ item.name }}
@@ -501,7 +501,7 @@ watch(
                 </button>
                 <div
                   v-show="adminDropdownOpen"
-                  class="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-[#0288d1]/15 py-1 min-w-[140px] z-50"
+                  class="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-[#0288d1]/15 dark:border-slate-600 py-1 min-w-[140px] z-50"
                   @mouseenter="showAdminDropdown"
                   @mouseleave="hideAdminDropdown"
                 >
@@ -509,8 +509,8 @@ watch(
                     v-for="child in item.children"
                     :key="child.path"
                     :to="child.path"
-                    class="flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-[#e1f5fe]"
-                    :class="route.path === child.path ? 'text-[#01579b] font-medium' : 'text-[#4f6b8a]'"
+                    class="flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50"
+                    :class="route.path === child.path ? 'text-[#01579b] font-medium dark:text-[#7dd3fc]' : 'text-[#4f6b8a] dark:text-[#cbd5e1]'"
                   >
                     <component :is="child.icon" class="w-4 h-4" />
                     {{ child.name }}
@@ -524,7 +524,7 @@ watch(
           <div class="flex items-center gap-3">
             <router-link
               to="/profile"
-              class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-300 hover:bg-[#e1f5fe] text-[#4f6b8a] hover:text-[#01579b]"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-300 hover:bg-[#e1f5fe] text-[#4f6b8a] hover:text-[#01579b] dark:hover:bg-slate-700/50 dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc]"
               title="个人中心"
             >
               <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#0288d1] to-[#01579b] flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
@@ -532,7 +532,7 @@ watch(
               </div>
               <span class="hidden sm:inline max-w-[6rem] truncate">{{ auth.user?.displayName || "个人中心" }}</span>
             </router-link>
-            <button @click="toggleDark" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" :title="isDark ? '浅色模式' : '深色模式'">
+            <button @click="toggleDark" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] dark:hover:bg-slate-700/50 rounded-xl transition-colors" :title="isDark ? '浅色模式' : '深色模式'">
               <component :is="isDark ? Moon : Sun" class="w-5 h-5" />
             </button>
             <!-- Font scale control -->
@@ -542,13 +542,13 @@ watch(
                 :key="s.value"
                 type="button"
                 class="px-1.5 py-0.5 rounded text-xs font-medium transition-colors"
-                :class="fontScale === s.value ? 'bg-[#0288d1] text-white' : 'text-[#8aa3bc] hover:text-[#01579b] hover:bg-[#e1f5fe]'"
+                :class="fontScale === s.value ? 'bg-[#0288d1] text-white' : 'text-[#8aa3bc] hover:text-[#01579b] hover:bg-[#e1f5fe] dark:text-slate-400 dark:hover:text-[#7dd3fc] dark:hover:bg-slate-700/50'"
                 @click="setScale(s.value)"
               >
                 {{ s.label }}
               </button>
             </div>
-            <button @click="logout" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] rounded-xl transition-colors" title="退出登录">
+            <button @click="logout" class="p-2 text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] dark:hover:bg-slate-700/50 rounded-xl transition-colors" title="退出登录">
               <LogOut class="w-5 h-5" />
             </button>
           </div>
@@ -560,12 +560,12 @@ watch(
     <!-- 主内容区 -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10 relative">
       <div v-if="auth.loading" class="glass-panel rounded-2xl border p-16 text-center">
-        <div class="w-10 h-10 border-3 border-[#81d4fa] border-t-[#0288d1] rounded-full animate-spin mx-auto mb-4"></div>
-        <p class="text-[#4f6b8a]">正在验证身份...</p>
+        <div class="w-10 h-10 border-3 border-[#81d4fa] border-t-[#0288d1] dark:border-sky-700 dark:border-t-[#38bdf8] rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-[#4f6b8a] dark:text-[#cbd5e1]">正在验证身份...</p>
       </div>
       <div v-else-if="pageError" class="glass-panel rounded-2xl border p-8 text-center">
-        <h2 class="text-lg font-semibold text-[#0f4069]">页面加载异常</h2>
-        <p class="mt-2 text-[#4f6b8a]">遇到意外错误，请刷新页面重试。</p>
+        <h2 class="text-lg font-semibold text-[#0f4069] dark:text-[#e2e8f0]">页面加载异常</h2>
+        <p class="mt-2 text-[#4f6b8a] dark:text-[#cbd5e1]">遇到意外错误，请刷新页面重试。</p>
         <button
           type="button"
           class="btn-primary mt-4"
@@ -614,7 +614,7 @@ watch(
 
     <button
       type="button"
-      class="fixed right-0 top-1/2 z-50 -translate-y-1/2 rounded-l-2xl border border-r-0 border-[#b3e5fc] bg-white/92 px-2 py-4 text-sm font-medium text-[#0f4069] shadow-[0_10px_24px_-18px_rgba(15,64,105,0.45)] transition-all duration-300 hover:-translate-x-1 hover:bg-white"
+      class="fixed right-0 top-1/2 z-50 -translate-y-1/2 rounded-l-2xl border border-r-0 border-[#b3e5fc] dark:border-slate-600 bg-white/92 dark:bg-slate-800/92 px-2 py-4 text-sm font-medium text-[#0f4069] dark:text-[#e2e8f0] shadow-[0_10px_24px_-18px_rgba(15,64,105,0.45)] dark:shadow-[0_10px_24px_-18px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-x-1 hover:bg-white dark:hover:bg-slate-700"
       style="writing-mode: vertical-rl; text-orientation: mixed;"
       @click="openFeedback"
     >
@@ -634,7 +634,7 @@ watch(
 
     <div
       v-if="appMessage"
-      class="fixed bottom-28 left-1/2 z-[80] -translate-x-1/2 rounded-full border border-[#b3e5fc] bg-white/96 px-4 py-2 text-sm text-[#0f4069] shadow-[0_12px_28px_-20px_rgba(15,64,105,0.45)]"
+      class="fixed bottom-28 left-1/2 z-[80] -translate-x-1/2 rounded-full border border-[#b3e5fc] dark:border-slate-600 bg-white/96 dark:bg-slate-800/96 px-4 py-2 text-sm text-[#0f4069] dark:text-[#e2e8f0] shadow-[0_12px_28px_-20px_rgba(15,64,105,0.45)] dark:shadow-[0_12px_28px_-20px_rgba(0,0,0,0.45)]"
     >
       {{ appMessage }}
     </div>

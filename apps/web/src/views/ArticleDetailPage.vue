@@ -418,7 +418,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="max-w-4xl mx-auto space-y-6 pb-12">
-    <button @click="router.push('/')" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] transition-colors">
+    <button @click="router.push('/')" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] transition-colors">
       <ArrowLeft class="w-4 h-4" />
       返回列表
     </button>
@@ -428,24 +428,24 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-else-if="!item" class="glass-card py-20 text-center">
-      <h3 class="text-xl font-medium text-[#4f6b8a]">文章不存在或已被删除</h3>
+      <h3 class="text-xl font-medium text-[#4f6b8a] dark:text-[#cbd5e1]">文章不存在或已被删除</h3>
     </div>
 
     <article v-else class="glass-panel rounded-3xl p-8 md:p-12 border shadow-sm">
-      <header class="mb-10 text-center border-b border-[#b3e5fc]/50 pb-8">
+      <header class="mb-10 text-center border-b border-[#b3e5fc]/50 dark:border-slate-600/50 pb-8">
         <div class="flex items-center justify-center gap-3 mb-6">
           <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
         </div>
         
         <div class="flex flex-col items-center justify-center gap-2 mb-5">
-          <h1 class="text-xl sm:text-2xl font-bold text-[#0f4069] leading-tight tracking-tight font-serif text-center px-2">
+          <h1 class="text-xl sm:text-2xl font-bold text-[#0f4069] dark:text-[#e2e8f0] leading-tight tracking-tight font-serif text-center px-2">
             {{ item.title }}
           </h1>
           <div class="flex items-center gap-1">
             <button
               type="button"
               class="shrink-0 rounded-xl p-1.5 transition-all duration-300"
-              :class="isFavorited ? 'text-[#f59e0b] hover:text-[#d97706] bg-[#fef3c7]/60 hover:bg-[#fef3c7]' : 'text-[#b3e5fc] hover:text-[#f59e0b] hover:bg-[#fef3c7]/40'"
+              :class="isFavorited ? 'text-[#f59e0b] hover:text-[#d97706] bg-[#fef3c7]/60 hover:bg-[#fef3c7] dark:bg-yellow-800/30 dark:hover:bg-yellow-800/50' : 'text-[#b3e5fc] hover:text-[#f59e0b] hover:bg-[#fef3c7]/40 dark:text-slate-500 dark:hover:text-yellow-400 dark:hover:bg-yellow-800/20'"
               :title="isFavorited ? '取消收藏' : '收藏'"
               :disabled="favoriting"
               @click="toggleFavorite"
@@ -456,7 +456,7 @@ onBeforeUnmount(() => {
             <button
               type="button"
               class="shrink-0 rounded-xl p-1.5 transition-all duration-300"
-              :class="linkCopied ? 'text-green-600 bg-green-50' : 'text-[#b3e5fc] hover:text-[#0288d1] hover:bg-[#e1f5fe]/60'"
+              :class="linkCopied ? 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30' : 'text-[#b3e5fc] hover:text-[#0288d1] hover:bg-[#e1f5fe]/60 dark:text-slate-500 dark:hover:text-[#38bdf8] dark:hover:bg-slate-700/30'"
               :title="linkCopied ? '已复制' : '复制链接'"
               @click="copyLink"
             >
@@ -467,12 +467,12 @@ onBeforeUnmount(() => {
         </div>
         
         <div v-if="item.tags && item.tags.length" class="flex flex-wrap items-center justify-center gap-2 mb-6">
-          <span v-for="tag in item.tags" :key="tag" class="text-xs text-[#0288d1] bg-[#e1f5fe]/80 px-2.5 py-1 rounded-full flex items-center border border-[#81d4fa]/30">
+          <span v-for="tag in item.tags" :key="tag" class="text-xs text-[#0288d1] bg-[#e1f5fe]/80 dark:text-[#38bdf8] dark:bg-slate-700/40 px-2.5 py-1 rounded-full flex items-center border border-[#81d4fa]/30 dark:border-sky-700/30">
             <Hash class="w-3 h-3 mr-0.5 opacity-70" />{{ tag }}
           </span>
         </div>
         
-        <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-[#4f6b8a]">
+        <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-[#4f6b8a] dark:text-[#cbd5e1]">
           <span class="flex items-center gap-1.5">
             <User class="w-4 h-4 text-[#0288d1]/70" />
             {{ displayAuthor }}
@@ -484,64 +484,64 @@ onBeforeUnmount(() => {
           <a
             v-if="item.originalUrl"
             :href="item.originalUrl"
-            class="flex items-center gap-1 text-xs text-[#0288d1] hover:text-[#01579b] hover:underline transition-colors"
+            class="flex items-center gap-1 text-xs text-[#0288d1] hover:text-[#01579b] dark:text-[#38bdf8] dark:hover:text-[#7dd3fc] hover:underline transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >
              <Link class="w-3.5 h-3.5 opacity-80" />
              查看原文
-             <span class="text-[10px] text-[#8aa3bc] font-normal">（外部链接）</span>
+             <span class="text-[10px] text-[#8aa3bc] dark:text-slate-400 font-normal">（外部链接）</span>
           </a>
           <button
             v-if="item.originalUrl && !linkReported"
             type="button"
-            class="text-[10px] text-[#8aa3bc] hover:text-[#c62828] hover:underline transition-colors"
+            class="text-[10px] text-[#8aa3bc] dark:text-slate-400 hover:text-[#c62828] dark:hover:text-red-400 hover:underline transition-colors"
             title="反馈链接失效"
             @click="reportBrokenLink"
           >
             链接失效？
           </button>
           <span v-else-if="linkReported" class="text-[10px] text-[#4caf50]">已反馈，感谢</span>
-          <span v-if="!item.originalUrl" class="flex items-center gap-1.5 text-[#8aa3bc]">
+          <span v-if="!item.originalUrl" class="flex items-center gap-1.5 text-[#8aa3bc] dark:text-slate-400">
             <Link class="w-4 h-4 opacity-60" />
             未提供原文链接
           </span>
         </div>
       </header>
 
-      <div class="bg-gradient-to-br from-[#e1f5fe] to-[#f1faff] border border-[#81d4fa]/60 rounded-2xl p-6 md:p-8 mb-12 shadow-sm">
-        <div class="flex items-center gap-2 text-[#0288d1] font-semibold mb-4 text-lg">
+      <div class="bg-gradient-to-br from-[#e1f5fe] to-[#f1faff] dark:from-slate-800/60 dark:to-slate-800/40 border border-[#81d4fa]/60 dark:border-sky-700/30 rounded-2xl p-6 md:p-8 mb-12 shadow-sm">
+        <div class="flex items-center gap-2 text-[#0288d1] dark:text-[#38bdf8] font-semibold mb-4 text-lg">
           <Sparkles class="w-5 h-5" />
           AI 核心摘要
         </div>
         <div
-          class="prose prose-slate max-w-none text-[#355878] text-lg leading-relaxed font-serif
-                 prose-headings:text-[#0f4069] prose-p:my-3 prose-ul:my-3 prose-ol:my-3
-                 prose-a:text-[#0288d1] hover:prose-a:text-[#01579b]"
+          class="prose prose-slate max-w-none text-[#355878] dark:text-slate-300 text-lg leading-relaxed font-serif
+                 prose-headings:text-[#0f4069] dark:prose-headings:text-[#e2e8f0] prose-p:my-3 prose-ul:my-3 prose-ol:my-3
+                 prose-a:text-[#0288d1] dark:prose-a:text-[#38bdf8] hover:prose-a:text-[#01579b] dark:hover:prose-a:text-[#7dd3fc]"
           v-html="parsedSummary"
         ></div>
       </div>
 
       <!-- Markdown Content rendering with tailwind typography styles manually applied for better fonts -->
       <div 
-        class="article-content-area prose prose-slate prose-lg max-w-none text-[#355878] leading-loose font-serif
-               prose-headings:text-[#0f4069] prose-headings:font-bold prose-headings:tracking-tight
-               prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:border-b prose-h2:border-[#b3e5fc]/30 prose-h2:pb-2
+        class="article-content-area prose prose-slate prose-lg max-w-none text-[#355878] dark:text-slate-300 leading-loose font-serif
+               prose-headings:text-[#0f4069] dark:prose-headings:text-[#e2e8f0] prose-headings:font-bold prose-headings:tracking-tight
+               prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:border-b prose-h2:border-[#b3e5fc]/30 dark:prose-h2:border-slate-600/30 prose-h2:pb-2
                prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-4
                prose-p:mb-6 prose-p:text-[17px]
-               prose-a:text-[#0288d1] hover:prose-a:text-[#01579b] prose-a:no-underline hover:prose-a:underline
-               prose-strong:text-[#0f4069] prose-strong:font-semibold
+               prose-a:text-[#0288d1] dark:prose-a:text-[#38bdf8] hover:prose-a:text-[#01579b] dark:hover:prose-a:text-[#7dd3fc] prose-a:no-underline hover:prose-a:underline
+               prose-strong:text-[#0f4069] dark:prose-strong:text-[#e2e8f0] prose-strong:font-semibold
                prose-ul:list-disc prose-ul:pl-6 prose-ul:mb-6 prose-ul:space-y-2
                prose-ol:list-decimal prose-ol:pl-6 prose-ol:mb-6 prose-ol:space-y-2
-               prose-li:text-[17px] prose-li:marker:text-[#81d4fa]
-               prose-blockquote:border-l-4 prose-blockquote:border-[#81d4fa] prose-blockquote:pl-5 prose-blockquote:italic prose-blockquote:text-[#4f6b8a] prose-blockquote:bg-[#f1faff] prose-blockquote:py-1 prose-blockquote:rounded-r-lg
-               prose-code:text-[#0288d1] prose-code:bg-[#e1f5fe]/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none"
+               prose-li:text-[17px] prose-li:marker:text-[#81d4fa] dark:prose-li:marker:text-sky-600
+               prose-blockquote:border-l-4 prose-blockquote:border-[#81d4fa] dark:prose-blockquote:border-sky-700 prose-blockquote:pl-5 prose-blockquote:italic prose-blockquote:text-[#4f6b8a] dark:prose-blockquote:text-[#cbd5e1] prose-blockquote:bg-[#f1faff] dark:prose-blockquote:bg-slate-800/40 prose-blockquote:py-1 prose-blockquote:rounded-r-lg
+               prose-code:text-[#0288d1] dark:prose-code:text-[#38bdf8] prose-code:bg-[#e1f5fe]/50 dark:prose-code:bg-slate-700/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none"
         v-html="parsedContent"
       >
       </div>
       
-      <div class="mt-16 pt-6 border-t border-dashed border-[#b3e5fc]/50 text-center">
-        <span class="inline-flex items-center gap-1.5 text-xs text-[#8aa3bc] bg-[#f8fafc] px-3 py-1.5 rounded-full">
+      <div class="mt-16 pt-6 border-t border-dashed border-[#b3e5fc]/50 dark:border-slate-600/50 text-center">
+        <span class="inline-flex items-center gap-1.5 text-xs text-[#8aa3bc] dark:text-slate-400 bg-[#f8fafc] dark:bg-slate-800/40 px-3 py-1.5 rounded-full">
           <Sparkles class="w-3 h-3" />
           内容由AI生成
         </span>

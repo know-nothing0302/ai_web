@@ -158,16 +158,16 @@ const filterOptions = [
 <template>
   <div v-if="visible" class="fixed inset-x-0 bottom-5 z-[60] flex justify-center px-4 pointer-events-none">
     <section
-      class="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-[24px] border border-[#81d4fa]/55 bg-white/96 shadow-[0_20px_48px_-28px_rgba(2,136,209,0.38)] backdrop-blur-xl"
+      class="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-[24px] border border-[#81d4fa]/55 dark:border-sky-700/50 bg-white/96 dark:bg-slate-800/96 shadow-[0_20px_48px_-28px_rgba(2,136,209,0.38)] dark:shadow-[0_20px_48px_-28px_rgba(0,0,0,0.5)] backdrop-blur-xl"
     >
-      <header class="border-b border-[#b3e5fc]/35 px-4 py-3">
+      <header class="border-b border-[#b3e5fc]/35 dark:border-slate-600/35 px-4 py-3">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#0288d1] to-[#01579b] whitespace-nowrap">AI在徐医 · 问答</span>
           <div class="flex items-center gap-1">
             <button
               v-if="conversations.length === 0 && !loadingConversations"
               type="button"
-              class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#e1f5fe]"
+              class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] dark:text-[#38bdf8] transition-colors hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50"
               @click="emit('load-conversations')"
             >
               <MessageSquare class="h-3.5 w-3.5" />
@@ -176,7 +176,7 @@ const filterOptions = [
             <button
               v-if="messages.length > 0 || conversations.length > 0"
               type="button"
-              class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] transition-colors hover:bg-[#e1f5fe]"
+              class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-[#0288d1] dark:text-[#38bdf8] transition-colors hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50"
               @click="emit('new-conversation')"
             >
               <Plus class="h-3.5 w-3.5" />
@@ -184,7 +184,7 @@ const filterOptions = [
             </button>
             <button
               type="button"
-              class="rounded-xl p-2 text-[#6b86a0] transition-colors hover:bg-[#eaf7ff] hover:text-[#01579b]"
+              class="rounded-xl p-2 text-[#6b86a0] dark:text-slate-400 transition-colors hover:bg-[#eaf7ff] dark:hover:bg-slate-700/50 hover:text-[#01579b] dark:hover:text-[#7dd3fc]"
               @click="emit('close')"
             >
               <X class="h-4 w-4" />
@@ -196,7 +196,7 @@ const filterOptions = [
           <button
             type="button"
             class="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors"
-            :class="verbosity === 'concise' ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc]'"
+            :class="verbosity === 'concise' ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc] dark:bg-slate-700/50 dark:text-[#38bdf8] dark:hover:bg-slate-600/50'"
             @click="emit('update:verbosity', 'concise')"
           >
             <Zap class="h-3 w-3 inline -mt-0.5 mr-0.5" />
@@ -205,7 +205,7 @@ const filterOptions = [
           <button
             type="button"
             class="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors"
-            :class="verbosity === 'detailed' ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc]'"
+            :class="verbosity === 'detailed' ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc] dark:bg-slate-700/50 dark:text-[#38bdf8] dark:hover:bg-slate-600/50'"
             @click="emit('update:verbosity', 'detailed')"
           >
             <BookOpen class="h-3 w-3 inline -mt-0.5 mr-0.5" />
@@ -218,7 +218,7 @@ const filterOptions = [
         ref="messageContainerRef"
         class="max-h-[44vh] min-h-[190px] overflow-y-auto px-4 py-4"
       >
-        <div v-if="messages.length === 0 && !loadingConversations && conversations.length === 0" class="rounded-2xl bg-[#f8fbfe] px-4 py-5 text-center text-sm text-[#7b95ad]">
+        <div v-if="messages.length === 0 && !loadingConversations && conversations.length === 0" class="rounded-2xl bg-[#f8fbfe] dark:bg-slate-800/40 px-4 py-5 text-center text-sm text-[#7b95ad] dark:text-slate-400">
           <p>可以直接问当前页面内容</p>
           <p class="mt-1 text-xs text-[#9bb5cc]">点击上方「历史对话」查看最近记录</p>
         </div>
@@ -247,7 +247,7 @@ const filterOptions = [
               :key="opt.value"
               type="button"
               class="rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors"
-              :class="convFilter === opt.value ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc]'"
+              :class="convFilter === opt.value ? 'bg-[#0288d1] text-white' : 'bg-[#e1f5fe] text-[#0288d1] hover:bg-[#b3e5fc] dark:bg-slate-700/50 dark:text-[#38bdf8] dark:hover:bg-slate-600/50'"
               @click="convFilter = opt.value"
             >
               {{ opt.label }}
@@ -292,7 +292,7 @@ const filterOptions = [
             </div>
             <div
               v-else
-              class="max-w-[86%] rounded-2xl border border-[#d8edf9] bg-[#f8fbfe] px-4 py-3 text-sm text-[#355878] shadow-[0_10px_24px_-22px_rgba(15,64,105,0.45)]"
+              class="max-w-[86%] rounded-2xl border border-[#d8edf9] dark:border-slate-600 bg-[#f8fbfe] dark:bg-slate-700 px-4 py-3 text-sm text-[#355878] dark:text-slate-200 shadow-[0_10px_24px_-22px_rgba(15,64,105,0.45)] dark:shadow-[0_10px_24px_-22px_rgba(0,0,0,0.3)]"
             >
               <div class="mb-2 flex items-center justify-between gap-3">
                 <span v-if="message.text.trim()" class="text-[11px] text-[#6e89a3]">
@@ -354,7 +354,7 @@ const filterOptions = [
         </div>
       </div>
 
-      <div class="border-t border-[#b3e5fc]/35 px-4 py-3">
+      <div class="border-t border-[#b3e5fc]/35 dark:border-slate-600/35 px-4 py-3">
         <div v-if="copyToast" class="mb-2 text-center">
           <span class="inline-block rounded-full bg-[#0288d1]/10 px-3 py-1 text-xs font-medium text-[#0288d1]">{{ copyToast }}</span>
         </div>

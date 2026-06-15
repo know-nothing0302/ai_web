@@ -50,11 +50,11 @@ const { dialogPos, dragging, startDrag } = useDraggable();
 <template>
   <div
     v-if="visible"
-    class="fixed inset-0 z-[70] flex items-start justify-center pt-[12vh] bg-[#0f4069]/18 px-4"
+    class="fixed inset-0 z-[70] flex items-start justify-center pt-[12vh] bg-[#0f4069]/18 dark:bg-black/40 px-4"
     :style="dragging ? { pointerEvents: 'none' } : {}"
   >
     <section
-      class="w-full max-w-lg rounded-3xl border border-[#b3e5fc] bg-white p-6 shadow-xl"
+      class="w-full max-w-lg rounded-3xl border border-[#b3e5fc] dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-xl"
       :style="{ transform: `translate(${dialogPos.x}px, ${dialogPos.y}px)` }"
     >
       <header
@@ -62,14 +62,14 @@ const { dialogPos, dragging, startDrag } = useDraggable();
         @mousedown="startDrag"
       >
         <div>
-          <h2 class="text-lg font-semibold text-[#0f4069]">
+          <h2 class="text-lg font-semibold text-[#0f4069] dark:text-[#e2e8f0]">
             {{ pageTitle === 'AI在徐医' ? '意见反馈' : `反馈 - ${pageTitle}` }}
           </h2>
-          <p class="mt-1 text-sm text-[#6e89a3]">提交问题或建议，便于后续持续优化。</p>
+          <p class="mt-1 text-sm text-[#6e89a3] dark:text-slate-400">提交问题或建议，便于后续持续优化。</p>
         </div>
         <button
           type="button"
-          class="rounded-xl p-2 text-[#6e89a3] transition-colors hover:bg-[#f3f8fc] hover:text-[#0f4069]"
+          class="rounded-xl p-2 text-[#6e89a3] dark:text-slate-400 transition-colors hover:bg-[#f3f8fc] dark:hover:bg-slate-700/50 hover:text-[#0f4069] dark:hover:text-[#e2e8f0]"
           @click="emit('close')"
         >
           <X class="h-4 w-4" />
@@ -89,7 +89,7 @@ const { dialogPos, dragging, startDrag } = useDraggable();
           class="input-ai resize-none"
           placeholder="请描述你的问题或建议（10字以上）"
         ></textarea>
-        <p v-if="content.trim().length > 0 && content.trim().length < 10" class="text-xs text-amber-600">
+        <p v-if="content.trim().length > 0 && content.trim().length < 10" class="text-xs text-amber-600 dark:text-amber-400">
           至少输入 10 个字（当前 {{ content.trim().length }} 字）
         </p>
         <input
@@ -99,7 +99,7 @@ const { dialogPos, dragging, startDrag } = useDraggable();
         />
       </div>
 
-      <div class="mt-4 rounded-2xl bg-[#f8fbfe] px-4 py-3 text-xs text-[#6e89a3]">
+      <div class="mt-4 rounded-2xl bg-[#f8fbfe] dark:bg-slate-800/60 px-4 py-3 text-xs text-[#6e89a3] dark:text-slate-400">
         当前页面：{{ pageTitle }}（{{ pageRoute }}）
       </div>
 

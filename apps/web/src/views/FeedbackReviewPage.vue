@@ -280,8 +280,8 @@ onMounted(async () => {
   <div class="max-w-5xl mx-auto space-y-6">
     <!-- Access Denied -->
     <section v-if="accessDenied" class="glass-panel rounded-2xl border p-8 text-center">
-      <h2 class="text-lg font-semibold text-[#0f4069]">无权限访问</h2>
-      <p class="mt-2 text-[#4f6b8a]">当前账号无权限访问反馈审批页面。</p>
+      <h2 class="text-lg font-semibold text-[#0f4069] dark:text-[#e2e8f0]">无权限访问</h2>
+      <p class="mt-2 text-[#4f6b8a] dark:text-[#cbd5e1]">当前账号无权限访问反馈审批页面。</p>
     </section>
 
     <template v-else>
@@ -289,16 +289,16 @@ onMounted(async () => {
       <section class="glass-panel rounded-3xl border p-6 shadow-sm md:p-8">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <div class="flex items-center gap-2 text-xs text-[#6e89a3] mb-2">
-              <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5 text-[#0277bd]">管理</span>
-              <span class="text-[#b3e5fc]">/</span>
+            <div class="flex items-center gap-2 text-xs text-[#6e89a3] dark:text-slate-400 mb-2">
+              <span class="rounded-full bg-[#e1f5fe] dark:bg-slate-700/40 px-2 py-0.5 text-[#0277bd] dark:text-[#7dd3fc]">管理</span>
+              <span class="text-[#b3e5fc] dark:text-slate-500">/</span>
               <span>反馈审批</span>
             </div>
-            <h1 class="flex items-center gap-3 text-3xl font-bold text-[#0f4069]">
-              <ClipboardCheck class="h-8 w-8 text-[#0288d1]" />
+            <h1 class="flex items-center gap-3 text-3xl font-bold text-[#0f4069] dark:text-[#e2e8f0]">
+              <ClipboardCheck class="h-8 w-8 text-[#0288d1] dark:text-[#38bdf8]" />
               反馈审批
             </h1>
-            <p class="mt-2 text-sm text-[#4f6b8a]">
+            <p class="mt-2 text-sm text-[#4f6b8a] dark:text-[#cbd5e1]">
               {{ today }} · 当前 {{ STATUS_TABS.find((t) => t.key === activeTab)?.label }} {{ currentTab.total }} 条
             </p>
           </div>
@@ -308,20 +308,20 @@ onMounted(async () => {
                 v-model="searchKeyword"
                 type="text"
                 placeholder="搜索反馈内容..."
-                class="input-ai w-48 rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] placeholder:text-[#8aa3bc] focus:border-[#4fc3f7] focus:outline-none"
+                class="input-ai w-48 rounded-full border border-[#b3e5fc] dark:border-slate-600 px-4 py-2 text-sm text-[#4f6b8a] dark:text-[#cbd5e1] placeholder:text-[#8aa3bc] dark:placeholder:text-slate-500 focus:border-[#4fc3f7] dark:focus:border-sky-600 focus:outline-none"
                 @keyup.enter="handleSearch"
               />
             </div>
             <button
               type="button"
-              class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe]"
+              class="rounded-full border border-[#b3e5fc] dark:border-slate-600 px-4 py-2 text-sm text-[#4f6b8a] dark:text-[#cbd5e1] transition-colors hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50"
               @click="handleSearch"
             >
               <Search class="inline-block w-3 h-3 mr-1" />搜索
             </button>
             <button
               type="button"
-              class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:border-[#4fc3f7]"
+              class="rounded-full border border-[#b3e5fc] dark:border-slate-600 px-4 py-2 text-sm text-[#4f6b8a] dark:text-[#cbd5e1] transition-colors hover:border-[#4fc3f7] dark:hover:border-sky-600"
               @click="handleRefresh"
             >
               <RefreshCw class="inline-block w-3 h-3 mr-1" />刷新
@@ -339,8 +339,8 @@ onMounted(async () => {
             type="button"
             class="px-4 py-2.5 text-sm font-medium transition-colors border-b-2 shrink-0"
             :class="activeTab === tab.key
-              ? 'text-[#0277bd] border-[#0288d1] bg-[#e1f5fe]/50'
-              : 'text-[#4f6b8a] border-transparent hover:text-[#0f4069] hover:bg-[#f3f8fc]'"
+              ? 'text-[#0277bd] border-[#0288d1] bg-[#e1f5fe]/50 dark:text-[#7dd3fc] dark:border-sky-600 dark:bg-sky-900/30'
+              : 'text-[#4f6b8a] border-transparent hover:text-[#0f4069] hover:bg-[#f3f8fc] dark:text-[#cbd5e1] dark:hover:text-[#e2e8f0] dark:hover:bg-slate-700/50'"
             @click="changeTab(tab.key)"
           >
             {{ tab.label }}
@@ -351,12 +351,12 @@ onMounted(async () => {
       <!-- Tab Content -->
       <section class="glass-panel rounded-3xl border p-6 shadow-sm md:p-8">
         <!-- Loading -->
-        <div v-if="currentTab.loading" class="py-12 text-center text-sm text-[#6e89a3]">
+        <div v-if="currentTab.loading" class="py-12 text-center text-sm text-[#6e89a3] dark:text-slate-400">
           加载中...
         </div>
 
         <!-- Empty -->
-        <div v-else-if="currentTab.items.length === 0" class="py-12 text-center text-sm text-[#6e89a3]">
+        <div v-else-if="currentTab.items.length === 0" class="py-12 text-center text-sm text-[#6e89a3] dark:text-slate-400">
           暂无此状态的反馈
         </div>
 
@@ -372,32 +372,32 @@ onMounted(async () => {
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-[#355878]">#{{ item.id.slice(0, 8) }}</span>
-                  <span class="truncate text-sm text-[#0f4069]">{{ item.pageTitle || item.pageRoute }}</span>
+                  <span class="text-sm font-medium text-[#355878] dark:text-slate-300">#{{ item.id.slice(0, 8) }}</span>
+                  <span class="truncate text-sm text-[#0f4069] dark:text-[#e2e8f0]">{{ item.pageTitle || item.pageRoute }}</span>
                 </div>
                 <p
-                  class="mt-1 text-sm text-[#4f6b8a] break-words"
+                  class="mt-1 text-sm text-[#4f6b8a] dark:text-[#cbd5e1] break-words"
                   :class="expandedId === item.id ? '' : 'line-clamp-2'"
                 >{{ item.content }}</p>
                 <button
                   v-if="item.content.length > 80"
                   type="button"
-                  class="mt-1 inline-flex items-center gap-0.5 text-xs font-medium text-[#0288d1] hover:text-[#01579b] hover:underline"
+                  class="mt-1 inline-flex items-center gap-0.5 text-xs font-medium text-[#0288d1] dark:text-[#38bdf8] hover:text-[#01579b] dark:hover:text-[#7dd3fc] hover:underline"
                   @click.stop="toggleExpand(item.id)"
                 >
                   {{ expandedId === item.id ? '收起 ▲' : '展开全文 ▼' }}
                 </button>
-                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e89a3]">
-                  <span v-if="item.evaluation?.severity" class="rounded-full bg-[#e1f5fe] px-2 py-0.5">
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e89a3] dark:text-slate-400">
+                  <span v-if="item.evaluation?.severity" class="rounded-full bg-[#e1f5fe] dark:bg-slate-700/40 px-2 py-0.5">
                     {{ severityLabel(item.evaluation.severity) }}
                   </span>
-                  <span v-if="item.evaluation?.fixScope" class="rounded-full bg-[#e1f5fe] px-2 py-0.5">
+                  <span v-if="item.evaluation?.fixScope" class="rounded-full bg-[#e1f5fe] dark:bg-slate-700/40 px-2 py-0.5">
                     {{ fixScopeLabel(item.evaluation.fixScope) }}
                   </span>
-                  <span v-if="item.evaluation?.alignment" class="rounded-full bg-[#e1f5fe] px-2 py-0.5">
+                  <span v-if="item.evaluation?.alignment" class="rounded-full bg-[#e1f5fe] dark:bg-slate-700/40 px-2 py-0.5">
                     {{ alignmentLabel(item.evaluation.alignment) }}
                   </span>
-                  <span class="rounded-full bg-[#e1f5fe] px-2 py-0.5">{{ item.type }}</span>
+                  <span class="rounded-full bg-[#e1f5fe] dark:bg-slate-700/40 px-2 py-0.5">{{ item.type }}</span>
                 </div>
               </div>
 
@@ -405,7 +405,7 @@ onMounted(async () => {
               <div v-if="isActionable(item.status)" class="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  class="rounded-full border border-[#4fc3f7] bg-[#e1f5fe] px-3 py-1.5 text-xs font-medium text-[#0277bd] transition-colors hover:bg-[#b3e5fc]"
+                  class="rounded-full border border-[#4fc3f7] dark:border-sky-600 bg-[#e1f5fe] dark:bg-sky-900/40 px-3 py-1.5 text-xs font-medium text-[#0277bd] dark:text-[#7dd3fc] transition-colors hover:bg-[#b3e5fc] dark:hover:bg-sky-800/50"
                   :disabled="submitting"
                   @click="openApproveModal(item.id)"
                 >
@@ -413,7 +413,7 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
-                  class="rounded-full border border-[#ffcdd2] px-3 py-1.5 text-xs text-[#c62828] transition-colors hover:bg-[#ffebee]"
+                  class="rounded-full border border-[#ffcdd2] dark:border-red-800 px-3 py-1.5 text-xs text-[#c62828] dark:text-red-400 transition-colors hover:bg-[#ffebee] dark:hover:bg-red-950/40"
                   :disabled="submitting"
                   @click="confirmReject(item.id)"
                 >
@@ -421,7 +421,7 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
-                  class="rounded-full border border-[#b3e5fc] px-3 py-1.5 text-xs text-[#4f6b8a] transition-colors hover:bg-[#f3f8fc]"
+                  class="rounded-full border border-[#b3e5fc] dark:border-slate-600 px-3 py-1.5 text-xs text-[#4f6b8a] dark:text-[#cbd5e1] transition-colors hover:bg-[#f3f8fc] dark:hover:bg-slate-700/50"
                   :disabled="submitting"
                   @click="handleSnooze(item.id)"
                 >
@@ -438,9 +438,9 @@ onMounted(async () => {
             >
               <div class="flex items-center gap-1.5 mb-1">
                 <AlertTriangle class="w-3 h-3 text-[#f9a825]" />
-                <span class="text-xs font-medium text-[#795548]" title="LLM：Large Language Model（大语言模型），AI 自动评估生成的建议">LLM 建议</span>
+                <span class="text-xs font-medium text-[#795548] dark:text-amber-300" title="LLM：Large Language Model（大语言模型），AI 自动评估生成的建议">LLM 建议</span>
               </div>
-              <p class="text-xs text-[#5d4037] leading-relaxed">{{ item.evaluation.suggestion }}</p>
+              <p class="text-xs text-[#5d4037] dark:text-amber-200/80 leading-relaxed">{{ item.evaluation.suggestion }}</p>
             </div>
 
             <!-- Admin Note (Fix 3) -->
@@ -454,14 +454,14 @@ onMounted(async () => {
                 <div class="flex items-center gap-2">
                   <button
                     type="button"
-                    class="rounded-full border border-[#4fc3f7] bg-[#e1f5fe] px-3 py-1 text-xs text-[#0277bd] hover:bg-[#b3e5fc]"
+                    class="rounded-full border border-[#4fc3f7] dark:border-sky-600 bg-[#e1f5fe] dark:bg-sky-900/40 px-3 py-1 text-xs text-[#0277bd] dark:text-[#7dd3fc] hover:bg-[#b3e5fc] dark:hover:bg-sky-800/50"
                     @click="saveNote(item.id)"
                   >
                     保存
                   </button>
                   <button
                     type="button"
-                    class="rounded-full border border-[#b3e5fc] px-3 py-1 text-xs text-[#4f6b8a] hover:bg-[#f3f8fc]"
+                    class="rounded-full border border-[#b3e5fc] dark:border-slate-600 px-3 py-1 text-xs text-[#4f6b8a] dark:text-[#cbd5e1] hover:bg-[#f3f8fc] dark:hover:bg-slate-700/50"
                     @click="cancelEditNote"
                   >
                     取消

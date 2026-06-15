@@ -150,15 +150,15 @@ onMounted(() => {
 
 <template>
   <div class="max-w-4xl mx-auto space-y-6 pb-12">
-    <button @click="router.back()" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] transition-colors">
+    <button @click="router.back()" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] transition-colors">
       <ArrowLeft class="w-4 h-4" />
       返回
     </button>
 
-    <h1 class="text-2xl font-bold text-[#0f4069]">个人中心</h1>
+    <h1 class="text-2xl font-bold text-[#0f4069] dark:text-[#e2e8f0]">个人中心</h1>
 
     <!-- Tabs -->
-    <div class="flex gap-1 bg-white/70 p-1 rounded-2xl border border-[#0288d1]/20 backdrop-blur-xl">
+    <div class="flex gap-1 bg-white/70 dark:bg-slate-800/70 p-1 rounded-2xl border border-[#0288d1]/20 dark:border-slate-600/30 backdrop-blur-xl">
       <button
         v-for="tab in ([
           { key: 'favorites', label: '我的收藏', icon: Star },
@@ -168,7 +168,7 @@ onMounted(() => {
         ] as const)"
         :key="tab.key"
         class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex-1 justify-center"
-        :class="activeTab === tab.key ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border border-[#0288d1]/25' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] border border-transparent'"
+        :class="activeTab === tab.key ? 'bg-[#b3e5fc]/70 text-[#01579b] shadow-sm border border-[#0288d1]/25 dark:bg-sky-900/50 dark:text-[#7dd3fc] dark:border-sky-600/30' : 'text-[#4f6b8a] hover:text-[#01579b] hover:bg-[#e1f5fe] border border-transparent dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] dark:hover:bg-slate-700/50'"
         @click="activeTab = tab.key; tab.key === 'history' ? loadHistory() : tab.key === 'feedback' ? loadFeedback() : tab.key === 'conversations' ? loadConversations() : undefined"
       >
         <component :is="tab.icon" class="w-4 h-4" />
@@ -179,12 +179,12 @@ onMounted(() => {
     <!-- Favorites Tab -->
     <div v-if="activeTab === 'favorites'" class="space-y-4">
       <div v-if="favoritesLoading" class="flex items-center justify-center py-16">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1]"></div>
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1] dark:border-[#38bdf8]"></div>
       </div>
       <div v-else-if="favorites.length === 0" class="glass-panel rounded-3xl p-12 text-center border shadow-sm">
-        <Star class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc]" />
-        <h3 class="text-lg font-medium text-[#4f6b8a]">还没有收藏</h3>
-        <p class="text-sm text-[#8aa3bc] mt-1">在文章详情页点击星标即可收藏</p>
+        <Star class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc] dark:text-slate-500" />
+        <h3 class="text-lg font-medium text-[#4f6b8a] dark:text-[#cbd5e1]">还没有收藏</h3>
+        <p class="text-sm text-[#8aa3bc] dark:text-slate-400 mt-1">在文章详情页点击星标即可收藏</p>
       </div>
       <div v-else class="space-y-3">
         <div
@@ -195,19 +195,19 @@ onMounted(() => {
         >
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1 min-w-0">
-              <h3 class="font-semibold text-[#0f4069] line-clamp-1">{{ item.title }}</h3>
-              <p class="text-sm text-[#6e89a3] line-clamp-2 mt-1">{{ item.summary }}</p>
-              <div class="flex items-center gap-3 mt-3 text-xs text-[#8aa3bc]">
+              <h3 class="font-semibold text-[#0f4069] dark:text-[#e2e8f0] line-clamp-1">{{ item.title }}</h3>
+              <p class="text-sm text-[#6e89a3] dark:text-slate-400 line-clamp-2 mt-1">{{ item.summary }}</p>
+              <div class="flex items-center gap-3 mt-3 text-xs text-[#8aa3bc] dark:text-slate-400">
                 <span class="flex items-center gap-1">
                   <Clock class="w-3 h-3" />
                   {{ formatDate(item.createdAt) }}
                 </span>
-                <span v-if="item.category" class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
+                <span v-if="item.category" class="badge-ai !bg-[#e1f5fe] !text-[#0277bd] dark:!bg-slate-700/40 dark:!text-[#7dd3fc]">{{ item.category }}</span>
               </div>
             </div>
             <button
               type="button"
-              class="shrink-0 rounded-xl p-2 text-[#f59e0b] hover:bg-[#fef3c7] transition-colors"
+              class="shrink-0 rounded-xl p-2 text-[#f59e0b] hover:bg-[#fef3c7] dark:hover:bg-yellow-800/30 transition-colors"
               title="取消收藏"
               @click.stop="handleRemoveFavorite(item.articleId)"
             >
@@ -218,15 +218,15 @@ onMounted(() => {
         <div v-if="favoritesPagination.total > favoritesPagination.pageSize" class="flex items-center justify-center gap-2 pt-4">
           <button
             :disabled="favoritesPagination.page <= 1"
-            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
             @click="loadFavorites(favoritesPagination.page - 1)"
           >
             上一页
           </button>
-          <span class="text-sm text-[#8aa3bc]">{{ favoritesPagination.page }} / {{ Math.ceil(favoritesPagination.total / favoritesPagination.pageSize) }}</span>
+          <span class="text-sm text-[#8aa3bc] dark:text-slate-400">{{ favoritesPagination.page }} / {{ Math.ceil(favoritesPagination.total / favoritesPagination.pageSize) }}</span>
           <button
             :disabled="favoritesPagination.page >= Math.ceil(favoritesPagination.total / favoritesPagination.pageSize)"
-            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
             @click="loadFavorites(favoritesPagination.page + 1)"
           >
             下一页
@@ -238,12 +238,12 @@ onMounted(() => {
     <!-- History Tab -->
     <div v-if="activeTab === 'history'" class="space-y-4">
       <div v-if="historyLoading" class="flex items-center justify-center py-16">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1]"></div>
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1] dark:border-[#38bdf8]"></div>
       </div>
       <div v-else-if="history.length === 0" class="glass-panel rounded-3xl p-12 text-center border shadow-sm">
-        <History class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc]" />
-        <h3 class="text-lg font-medium text-[#4f6b8a]">还没有浏览记录</h3>
-        <p class="text-sm text-[#8aa3bc] mt-1">浏览文章后，记录将自动出现在这里</p>
+        <History class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc] dark:text-slate-500" />
+        <h3 class="text-lg font-medium text-[#4f6b8a] dark:text-[#cbd5e1]">还没有浏览记录</h3>
+        <p class="text-sm text-[#8aa3bc] dark:text-slate-400 mt-1">浏览文章后，记录将自动出现在这里</p>
       </div>
       <div v-else class="space-y-2">
         <div
@@ -254,13 +254,13 @@ onMounted(() => {
         >
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1 min-w-0">
-              <h3 class="font-medium text-[#0f4069] line-clamp-1">{{ item.title }}</h3>
+              <h3 class="font-medium text-[#0f4069] dark:text-[#e2e8f0] line-clamp-1">{{ item.title }}</h3>
               <div class="flex items-center gap-3 mt-2 text-xs text-[#8aa3bc]">
                 <span class="flex items-center gap-1">
                   <Clock class="w-3 h-3" />
                   {{ formatDate(item.viewedAt) }}
                 </span>
-                <span v-if="item.category" class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
+                <span v-if="item.category" class="badge-ai !bg-[#e1f5fe] !text-[#0277bd] dark:!bg-slate-700/40 dark:!text-[#7dd3fc]">{{ item.category }}</span>
               </div>
             </div>
           </div>
@@ -268,15 +268,15 @@ onMounted(() => {
         <div v-if="historyPagination.total > historyPagination.pageSize" class="flex items-center justify-center gap-2 pt-4">
           <button
             :disabled="historyPagination.page <= 1"
-            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
             @click="loadHistory(historyPagination.page - 1)"
           >
             上一页
           </button>
-          <span class="text-sm text-[#8aa3bc]">{{ historyPagination.page }} / {{ Math.ceil(historyPagination.total / historyPagination.pageSize) }}</span>
+          <span class="text-sm text-[#8aa3bc] dark:text-slate-400">{{ historyPagination.page }} / {{ Math.ceil(historyPagination.total / historyPagination.pageSize) }}</span>
           <button
             :disabled="historyPagination.page >= Math.ceil(historyPagination.total / historyPagination.pageSize)"
-            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
             @click="loadHistory(historyPagination.page + 1)"
           >
             下一页
@@ -288,12 +288,12 @@ onMounted(() => {
     <!-- Feedback Tab -->
     <div v-if="activeTab === 'feedback'" class="space-y-4">
       <div v-if="feedbackLoading" class="flex items-center justify-center py-16">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1]"></div>
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1] dark:border-[#38bdf8]"></div>
       </div>
       <div v-else-if="feedback.length === 0" class="glass-panel rounded-3xl p-12 text-center border shadow-sm">
-        <MessageCircle class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc]" />
-        <h3 class="text-lg font-medium text-[#4f6b8a]">还没有反馈记录</h3>
-        <p class="text-sm text-[#8aa3bc] mt-1">在任意页面提交反馈后，记录将出现在这里</p>
+        <MessageCircle class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc] dark:text-slate-500" />
+        <h3 class="text-lg font-medium text-[#4f6b8a] dark:text-[#cbd5e1]">还没有反馈记录</h3>
+        <p class="text-sm text-[#8aa3bc] dark:text-slate-400 mt-1">在任意页面提交反馈后，记录将出现在这里</p>
       </div>
       <div v-else class="space-y-3">
         <div
@@ -306,26 +306,26 @@ onMounted(() => {
               <div class="flex items-center gap-2">
                 <span class="rounded-full px-2 py-0.5 text-xs font-medium"
                   :class="{
-                    'bg-[#ffebee] text-[#c62828]': item.type === 'bug',
-                    'bg-[#e1f5fe] text-[#0277bd]': item.type === 'ux',
-                    'bg-[#f3e5f5] text-[#6a1b9a]': item.type === 'content',
-                    'bg-[#e8f5e9] text-[#2e7d32]': item.type === 'other',
+                    'bg-[#ffebee] text-[#c62828] dark:bg-red-950/40 dark:text-red-300': item.type === 'bug',
+                    'bg-[#e1f5fe] text-[#0277bd] dark:bg-sky-950/40 dark:text-[#7dd3fc]': item.type === 'ux',
+                    'bg-[#f3e5f5] text-[#6a1b9a] dark:bg-purple-950/40 dark:text-purple-300': item.type === 'content',
+                    'bg-[#e8f5e9] text-[#2e7d32] dark:bg-green-950/40 dark:text-green-300': item.type === 'other',
                   }"
                 >
                   {{ { bug: '问题', ux: '体验', content: '内容', other: '其他' }[item.type] || item.type }}
                 </span>
                 <span class="rounded-full px-2 py-0.5 text-xs"
                   :class="{
-                    'bg-[#fff3e0] text-[#e65100]': item.status === 'pending',
-                    'bg-[#e8f5e9] text-[#2e7d32]': ['approved','verified','deployed'].includes(item.status),
-                    'bg-[#f5f5f5] text-[#616161]': ['wontfix','snoozed'].includes(item.status),
+                    'bg-[#fff3e0] text-[#e65100] dark:bg-orange-950/40 dark:text-orange-300': item.status === 'pending',
+                    'bg-[#e8f5e9] text-[#2e7d32] dark:bg-green-950/40 dark:text-green-300': ['approved','verified','deployed'].includes(item.status),
+                    'bg-[#f5f5f5] text-[#616161] dark:bg-slate-700 dark:text-slate-300': ['wontfix','snoozed'].includes(item.status),
                   }"
                 >
                   {{ { pending: '待处理', evaluating: '评估中', approved: '已批准', wontfix: '暂缓', snoozed: '已搁置', in_progress: '处理中', testing: '测试中', verified: '已验证', deployed: '部署中', failed_testing: '测试未过', reverted: '已回退', duplicate: '重复提交' }[item.status] || item.status }}
                 </span>
               </div>
-              <p class="mt-2 text-sm text-[#4f6b8a] break-words">{{ item.content }}</p>
-              <div v-if="item.adminNote" class="mt-2 rounded-xl bg-[#e1f5fe]/70 border border-[#b3e5fc] px-3 py-2 text-xs text-[#0277bd]">
+              <p class="mt-2 text-sm text-[#4f6b8a] dark:text-[#cbd5e1] break-words">{{ item.content }}</p>
+              <div v-if="item.adminNote" class="mt-2 rounded-xl bg-[#e1f5fe]/70 dark:bg-sky-900/30 border border-[#b3e5fc] dark:border-sky-700 px-3 py-2 text-xs text-[#0277bd] dark:text-[#7dd3fc]">
                 <span class="font-medium">处理说明：</span>{{ item.adminNote }}
               </div>
               <div class="mt-2 flex items-center gap-3 text-xs text-[#8aa3bc]">
@@ -338,15 +338,15 @@ onMounted(() => {
         <div v-if="feedbackPagination.total > feedbackPagination.pageSize" class="flex items-center justify-center gap-2 pt-4">
           <button
             :disabled="feedbackPagination.page <= 1"
-            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
             @click="loadFeedback(feedbackPagination.page - 1)"
           >
             上一页
           </button>
-          <span class="text-sm text-[#8aa3bc]">{{ feedbackPagination.page }} / {{ Math.ceil(feedbackPagination.total / feedbackPagination.pageSize) }}</span>
+          <span class="text-sm text-[#8aa3bc] dark:text-slate-400">{{ feedbackPagination.page }} / {{ Math.ceil(feedbackPagination.total / feedbackPagination.pageSize) }}</span>
           <button
             :disabled="feedbackPagination.page >= Math.ceil(feedbackPagination.total / feedbackPagination.pageSize)"
-            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+            class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
             @click="loadFeedback(feedbackPagination.page + 1)"
           >
             下一页
@@ -358,12 +358,12 @@ onMounted(() => {
     <!-- Conversations Tab -->
     <div v-if="activeTab === 'conversations'" class="space-y-4">
       <div v-if="conversationsLoading" class="flex items-center justify-center py-16">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1]"></div>
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1] dark:border-[#38bdf8]"></div>
       </div>
       <div v-else-if="conversations.length === 0" class="glass-panel rounded-3xl p-12 text-center border shadow-sm">
-        <MessageSquare class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc]" />
-        <h3 class="text-lg font-medium text-[#4f6b8a]">还没有对话历史</h3>
-        <p class="text-sm text-[#8aa3bc] mt-1">使用 AI 智能助手后，对话记录将出现在这里</p>
+        <MessageSquare class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc] dark:text-slate-500" />
+        <h3 class="text-lg font-medium text-[#4f6b8a] dark:text-[#cbd5e1]">还没有对话历史</h3>
+        <p class="text-sm text-[#8aa3bc] dark:text-slate-400 mt-1">使用 AI 智能助手后，对话记录将出现在这里</p>
       </div>
       <div v-else class="space-y-2">
         <div
@@ -372,24 +372,24 @@ onMounted(() => {
           class="glass-panel rounded-2xl border shadow-sm overflow-hidden"
         >
           <button
-            class="w-full flex items-center justify-between p-4 text-left hover:bg-[#f8fbfe] transition-colors"
+            class="w-full flex items-center justify-between p-4 text-left hover:bg-[#f8fbfe] dark:hover:bg-slate-800/40 transition-colors"
             @click="toggleConversationMessages(conv.id)"
           >
             <div class="flex-1 min-w-0">
-              <span class="font-medium text-[#0f4069] line-clamp-1 block">{{ conv.pageTitle || "未命名对话" }}</span>
-              <span class="text-xs text-[#8aa3bc] mt-0.5 block">{{ formatShortDate(conv.createdAt) }}</span>
+              <span class="font-medium text-[#0f4069] dark:text-[#e2e8f0] line-clamp-1 block">{{ conv.pageTitle || "未命名对话" }}</span>
+              <span class="text-xs text-[#8aa3bc] dark:text-slate-400 mt-0.5 block">{{ formatShortDate(conv.createdAt) }}</span>
             </div>
             <div class="shrink-0 ml-3">
               <div
-                class="w-5 h-5 rounded-full border-2 border-[#b3e5fc] flex items-center justify-center transition-transform"
+                class="w-5 h-5 rounded-full border-2 border-[#b3e5fc] dark:border-slate-600 flex items-center justify-center transition-transform"
                 :class="expandedConvId === conv.id ? 'rotate-180' : ''"
               >
-                <span class="text-xs text-[#8aa3bc]">▼</span>
+                <span class="text-xs text-[#8aa3bc] dark:text-slate-400">▼</span>
               </div>
             </div>
           </button>
-          <div v-if="expandedConvId === conv.id" class="border-t border-[#b3e5fc]/40 px-4 py-3 space-y-3 bg-[#f8fbfe]/60">
-            <div v-if="!conversationMessages[conv.id]" class="text-sm text-[#8aa3bc] text-center py-4">
+          <div v-if="expandedConvId === conv.id" class="border-t border-[#b3e5fc]/40 dark:border-slate-600/40 px-4 py-3 space-y-3 bg-[#f8fbfe]/60 dark:bg-slate-800/30">
+            <div v-if="!conversationMessages[conv.id]" class="text-sm text-[#8aa3bc] dark:text-slate-400 text-center py-4">
               加载中…
             </div>
             <div
@@ -406,7 +406,7 @@ onMounted(() => {
               </div>
               <div
                 v-else
-                class="max-w-[85%] rounded-2xl border border-[#d8edf9] bg-white px-3 py-2 text-sm text-[#355878]"
+                class="max-w-[85%] rounded-2xl border border-[#d8edf9] dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-[#355878] dark:text-slate-200"
               >
                 <div class="line-clamp-6">{{ msg.text }}</div>
               </div>

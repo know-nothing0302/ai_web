@@ -39,25 +39,25 @@ onMounted(() => {
 
 <template>
   <div class="max-w-4xl mx-auto space-y-6 pb-12">
-    <button @click="router.back()" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] transition-colors">
+    <button @click="router.back()" class="flex items-center gap-2 text-[#4f6b8a] hover:text-[#01579b] dark:text-[#cbd5e1] dark:hover:text-[#7dd3fc] transition-colors">
       <ArrowLeft class="w-4 h-4" />
       返回
     </button>
 
     <div class="flex items-center gap-3">
       <Trophy class="w-6 h-6 text-[#f59e0b]" />
-      <h1 class="text-2xl font-bold text-[#0f4069]">排行榜</h1>
-      <span class="text-sm text-[#8aa3bc]">按收藏数降序</span>
+      <h1 class="text-2xl font-bold text-[#0f4069] dark:text-[#e2e8f0]">排行榜</h1>
+      <span class="text-sm text-[#8aa3bc] dark:text-slate-400">按收藏数降序</span>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center py-16">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1]"></div>
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0288d1] dark:border-[#38bdf8]"></div>
     </div>
 
     <div v-else-if="items.length === 0" class="glass-panel rounded-3xl p-12 text-center border shadow-sm">
-      <Trophy class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc]" />
-      <h3 class="text-lg font-medium text-[#4f6b8a]">暂无排行数据</h3>
-      <p class="text-sm text-[#8aa3bc] mt-1">收藏文章后，排行将自动更新</p>
+      <Trophy class="w-12 h-12 mx-auto mb-4 text-[#b3e5fc] dark:text-slate-500" />
+      <h3 class="text-lg font-medium text-[#4f6b8a] dark:text-[#cbd5e1]">暂无排行数据</h3>
+      <p class="text-sm text-[#8aa3bc] dark:text-slate-400 mt-1">收藏文章后，排行将自动更新</p>
     </div>
 
     <div v-else class="space-y-3">
@@ -72,8 +72,8 @@ onMounted(() => {
           <div
             class="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold"
             :class="{
-              'bg-[#fef3c7] text-[#f59e0b]': idx >= 3,
-              'bg-[#e1f5fe] text-[#0288d1]': idx < 3,
+              'bg-[#fef3c7] text-[#f59e0b] dark:bg-yellow-800/30 dark:text-yellow-400': idx >= 3,
+              'bg-[#e1f5fe] text-[#0288d1] dark:bg-sky-900/40 dark:text-[#38bdf8]': idx < 3,
             }"
           >
             <template v-if="idx === 0">🥇</template>
@@ -83,14 +83,14 @@ onMounted(() => {
           </div>
 
           <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-[#0f4069] line-clamp-2">{{ item.title }}</h3>
-            <p v-if="item.summary" class="text-sm text-[#6e89a3] line-clamp-2 mt-1">{{ item.summary }}</p>
-            <div class="flex items-center gap-3 mt-3 text-xs text-[#8aa3bc]">
+            <h3 class="font-semibold text-[#0f4069] dark:text-[#e2e8f0] line-clamp-2">{{ item.title }}</h3>
+            <p v-if="item.summary" class="text-sm text-[#6e89a3] dark:text-slate-400 line-clamp-2 mt-1">{{ item.summary }}</p>
+            <div class="flex items-center gap-3 mt-3 text-xs text-[#8aa3bc] dark:text-slate-400">
               <span v-if="item.published_at" class="flex items-center gap-1">
                 <Clock class="w-3 h-3" />
                 {{ formatDate(item.published_at) }}
               </span>
-              <span v-if="item.category" class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
+              <span v-if="item.category" class="badge-ai !bg-[#e1f5fe] !text-[#0277bd] dark:!bg-slate-700/40 dark:!text-[#7dd3fc]">{{ item.category }}</span>
             </div>
           </div>
 
@@ -105,15 +105,15 @@ onMounted(() => {
       <div v-if="pagination.total > pagination.pageSize" class="flex items-center justify-center gap-2 pt-4">
         <button
           :disabled="pagination.page <= 1"
-          class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+          class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
           @click.stop="load(pagination.page - 1)"
         >
           上一页
         </button>
-        <span class="text-sm text-[#8aa3bc]">{{ pagination.page }} / {{ Math.ceil(pagination.total / pagination.pageSize) }}</span>
+        <span class="text-sm text-[#8aa3bc] dark:text-slate-400">{{ pagination.page }} / {{ Math.ceil(pagination.total / pagination.pageSize) }}</span>
         <button
           :disabled="pagination.page >= Math.ceil(pagination.total / pagination.pageSize)"
-          class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] transition-colors"
+          class="px-4 py-2 rounded-xl text-sm font-medium border border-[#b3e5fc] dark:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 transition-colors"
           @click.stop="load(pagination.page + 1)"
         >
           下一页
