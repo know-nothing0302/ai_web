@@ -271,23 +271,23 @@ watchEffect(() => {
     <section class="glass-panel relative z-20 overflow-visible rounded-3xl p-6 md:p-8 border shadow-sm">
       <div class="flex flex-col md:flex-row justify-between gap-6 mb-8">
         <div class="space-y-2 flex-1">
-          <p class="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.1em] uppercase text-[#0277bd] bg-[#e1f5fe] border border-[#81d4fa]/70 rounded-full px-3 py-1 mb-2">
+          <p class="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.1em] uppercase text-[#0277bd] dark:text-[#7dd3fc] bg-[#e1f5fe] dark:bg-sky-900/30 border border-[#81d4fa]/70 dark:border-sky-700/50 rounded-full px-3 py-1 mb-2">
             <Sparkles class="w-3.5 h-3.5" />
             医学与教育 AI 资讯门户
           </p>
-          <h1 class="text-3xl font-bold text-[#0f4069]">资讯发现</h1>
-          <p class="text-sm text-[#4f6b8a] max-w-2xl">聚合政策、科研、校内动态和学习资源，帮助你快速建立 AI 认知与行动路径。</p>
+          <h1 class="text-3xl font-bold text-[#0f4069] dark:text-[#e2e8f0]">资讯发现</h1>
+          <p class="text-sm text-[#4f6b8a] dark:text-[#cbd5e1] max-w-2xl">聚合政策、科研、校内动态和学习资源，帮助你快速建立 AI 认知与行动路径。</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 w-full md:w-[480px] min-w-0">
-          <div class="flex items-center h-12 rounded-2xl border border-[#81d4fa]/70 bg-white px-3 shadow-[0_0_0_3px_rgba(129,212,250,0.12)] focus-within:border-[#0288d1] focus-within:shadow-[0_0_0_4px_rgba(2,136,209,0.15)] transition-all">
-            <Search class="w-4 h-4 text-[#0288d1] mr-2 shrink-0" />
+          <div class="flex items-center h-12 rounded-2xl border border-[#81d4fa]/70 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 shadow-[0_0_0_3px_rgba(129,212,250,0.12)] dark:shadow-none focus-within:border-[#0288d1] dark:focus-within:border-sky-500 focus-within:shadow-[0_0_0_4px_rgba(2,136,209,0.15)] dark:focus-within:shadow-[0_0_0_4px_rgba(56,189,248,0.2)] transition-all">
+            <Search class="w-4 h-4 text-[#0288d1] dark:text-[#38bdf8] mr-2 shrink-0" />
             <input
               v-model="keyword"
               @keyup.enter="handleSearch"
               @focus="onSearchFocus"
               @blur="onSearchBlur"
-              class="w-full h-full bg-transparent border-0 outline-none text-sm text-[#355878] placeholder:text-[#7d97b1]"
+              class="w-full h-full bg-transparent border-0 outline-none text-sm text-[#355878] dark:text-slate-200 placeholder:text-[#7d97b1] dark:placeholder:text-slate-500"
               placeholder="搜索政策、医学AI..."
             />
           </div>
@@ -303,19 +303,19 @@ watchEffect(() => {
 
       <!-- Search History Chips -->
       <div v-if="isSearchFocused && searchHistory.length > 0" class="-mt-2 mb-4 flex flex-wrap items-center gap-2">
-        <span class="text-xs text-[#4f6b8a] mr-1">最近搜索：</span>
+        <span class="text-xs text-[#4f6b8a] dark:text-[#cbd5e1] mr-1">最近搜索：</span>
         <button
           v-for="term in searchHistory"
           :key="term"
           type="button"
-          class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-white/80 border border-[#81d4fa]/50 text-[#0288d1] hover:bg-[#e1f5fe] hover:border-[#0288d1] transition-colors"
+          class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-white/80 dark:bg-slate-800/80 border border-[#81d4fa]/50 dark:border-slate-600 text-[#0288d1] dark:text-[#38bdf8] hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 hover:border-[#0288d1] dark:hover:border-sky-500 transition-colors"
           @click="handleHistoryChipClick(term)"
         >
           {{ term }}
         </button>
         <button
           type="button"
-          class="text-xs text-[#8aa3bc] hover:text-[#4f6b8a] hover:underline ml-1 transition-colors"
+          class="text-xs text-[#8aa3bc] dark:text-slate-400 hover:text-[#4f6b8a] dark:hover:text-[#cbd5e1] hover:underline ml-1 transition-colors"
           @click="clearHistory"
         >
           清除历史
@@ -326,7 +326,7 @@ watchEffect(() => {
       <div class="flex flex-wrap gap-2 items-center">
         <button
           class="px-4 py-2 rounded-full text-sm font-medium transition-colors border"
-          :class="activeChannel === '' ? 'bg-[#0288d1] text-white border-[#0288d1] shadow-md shadow-[#0288d1]/30' : 'bg-white/60 text-[#4f6b8a] border-[#b3e5fc] hover:bg-[#e1f5fe] hover:text-[#01579b]'"
+          :class="activeChannel === '' ? 'bg-[#0288d1] text-white border-[#0288d1] shadow-md shadow-[#0288d1]/30' : 'bg-white/60 dark:bg-slate-800/60 text-[#4f6b8a] dark:text-[#cbd5e1] border-[#b3e5fc] dark:border-slate-600 hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 hover:text-[#01579b] dark:hover:text-[#7dd3fc]'"
           @click="openChannel(null)"
         >
           全部
@@ -336,10 +336,10 @@ watchEffect(() => {
           :key="channel.key"
           type="button"
           class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border"
-          :class="activeChannel === channel.key ? 'bg-[#0288d1] text-white border-[#0288d1] shadow-md shadow-[#0288d1]/30' : 'bg-white/60 text-[#4f6b8a] border-[#b3e5fc] hover:bg-[#e1f5fe] hover:text-[#01579b]'"
+          :class="activeChannel === channel.key ? 'bg-[#0288d1] text-white border-[#0288d1] shadow-md shadow-[#0288d1]/30' : 'bg-white/60 dark:bg-slate-800/60 text-[#4f6b8a] dark:text-[#cbd5e1] border-[#b3e5fc] dark:border-slate-600 hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 hover:text-[#01579b] dark:hover:text-[#7dd3fc]'"
           @click="openChannel(channel)"
         >
-          <component :is="channel.icon" class="w-3.5 h-3.5" :class="activeChannel === channel.key ? 'text-white' : 'text-[#0288d1]'" />
+          <component :is="channel.icon" class="w-3.5 h-3.5" :class="activeChannel === channel.key ? 'text-white' : 'text-[#0288d1] dark:text-[#38bdf8]'" />
           {{ channel.label }}
         </button>
       </div>
@@ -377,13 +377,13 @@ watchEffect(() => {
 
     <!-- Content Section -->
     <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0288d1]"></div>
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0288d1] dark:border-[#38bdf8]"></div>
     </div>
 
-    <div v-else-if="items.length === 0" class="glass-card py-16 text-center border border-[#81d4fa]/30">
+    <div v-else-if="items.length === 0" class="glass-card py-16 text-center border border-[#81d4fa]/30 dark:border-slate-600/30">
       <Sparkles class="w-10 h-10 text-[#4fc3f7] mx-auto mb-4 opacity-70" />
-      <h3 class="text-lg font-medium text-[#01579b]">没有找到相关资讯</h3>
-      <p class="text-sm text-[#4f6b8a] mt-2">尝试更换关键词、栏目或分类重新检索</p>
+      <h3 class="text-lg font-medium text-[#01579b] dark:text-[#7dd3fc]">没有找到相关资讯</h3>
+      <p class="text-sm text-[#4f6b8a] dark:text-[#cbd5e1] mt-2">尝试更换关键词、栏目或分类重新检索</p>
     </div>
 
     <div v-else class="space-y-6">
@@ -396,20 +396,20 @@ watchEffect(() => {
         :class="{ 'bg-read': readArticleIds.has(item.id) }"
       >
         <div class="flex items-center justify-between mb-4">
-          <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd]">{{ item.category }}</span>
+          <span class="badge-ai !bg-[#e1f5fe] !text-[#0277bd] dark:!bg-sky-900/40 dark:!text-[#7dd3fc]">{{ item.category }}</span>
         </div>
-        
-        <h3 class="text-[17px] font-semibold text-[#0f4069] mb-3 group-hover:text-[#0288d1] transition-colors line-clamp-2 leading-snug">
+
+        <h3 class="text-[17px] font-semibold text-[#0f4069] dark:text-[#e2e8f0] mb-3 group-hover:text-[#0288d1] dark:group-hover:text-[#38bdf8] transition-colors line-clamp-2 leading-snug">
           {{ getCardText(item.title) }}
         </h3>
-        
-        <p class="text-[#4f6b8a] text-[13px] mb-6 flex-grow line-clamp-3 leading-relaxed">
+
+        <p class="text-[#4f6b8a] dark:text-[#cbd5e1] text-[13px] mb-6 flex-grow line-clamp-3 leading-relaxed">
           {{ getCardText(item.summary) }}
         </p>
-        
-        <div class="flex items-center justify-between mt-auto pt-4 border-t border-[#b3e5fc]/40">
-          <span class="text-[11px] text-[#738ea6]">由 {{ item.author }} 发布</span>
-          <div class="flex items-center text-xs font-medium text-[#0288d1] opacity-0 group-hover:opacity-100 transition-opacity">
+
+        <div class="flex items-center justify-between mt-auto pt-4 border-t border-[#b3e5fc]/40 dark:border-slate-600/40">
+          <span class="text-[11px] text-[#738ea6] dark:text-slate-400">由 {{ item.author }} 发布</span>
+          <div class="flex items-center text-xs font-medium text-[#0288d1] dark:text-[#38bdf8] opacity-0 group-hover:opacity-100 transition-opacity">
             阅读全文 <ArrowRight class="w-3.5 h-3.5 ml-1" />
           </div>
         </div>
@@ -420,13 +420,13 @@ watchEffect(() => {
         v-if="items.length > pageSize"
         class="glass-panel rounded-2xl border px-4 py-3 flex items-center justify-between"
       >
-        <p class="text-sm text-[#4f6b8a]">
+        <p class="text-sm text-[#4f6b8a] dark:text-[#cbd5e1]">
           共 {{ items.length }} 条，当前第 {{ currentPage }} / {{ totalPages }} 页
         </p>
         <div class="flex items-center gap-2">
           <button
             type="button"
-            class="p-2 rounded-lg border border-[#81d4fa] text-[#0288d1] hover:bg-[#e1f5fe] disabled:opacity-50 disabled:cursor-not-allowed"
+            class="p-2 rounded-lg border border-[#81d4fa] dark:border-slate-600 text-[#0288d1] dark:text-[#38bdf8] hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="currentPage === 1"
             @click="goPrevPage"
           >
@@ -434,7 +434,7 @@ watchEffect(() => {
           </button>
           <button
             type="button"
-            class="p-2 rounded-lg border border-[#81d4fa] text-[#0288d1] hover:bg-[#e1f5fe] disabled:opacity-50 disabled:cursor-not-allowed"
+            class="p-2 rounded-lg border border-[#81d4fa] dark:border-slate-600 text-[#0288d1] dark:text-[#38bdf8] hover:bg-[#e1f5fe] dark:hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="currentPage === totalPages"
             @click="goNextPage"
           >
