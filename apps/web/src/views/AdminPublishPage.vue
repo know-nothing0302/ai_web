@@ -112,11 +112,10 @@ const prevPage = () => {
 const checkAccess = async (): Promise<boolean> => {
   try {
     const user = await getCurrentUser();
-    const allowList = new Set(["100002013029"]);
     const userId = user?.id?.trim() ?? "";
     const username = user?.username?.trim() ?? "";
     currentUserId.value = userId || username;
-    if (!user || (!allowList.has(userId) && !allowList.has(username))) {
+    if (!user || user.role !== "admin") {
       message.value = "无权限访问内容发布，请联系管理员开通";
       accessDenied.value = true;
       return false;

@@ -1105,23 +1105,36 @@ export const pushService = {
     });
 
     try {
-      const sendResult = await wecomClient.sendNewsNoticeCardToUsers(
-        {
-          userIds: targetUserIds,
-          ...messageContext,
-        },
-        "push"
-      );
+      const BATCH_SIZE = 1000;
+      const userIdBatches = chunk(targetUserIds, BATCH_SIZE);
+
+      let allInvalidUserIds: string[] = [];
+      let lastMsgid: string | undefined;
+      let lastResponseCode: string | undefined;
+
+      for (const batch of userIdBatches) {
+        const sendResult = await wecomClient.sendNewsNoticeCardToUsers(
+          {
+            userIds: batch,
+            ...messageContext,
+          },
+          "push"
+        );
+        allInvalidUserIds = allInvalidUserIds.concat(sendResult.invalidUserIds);
+        lastMsgid = sendResult.result.msgid;
+        lastResponseCode = sendResult.result.response_code;
+      }
+
       await pushRecordStore.markSuccess(record.id, {
-        retryCount: sendResult.attempt - 1,
-        wecomErrcode: sendResult.result.errcode,
-        wecomErrmsg: sendResult.result.errmsg,
-        wecomMsgid: sendResult.result.msgid,
-        responseCode: sendResult.result.response_code,
+        retryCount: 0,
+        wecomErrcode: 0,
+        wecomErrmsg: "ok",
+        wecomMsgid: lastMsgid,
+        responseCode: lastResponseCode,
         responsePayload: {
-          request: sendResult.payload,
-          response: sendResult.result,
-          invalidUserIds: sendResult.invalidUserIds,
+          batchCount: userIdBatches.length,
+          batchSizes: userIdBatches.map((b) => b.length),
+          invalidUserIds: allInvalidUserIds,
         },
       });
       await recordAnalyticsEventSafely({
@@ -1135,7 +1148,8 @@ export const pushService = {
           deliveryMode: "batch_user",
           targetGroup: input.targetGroup,
           targetCount: targetUserIds.length,
-          invalidUserIds: sendResult.invalidUserIds,
+          batchCount: userIdBatches.length,
+          invalidUserIds: allInvalidUserIds,
         },
       });
       logger.info("push.targeted.success", {
@@ -1144,15 +1158,16 @@ export const pushService = {
         channelCode: article.channelCode,
         targetGroup: input.targetGroup,
         targetCount: targetUserIds.length,
-        msgid: sendResult.result.msgid,
+        batchCount: userIdBatches.length,
+        msgid: lastMsgid,
       });
       return {
         recordId: record.id,
         qywxUserId: `targeted:${input.targetGroup}`,
         deliveryMode: "batch_user",
         status: "success",
-        wecomMsgid: sendResult.result.msgid,
-        responseCode: sendResult.result.response_code,
+        wecomMsgid: lastMsgid,
+        responseCode: lastResponseCode,
       };
     } catch (error) {
       await pushRecordStore.markFailed(record.id, {
