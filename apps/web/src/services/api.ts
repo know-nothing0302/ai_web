@@ -125,6 +125,7 @@ export interface FeedbackEvaluation {
   alignment: string;
   suggestedAction: string;
   suggestion: string;
+  detailedAnalysis?: string;
   evaluatedAt: string;
 }
 
