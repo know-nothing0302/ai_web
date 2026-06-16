@@ -407,6 +407,7 @@ const internalEvaluationSchema = z.object({
     alignment: z.string().min(1),
     suggested_action: z.string().min(1),
     suggestion: z.string().optional(),
+    detailed_analysis: z.string().optional(),
   })).min(1),
 });
 
@@ -432,8 +433,8 @@ feedbackRouter.post(
 
         for (const item of parsed.data.evaluations) {
           await client.query(
-            `INSERT INTO feedback_evaluations (feedback_id, eval_type, severity, fix_scope, alignment, suggested_action, suggestion)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO feedback_evaluations (feedback_id, eval_type, severity, fix_scope, alignment, suggested_action, suggestion, detailed_analysis)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              ON CONFLICT (feedback_id) DO UPDATE SET
                eval_type = EXCLUDED.eval_type,
                severity = EXCLUDED.severity,
@@ -441,8 +442,9 @@ feedbackRouter.post(
                alignment = EXCLUDED.alignment,
                suggested_action = EXCLUDED.suggested_action,
                suggestion = EXCLUDED.suggestion,
+               detailed_analysis = EXCLUDED.detailed_analysis,
                evaluated_at = NOW()`,
-            [item.feedback_id, item.eval_type, item.severity, item.fix_scope, item.alignment, item.suggested_action, item.suggestion ?? null]
+            [item.feedback_id, item.eval_type, item.severity, item.fix_scope, item.alignment, item.suggested_action, item.suggestion ?? null, item.detailed_analysis ?? null]
           );
           inserted++;
 

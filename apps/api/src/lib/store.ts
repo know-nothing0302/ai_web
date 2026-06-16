@@ -220,6 +220,7 @@ interface FeedbackEntryWithEvalRow extends FeedbackEntryRow {
   alignment: string | null;
   suggested_action: string | null;
   suggestion: string | null;
+  detailed_analysis: string | null;
   evaluated_at: string | null;
 }
 
@@ -338,6 +339,7 @@ const mapFeedbackEntry = (row: FeedbackEntryRow | FeedbackEntryWithEvalRow): Fee
         alignment: evalRow.alignment!,
         suggestedAction: evalRow.suggested_action!,
         suggestion: evalRow.suggestion!,
+        detailedAnalysis: evalRow.detailed_analysis ?? undefined,
         evaluatedAt: evalRow.evaluated_at!,
       },
     };
@@ -1954,7 +1956,7 @@ export const feedbackStore = {
           fe.page_route, fe.page_title, fe.source, fe.status,
           fe.admin_note, fe.created_at,
           ev.eval_type, ev.severity, ev.fix_scope, ev.alignment,
-          ev.suggested_action, ev.suggestion, ev.evaluated_at
+          ev.suggested_action, ev.suggestion, ev.detailed_analysis, ev.evaluated_at
         FROM feedback_entries fe
         LEFT JOIN LATERAL (
           SELECT *

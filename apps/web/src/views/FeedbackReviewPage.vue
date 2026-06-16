@@ -9,6 +9,21 @@ import {
 } from "../services/api";
 import { canAccessAdminViews } from "../services/api";
 
+// --- Simple Markdown renderer (for AI evaluation detailed_analysis) ---
+const renderMarkdown = (md: string): string => {
+  if (!md) return "";
+  let html = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  html = html.replace(/^### (.+)$/gm, "<h4 class='font-semibold text-[#0f4069] mt-3 mb-1'>$1</h4>");
+  html = html.replace(/^## (.+)$/gm, "<h3 class='font-bold text-[#0f4069] mt-3 mb-1'>$1</h3>");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong class='text-[#0f4069]'>$1</strong>");
+  html = html.replace(/^- (.+)$/gm, "<li class='ml-3'>$1</li>");
+  html = html.replace(/\n/g, "<br>");
+  return html;
+};
+
 // --- Constants ---
 const PAGE_SIZES = [20, 50, 100];
 const pageSize = ref(20);
@@ -490,12 +505,13 @@ onMounted(async () => {
               <p><span class="text-[#6e89a3]">用户：</span>{{ item.userId }}</p>
               <p><span class="text-[#6e89a3]">提交时间：</span>{{ formatDateTime(item.createdAt) }}</p>
               <div v-if="item.evaluation" class="mt-2 rounded-xl bg-[#f8fbfe] p-3">
-                <p class="font-medium text-[#0f4069]">评估详情</p>
+                <p class="font-medium text-[#0f4069]">AI 评估报告</p>
                 <p>类型：{{ item.evaluation.evalType }}</p>
                 <p>严重级别：{{ severityLabel(item.evaluation.severity) }}</p>
                 <p>修改范围：{{ fixScopeLabel(item.evaluation.fixScope) }}</p>
                 <p>对齐度：{{ alignmentLabel(item.evaluation.alignment) }}</p>
                 <p>建议操作：{{ item.evaluation.suggestedAction }}</p>
+                <div v-if="item.evaluation.detailedAnalysis" class="mt-2 p-3 rounded-lg bg-white dark:bg-slate-800/50 text-xs leading-relaxed whitespace-pre-wrap" v-html="renderMarkdown(item.evaluation.detailedAnalysis)" />
               </div>
             </div>
           </div>
