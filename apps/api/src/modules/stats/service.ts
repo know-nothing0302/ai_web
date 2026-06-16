@@ -22,7 +22,7 @@ export const statsService = {
     endAt?: string;
     channelCode?: string;
   }): Promise<StatsOverview> {
-    const [pv, uv, articleViews, articlesPublished, pushSuccess, pushFailed, feedbackCount] =
+    const [pv, uv, articleViews, articlesPublished, feedbackCount] =
       await Promise.all([
         analyticsEventStore.countByEventName({
           eventName: "page_view",
@@ -44,23 +44,28 @@ export const statsService = {
           channelCode: input.channelCode,
         }),
         analyticsEventStore.countByEventName({
-          eventName: "push_sent",
-          startAt: input.startAt,
-          endAt: input.endAt,
-          channelCode: input.channelCode,
-        }),
-        analyticsEventStore.countByEventName({
-          eventName: "push_failed",
-          startAt: input.startAt,
-          endAt: input.endAt,
-          channelCode: input.channelCode,
-        }),
-        analyticsEventStore.countByEventName({
           eventName: "feedback_created",
           startAt: input.startAt,
           endAt: input.endAt,
         }),
       ]);
+
+    const pushResult = await query<{ sent: string; failed: string }>(
+      `SELECT
+         COALESCE(SUM(CASE WHEN event_name = 'push_sent'
+           THEN COALESCE((event_payload->>'targetCount')::int, 1)
+           ELSE 0 END), 0)::text AS sent,
+         COALESCE(SUM(CASE WHEN event_name = 'push_failed'
+           THEN COALESCE((event_payload->>'targetCount')::int, 1)
+           ELSE 0 END), 0)::text AS failed
+       FROM analytics_events
+       WHERE event_name IN ('push_sent', 'push_failed')
+         AND ($1::timestamptz IS NULL OR occurred_at >= $1::timestamptz)
+         AND ($2::timestamptz IS NULL OR occurred_at <= $2::timestamptz)`,
+      [input.startAt || null, input.endAt || null]
+    );
+    const pushSuccess = Number(pushResult.rows[0]?.sent ?? 0);
+    const pushFailed = Number(pushResult.rows[0]?.failed ?? 0);
 
     const pushTotal = pushSuccess + pushFailed;
 

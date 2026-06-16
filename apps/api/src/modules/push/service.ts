@@ -1199,6 +1199,9 @@ export const pushService = {
           targetCount: targetUserIds.length,
           batchCount: userIdBatches.length,
           invalidUserIds: allInvalidUserIds,
+          totalFromUsers: allTargetUserIds.length,
+          excludedAlreadySent: alreadyPushed.length,
+          excludedAlreadyRead: alreadyReadIds.length,
         },
       });
       logger.info("push.targeted.success", {
