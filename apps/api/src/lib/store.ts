@@ -1880,6 +1880,46 @@ export const pushRecordStore = {
   },
 };
 
+interface PushDeliveryRow {
+  id: string;
+  push_record_id: string;
+  article_id: string;
+  user_id: string;
+  status: 'sent' | 'invalid';
+  created_at: string;
+}
+
+export const pushDeliveryStore = {
+  async insertBatch(records: Array<{
+    pushRecordId: string;
+    articleId: string;
+    userId: string;
+    status: 'sent' | 'invalid';
+  }>): Promise<void> {
+    if (records.length === 0) return;
+    const values: unknown[] = [];
+    const placeholders: string[] = [];
+    records.forEach((r, i) => {
+      const base = i * 4;
+      values.push(r.pushRecordId, r.articleId, r.userId, r.status);
+      placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`);
+    });
+    await query(
+      `INSERT INTO push_deliveries (push_record_id, article_id, user_id, status)
+       VALUES ${placeholders.join(', ')}`,
+      values
+    );
+  },
+
+  async listUserIdsByArticle(articleId: string): Promise<string[]> {
+    const result = await query<{ user_id: string }>(
+      `SELECT DISTINCT user_id FROM push_deliveries WHERE article_id = $1`,
+      [articleId]
+    );
+    return result.rows.map(r => r.user_id);
+  },
+};
+
 export const feedbackStore = {
   async create(input: {
     userId: string;

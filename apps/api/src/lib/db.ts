@@ -349,6 +349,18 @@ CREATE TABLE IF NOT EXISTS reading_history (
 );
 CREATE INDEX IF NOT EXISTS idx_reading_history_user_time ON reading_history(user_id, viewed_at DESC);
 
+-- 推送逐人投递追踪
+CREATE TABLE IF NOT EXISTS push_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  push_record_id UUID NOT NULL REFERENCES push_records(id) ON DELETE CASCADE,
+  article_id UUID NOT NULL,
+  user_id VARCHAR(64) NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'invalid')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_push_deliveries_article_user ON push_deliveries(article_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_push_deliveries_push_record ON push_deliveries(push_record_id);
+
 -- 反馈点赞
 CREATE TABLE IF NOT EXISTS feedback_likes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

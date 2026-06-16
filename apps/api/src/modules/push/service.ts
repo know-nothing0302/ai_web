@@ -1,7 +1,9 @@
 import { env } from "../../config/env";
+import { query } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import {
   articleStore,
+  pushDeliveryStore,
   pushRecordStore,
   recordAnalyticsEventSafely,
   subscriptionStore,
@@ -1066,22 +1068,44 @@ export const pushService = {
       throw new Error(`文章 ${input.articleId} 不存在`);
     }
 
-    const allUserIds = await subscriptionStore.listAllEnabledUserIds();
+    // --- 数据源：users 表直查 ---
+    const result = await query<{ xh: string }>(
+      input.targetGroup === 'teachers'
+        ? `SELECT xh FROM users WHERE user_type = 'jzg'`
+        : `SELECT xh FROM users WHERE user_type IN ('bks', 'yjs')`
+    );
+    const allTargetUserIds = result.rows.map(r => r.xh);
 
-    const isTeacherId = (id: string): boolean => id.startsWith("10000");
-    const isStudentId = (id: string): boolean => {
-      const first = id.charAt(0);
-      return first === "2" || first === "3" || first === "5";
-    };
-
-    const filterFn = input.targetGroup === "teachers" ? isTeacherId : isStudentId;
-    const targetLabel = input.targetGroup === "teachers" ? "教师" : "学生";
-    const targetUserIds = allUserIds.filter(filterFn);
-
-    if (targetUserIds.length === 0) {
-      throw new Error(`未找到${targetLabel}用户的企微订阅记录`);
+    if (allTargetUserIds.length === 0) {
+      const targetLabel = input.targetGroup === 'teachers' ? '教师' : '学生';
+      throw new Error(`users 表未找到${targetLabel}用户`);
     }
 
+    // --- 去重：已推送 + 已阅读 + 旧订阅教师（过渡期）---
+    const alreadyPushed = await pushDeliveryStore.listUserIdsByArticle(article.id);
+
+    const alreadyRead = await query<{ user_id: string }>(
+      `SELECT DISTINCT user_id FROM reading_history WHERE article_id = $1`,
+      [article.id]
+    );
+    const alreadyReadIds = alreadyRead.rows.map(r => r.user_id);
+
+    // TODO: 移除——首个过渡期完成后可删
+    const oldSubTeachers = input.targetGroup === 'teachers'
+      ? await query<{ qywx_user_id: string }>(
+          `SELECT qywx_user_id FROM subscriptions WHERE enabled = TRUE AND qywx_user_id LIKE '10000%'`
+        ).then(r => r.rows.map(row => row.qywx_user_id))
+      : [];
+
+    const excludeSet = new Set([...alreadyPushed, ...alreadyReadIds, ...oldSubTeachers]);
+    const targetUserIds = allTargetUserIds.filter(id => !excludeSet.has(id));
+
+    if (targetUserIds.length === 0) {
+      const targetLabel = input.targetGroup === 'teachers' ? '教师' : '学生';
+      throw new Error(`所有${targetLabel}用户已推送过此文或已阅读，无需重复推送`);
+    }
+
+    const targetLabel = input.targetGroup === 'teachers' ? '教师' : '学生';
     const messageContext = buildMessageContext({
       article,
       title: input.title || article.title,
@@ -1106,13 +1130,15 @@ export const pushService = {
 
     try {
       const BATCH_SIZE = 1000;
+      const BATCH_DELAY_MS = input.targetGroup === 'students' ? 3000 : 0;
       const userIdBatches = chunk(targetUserIds, BATCH_SIZE);
 
       let allInvalidUserIds: string[] = [];
       let lastMsgid: string | undefined;
       let lastResponseCode: string | undefined;
 
-      for (const batch of userIdBatches) {
+      for (let i = 0; i < userIdBatches.length; i++) {
+        const batch = userIdBatches[i];
         const sendResult = await wecomClient.sendNewsNoticeCardToUsers(
           {
             userIds: batch,
@@ -1123,6 +1149,29 @@ export const pushService = {
         allInvalidUserIds = allInvalidUserIds.concat(sendResult.invalidUserIds);
         lastMsgid = sendResult.result.msgid;
         lastResponseCode = sendResult.result.response_code;
+
+        // 逐人投递追踪
+        const sentUserIds = batch.filter(id => !sendResult.invalidUserIds.includes(id));
+        const invalidUserIds = sendResult.invalidUserIds;
+        await pushDeliveryStore.insertBatch([
+          ...sentUserIds.map(uid => ({
+            pushRecordId: record.id,
+            articleId: article.id,
+            userId: uid,
+            status: 'sent' as const,
+          })),
+          ...invalidUserIds.map(uid => ({
+            pushRecordId: record.id,
+            articleId: article.id,
+            userId: uid,
+            status: 'invalid' as const,
+          })),
+        ]);
+
+        // 学生批间延迟，防止企微 API 限流
+        if (BATCH_DELAY_MS > 0 && i < userIdBatches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+        }
       }
 
       await pushRecordStore.markSuccess(record.id, {
@@ -1155,9 +1204,11 @@ export const pushService = {
       logger.info("push.targeted.success", {
         recordId: record.id,
         articleId: article.id,
-        channelCode: article.channelCode,
         targetGroup: input.targetGroup,
-        targetCount: targetUserIds.length,
+        totalFromUsers: allTargetUserIds.length,
+        excludedAlreadySent: alreadyPushed.length,
+        excludedAlreadyRead: alreadyReadIds.length,
+        finalTargetCount: targetUserIds.length,
         batchCount: userIdBatches.length,
         msgid: lastMsgid,
       });
