@@ -39,6 +39,7 @@ export interface Article {
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;
+  viewCount?: number;
 }
 
 export type SubscriptionFrequency = "daily" | "weekly" | "instant";

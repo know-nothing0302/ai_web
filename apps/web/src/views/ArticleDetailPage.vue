@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Copy, Check, } from "lucide-vue-next";
+import { ArrowLeft, Clock, User, Hash, Sparkles, Link, Copy, Check, Eye } from "lucide-vue-next";
 
 import { buildArticleDetailContext, setPageAgentContext } from "../page_agent/context";
 import {
@@ -11,7 +11,6 @@ import {
   addFavorite,
   removeFavorite,
   reportReadingHistory,
-  submitFeedback,
   type Article,
 } from "../services/api";
 import { renderMarkdown } from "../shared/markdown";
@@ -24,23 +23,6 @@ const item = ref<Article | null>(null);
 const loading = ref(false);
 const isFavorited = ref(false);
 const favoriting = ref(false);
-const linkReported = ref(false);
-
-const reportBrokenLink = async (): Promise<void> => {
-  if (!item.value?.originalUrl) return;
-  try {
-    await submitFeedback({
-      type: "bug",
-      content: `[链接失效] 文章「${item.value.title}」的原文链接无法访问：${item.value.originalUrl}`,
-      pageRoute: route.fullPath,
-      pageTitle: document.title || item.value.title,
-    });
-    linkReported.value = true;
-  } catch {
-    // silent — user can retry
-  }
-};
-
 const parsedContent = computed(() => {
   if (!item.value?.content) return "";
   return renderMarkdown(item.value.content);
@@ -481,6 +463,10 @@ onBeforeUnmount(() => {
             <Clock class="w-4 h-4 text-[#0288d1]/70" />
             {{ formatDate(item.publishedAt) }}
           </span>
+          <span class="flex items-center gap-1.5">
+            <Eye class="w-4 h-4 text-[#0288d1]/70" />
+            {{ (item.viewCount ?? 0).toLocaleString() }} 次浏览
+          </span>
           <a
             v-if="item.originalUrl"
             :href="item.originalUrl"
@@ -490,18 +476,7 @@ onBeforeUnmount(() => {
           >
              <Link class="w-3.5 h-3.5 opacity-80" />
              查看原文
-             <span class="text-[10px] text-[#8aa3bc] dark:text-slate-400 font-normal">（外部链接）</span>
           </a>
-          <button
-            v-if="item.originalUrl && !linkReported"
-            type="button"
-            class="text-[10px] text-[#8aa3bc] dark:text-slate-400 hover:text-[#c62828] dark:hover:text-red-400 hover:underline transition-colors"
-            title="反馈链接失效"
-            @click="reportBrokenLink"
-          >
-            链接失效？
-          </button>
-          <span v-else-if="linkReported" class="text-[10px] text-[#4caf50]">已反馈，感谢</span>
           <span v-if="!item.originalUrl" class="flex items-center gap-1.5 text-[#8aa3bc] dark:text-slate-400">
             <Link class="w-4 h-4 opacity-60" />
             未提供原文链接

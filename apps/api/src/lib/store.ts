@@ -48,6 +48,7 @@ interface ArticleRow {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  view_count?: string | null;
 }
 
 interface SubscriptionRow {
@@ -274,6 +275,7 @@ const mapArticle = (row: ArticleRow): Article => ({
   publishedAt: row.published_at ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  viewCount: row.view_count != null ? Number(row.view_count) : undefined,
 });
 
 const mapSubscription = (row: SubscriptionRow): Subscription => ({
@@ -595,9 +597,16 @@ export const articleStore = {
         articles.author,
         articles.published_at,
         articles.created_at,
-        articles.updated_at
+        articles.updated_at,
+        COALESCE(vc.cnt, 0)::text AS view_count
       FROM articles
       LEFT JOIN article_channels channels ON channels.code = articles.channel_code
+      LEFT JOIN (
+        SELECT article_id, COUNT(*) AS cnt
+        FROM analytics_events
+        WHERE event_name = 'article_view' AND article_id = $1
+        GROUP BY article_id
+      ) vc ON articles.id = vc.article_id
       WHERE articles.id = $1
       LIMIT 1
       `,

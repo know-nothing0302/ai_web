@@ -24,6 +24,7 @@ export interface Article {
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;
+  viewCount?: number;
 }
 
 export interface Subscription {
