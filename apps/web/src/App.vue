@@ -50,6 +50,8 @@ const hideAdminDropdown = () => {
   }, 200);
 };
 const pageAgentOpen = ref(false);
+const pageAgentMinimized = ref(false);
+const pageAgentHasUnreadReply = ref(false);
 const pageAgentQuestion = ref("");
 const pageAgentLoading = ref(false);
 const pageAgentMessages = ref<PageAgentMessage[]>([]);
@@ -81,6 +83,8 @@ routerInstance.beforeEach((to) => {
 
 const triggerAgent = (): void => {
   pageAgentOpen.value = true;
+  pageAgentMinimized.value = false;
+  pageAgentHasUnreadReply.value = false;
 };
 
 onMounted(() => {
@@ -177,6 +181,7 @@ const submitPageAgentQuestion = async (): Promise<void> => {
   }
   const token = Date.now();
   pageAgentRequestToken.value = token;
+  pageAgentHasUnreadReply.value = false;
   appendUserMessage(text);
   pageAgentQuestion.value = "";
   pageAgentLoading.value = true;
@@ -231,6 +236,9 @@ const submitPageAgentQuestion = async (): Promise<void> => {
             };
           }
           pageAgentLoading.value = false;
+          if (pageAgentMinimized.value) {
+            pageAgentHasUnreadReply.value = true;
+          }
           if (!pageAgentTitleSet.value) {
             pageAgentTitleSet.value = true;
             updatePageAgentConversationTitle(conversationId, text.slice(0, 30))
@@ -584,6 +592,8 @@ watch(
     <!-- 底部悬浮 AI 助手入口 -->
     <PageAgentPanel
       :visible="pageAgentOpen"
+      :minimized="pageAgentMinimized"
+      :has-unread-reply="pageAgentHasUnreadReply"
       :loading="pageAgentLoading"
       :question="pageAgentQuestion"
       :messages="pageAgentMessages"
@@ -592,7 +602,9 @@ watch(
       :conversations-has-more="pageAgentConversationsHasMore"
       :verbosity="pageAgentVerbosity"
       :page-type="currentPageAgentContext?.pageType"
-      @close="pageAgentOpen = false; pageAgentConversations = []; pageAgentConversationsHasMore = false; pageAgentMessages = []; pageAgentConversationId = ''; pageAgentTitleSet = false"
+      @close="pageAgentOpen = false; pageAgentMinimized = false; pageAgentHasUnreadReply = false; pageAgentConversations = []; pageAgentConversationsHasMore = false; pageAgentMessages = []; pageAgentConversationId = ''; pageAgentTitleSet = false"
+      @minimize="pageAgentMinimized = true"
+      @expand="pageAgentMinimized = false; pageAgentHasUnreadReply = false"
       @submit="submitPageAgentQuestion"
       @stop="stopPageAgentRequest"
       @copy="copyPageAgentMessage"

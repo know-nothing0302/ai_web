@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { ArrowUp, Square, X, MessageSquare, Plus, Search, Zap, BookOpen, Star, Share2 } from "lucide-vue-next";
+import { ArrowUp, Square, X, MessageSquare, Plus, Search, Zap, BookOpen, Star, Share2, Minimize2, ChevronUp } from "lucide-vue-next";
 
 import { type PageAgentConversation, type PageAgentMessage } from "../page_agent/types";
 import { renderMarkdown } from "../shared/markdown";
 
 const props = defineProps<{
   visible: boolean;
+  minimized: boolean;
+  hasUnreadReply: boolean;
   loading: boolean;
   question: string;
   messages: PageAgentMessage[];
@@ -19,6 +21,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
+  minimize: [];
+  expand: [];
   submit: [];
   stop: [];
   copy: [value: string];
@@ -156,7 +160,8 @@ const filterOptions = [
 </script>
 
 <template>
-  <div v-if="visible" class="fixed inset-x-0 bottom-5 z-[60] flex justify-center px-4 pointer-events-none">
+  <!-- Full panel -->
+  <div v-if="visible && !minimized" class="fixed inset-x-0 bottom-5 z-[60] flex justify-center px-4 pointer-events-none">
     <section
       class="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-[24px] border border-[#81d4fa]/55 dark:border-sky-700/50 bg-white/96 dark:bg-slate-800/96 shadow-[0_20px_48px_-28px_rgba(2,136,209,0.38)] dark:shadow-[0_20px_48px_-28px_rgba(0,0,0,0.5)] backdrop-blur-xl"
     >
@@ -181,6 +186,14 @@ const filterOptions = [
             >
               <Plus class="h-3.5 w-3.5" />
               新建对话
+            </button>
+            <button
+              type="button"
+              class="rounded-xl p-2 text-[#6b86a0] dark:text-slate-400 transition-colors hover:bg-[#eaf7ff] dark:hover:bg-slate-700/50 hover:text-[#01579b] dark:hover:text-[#7dd3fc]"
+              title="最小化"
+              @click="emit('minimize')"
+            >
+              <Minimize2 class="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -380,4 +393,59 @@ const filterOptions = [
       </div>
     </section>
   </div>
+
+  <!-- Minimized floating bar -->
+  <div v-if="visible && minimized" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
+    <div class="pointer-events-auto relative group">
+      <!-- glow -->
+      <div
+        class="absolute -inset-1 bg-gradient-to-r from-[#b3e5fc] to-[#81d4fa] rounded-full blur transition-all duration-700 opacity-35 animate-[page-agent-breathe_3.2s_ease-in-out_infinite]"
+      ></div>
+      <!-- pill -->
+      <div class="relative flex items-center gap-2.5 px-4 py-2.5 rounded-full border border-[#0288d1]/25 bg-white/96 dark:bg-slate-800/96 backdrop-blur-xl shadow-[0_20px_48px_-28px_rgba(2,136,209,0.38)] dark:shadow-[0_20px_48px_-28px_rgba(0,0,0,0.5)]">
+        <!-- icon + label -->
+        <span class="text-xs font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#0288d1] to-[#01579b] whitespace-nowrap">AI在徐医 · 问答</span>
+
+        <!-- status badge -->
+        <span
+          v-if="loading"
+          class="flex items-center gap-1 rounded-full bg-[#e1f5fe] dark:bg-sky-900/50 px-2 py-0.5 text-[10px] font-medium text-[#0288d1] dark:text-[#38bdf8]"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-[#0288d1] dark:bg-[#38bdf8] animate-pulse"></span>
+          回答中
+        </span>
+        <span
+          v-else-if="hasUnreadReply"
+          class="flex items-center gap-1 rounded-full bg-[#fff3e0] dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-[#e65100] dark:text-[#fbbf24]"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-[#e65100] dark:bg-[#fbbf24]"></span>
+          新回复
+        </span>
+
+        <!-- expand button -->
+        <button
+          type="button"
+          class="ml-1 flex items-center justify-center w-6 h-6 rounded-full bg-[#0288d1] text-white transition-colors hover:bg-[#0277bd]"
+          title="展开"
+          @click="emit('expand')"
+        >
+          <ChevronUp class="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+@keyframes page-agent-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.32;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.42;
+  }
+}
+</style>
