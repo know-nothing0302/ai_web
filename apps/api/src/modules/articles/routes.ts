@@ -23,7 +23,7 @@ import {
 import { optimizeArticleDraft } from "./ai_optimize_service";
 import { extractArticleFromUrl } from "./url_extract_service";
 
-const originalUrlSchema = z.string().trim().url().max(1000).optional();
+const originalUrlSchema = z.string().trim().url().min(22).max(1000).optional();
 const publishedAtSchema = z.string().trim().datetime().optional();
 
 const createSchema = z.object({
@@ -104,7 +104,7 @@ const aiOptimizeSchema = z.object({
   content: z.string().trim().min(1),
   summary: z.string().trim().max(400).optional(),
   channelCode: z.string().trim().max(64).optional(),
-  originalUrl: z.string().trim().url().max(1000).optional().or(z.literal("")),
+  originalUrl: z.string().trim().url().min(22).max(1000).optional().or(z.literal("")),
 });
 
 const unauthorized = (response: Response, errorCode: string, description: string): void => {

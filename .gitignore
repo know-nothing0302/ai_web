@@ -43,6 +43,7 @@ apps/api/test_hang*.sh
 
 # E2E test artifacts
 e2e/test-config.json
+test-results/
 
 # Claude Code project config (internal, not for public)
 CLAUDE.md

@@ -42,6 +42,17 @@ const displayAuthor = computed(() => {
   return `${parts[0]}等`;
 });
 
+const isValidOriginalUrl = computed(() => {
+  const url = item.value?.originalUrl;
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && url.length >= 22;
+  } catch {
+    return false;
+  }
+});
+
 const load = async (): Promise<void> => {
   console.info("[AIWEB] ArticleDetailPage 加载文章详情", { id: route.params.id?.toString() ?? "" });
   loading.value = true;
@@ -468,7 +479,7 @@ onBeforeUnmount(() => {
             {{ (item.viewCount ?? 0).toLocaleString() }} 次浏览
           </span>
           <a
-            v-if="item.originalUrl"
+            v-if="isValidOriginalUrl"
             :href="item.originalUrl"
             class="flex items-center gap-1 text-xs text-[#0288d1] hover:text-[#01579b] dark:text-[#38bdf8] dark:hover:text-[#7dd3fc] hover:underline transition-colors"
             target="_blank"
@@ -477,7 +488,11 @@ onBeforeUnmount(() => {
              <Link class="w-3.5 h-3.5 opacity-80" />
              查看原文
           </a>
-          <span v-if="!item.originalUrl" class="flex items-center gap-1.5 text-[#8aa3bc] dark:text-slate-400">
+          <span v-else-if="item.originalUrl && !isValidOriginalUrl" class="flex items-center gap-1.5 text-[#c62828]/70 dark:text-[#ef5350]/70">
+            <Link class="w-4 h-4 opacity-60" />
+            原文链接格式异常
+          </span>
+          <span v-else class="flex items-center gap-1.5 text-[#8aa3bc] dark:text-slate-400">
             <Link class="w-4 h-4 opacity-60" />
             未提供原文链接
           </span>

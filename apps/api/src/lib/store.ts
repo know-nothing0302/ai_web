@@ -598,15 +598,9 @@ export const articleStore = {
         articles.published_at,
         articles.created_at,
         articles.updated_at,
-        COALESCE(vc.cnt, 0)::text AS view_count
+        (SELECT COUNT(*) FROM analytics_events WHERE event_name = 'article_view' AND article_id = articles.id)::text AS view_count
       FROM articles
       LEFT JOIN article_channels channels ON channels.code = articles.channel_code
-      LEFT JOIN (
-        SELECT article_id, COUNT(*) AS cnt
-        FROM analytics_events
-        WHERE event_name = 'article_view' AND article_id = $1
-        GROUP BY article_id
-      ) vc ON articles.id = vc.article_id
       WHERE articles.id = $1
       LIMIT 1
       `,
