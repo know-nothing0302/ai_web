@@ -617,6 +617,7 @@ watch(
     />
 
     <PageAgentLauncher
+      v-if="!pageAgentOpen"
       :is-hovered="isAgentHovered"
       :intro-active="pageAgentIntroActive"
       @click="triggerAgent"
