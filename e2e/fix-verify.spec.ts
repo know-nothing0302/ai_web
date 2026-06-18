@@ -16,7 +16,7 @@ import * as path from "path";
 // ── 类型定义 ──
 
 interface PageCheck {
-  type: "visible" | "text" | "count" | "url" | "darkMode";
+  type: "visible" | "text" | "count" | "url" | "darkMode" | "fontSize";
   selector?: string;
   value?: string | number;
   desc: string;
@@ -83,6 +83,11 @@ async function runCheck(page: import("@playwright/test").Page, check: PageCheck)
       await page.evaluate(() => document.documentElement.classList.add("dark"));
       await page.waitForTimeout(500);
       await expect(page.locator(check.selector!), `[暗色模式] ${check.desc}`).toBeVisible({ timeout: 5000 });
+      break;
+    case "fontSize":
+      const el = page.locator(check.selector!).first();
+      const actualFontSize = await el.evaluate(el => getComputedStyle(el).fontSize);
+      expect(actualFontSize, `[${check.desc}] 期望 ${check.value}，实际 ${actualFontSize}`).toBe(check.value as string);
       break;
   }
 }

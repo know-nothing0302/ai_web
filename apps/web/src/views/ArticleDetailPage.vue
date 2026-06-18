@@ -514,7 +514,7 @@ onBeforeUnmount(() => {
 
       <!-- Markdown Content rendering with tailwind typography styles manually applied for better fonts -->
       <div 
-        class="article-content-area prose prose-slate prose-lg max-w-none text-[#355878] dark:text-slate-300 leading-loose font-serif
+        class="article-content-area prose prose-slate prose-lg max-w-none text-[#355878] dark:text-slate-300 text-lg leading-loose font-serif
                prose-headings:text-[#0f4069] dark:prose-headings:text-[#e2e8f0] prose-headings:font-bold prose-headings:tracking-tight
                prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:border-b prose-h2:border-[#b3e5fc]/30 dark:prose-h2:border-slate-600/30 prose-h2:pb-2
                prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-4
