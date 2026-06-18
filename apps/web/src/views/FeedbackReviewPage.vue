@@ -166,7 +166,7 @@ const suggestionBgClass = (status: string): string =>
     : "bg-[#f5f5f5] border-[#e0e0e0]";
 
 const isActionable = (status: string): boolean =>
-  ["pending", "evaluating"].includes(status);
+  ["pending", "evaluating", "snoozed"].includes(status);
 
 // --- Data Loading ---
 
