@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ClipboardCheck, AlertTriangle, X, Clock, Check, Loader2, Pencil, Search, RefreshCw } from "lucide-vue-next";
 import {
   getAdminFeedbackEvalList,
@@ -28,31 +28,51 @@ const renderMarkdown = (md: string): string => {
 const PAGE_SIZES = [20, 50, 100];
 const pageSize = ref(20);
 
-const STATUS_TABS = [
-  { key: "pending", label: "待处理" },
-  { key: "evaluating", label: "评估中" },
-  { key: "approved", label: "已批准" },
-  { key: "in_progress", label: "处理中" },
-  { key: "testing", label: "测试中" },
-  { key: "deployed", label: "部署中" },
-  { key: "verified", label: "已验证" },
-  { key: "failed_testing", label: "测试失败" },
-  { key: "reverted", label: "已回滚" },
-  { key: "wontfix", label: "暂缓" },
-  { key: "duplicate", label: "重复" },
-  { key: "snoozed", label: "搁置" },
-  { key: "processed", label: "已处理" },
-] as const;
-
-/** Statuses considered "processed" (non-pending, non-evaluating) */
-const PROCESSED_STATUSES = [
-  "approved", "in_progress", "testing", "deployed", "verified",
-  "failed_testing", "reverted", "wontfix", "duplicate", "snoozed",
+/** Pipeline stages — maps DB statuses to user-facing pipeline columns */
+const PIPELINE_STAGES = [
+  { key: "inbox",     label: "待处理", icon: "📥", color: "#e3f2fd", borderColor: "#90caf9", statuses: ["pending", "evaluating", "snoozed"] },
+  { key: "fixing",    label: "修复中", icon: "🔧", color: "#fff3e0", borderColor: "#ffcc80", statuses: ["approved", "in_progress", "failed_testing"] },
+  { key: "testing",   label: "测试中", icon: "🧪", color: "#f3e5f5", borderColor: "#ce93d8", statuses: ["testing"] },
+  { key: "deploying", label: "待部署", icon: "🚀", color: "#e0f2f1", borderColor: "#80cbc4", statuses: ["deployed"] },
+  { key: "done",      label: "已完成", icon: "✅", color: "#e8f5e9", borderColor: "#a5d6a7", statuses: ["verified", "wontfix", "duplicate", "reverted"] },
 ];
+
+/** Semantic labels for each DB status */
+const STATUS_LABELS: Record<string, { label: string; icon: string }> = {
+  pending:         { label: "等待评估",     icon: "⏳" },
+  evaluating:      { label: "AI 评估中",   icon: "🤖" },
+  snoozed:         { label: "已搁置",       icon: "💤" },
+  approved:        { label: "等待修复",     icon: "📋" },
+  in_progress:     { label: "正在修复",     icon: "🔧" },
+  testing:         { label: "测试中",       icon: "🧪" },
+  failed_testing:  { label: "⚠️ 测试未通过", icon: "❌" },
+  deployed:        { label: "等待验证",     icon: "🚀" },
+  verified:        { label: "已确认",       icon: "✅" },
+  wontfix:         { label: "暂不处理",     icon: "🗄️" },
+  duplicate:       { label: "重复反馈",     icon: "📎" },
+  reverted:        { label: "已回滚",       icon: "↩️" },
+};
+
+/** Find which pipeline stage a given DB status belongs to */
+function getStageForStatus(status: string) {
+  return PIPELINE_STAGES.find((s) => s.statuses.includes(status));
+}
+
+/** Tailwind bg classes for kanban columns (light + dark) */
+function stageKanbanBg(key: string): string {
+  const map: Record<string, string> = {
+    inbox:     "bg-[#e3f2fd] dark:bg-sky-950/40",
+    fixing:    "bg-[#fff3e0] dark:bg-orange-950/40",
+    testing:   "bg-[#f3e5f5] dark:bg-purple-950/40",
+    deploying: "bg-[#e0f2f1] dark:bg-teal-950/40",
+    done:      "bg-[#e8f5e9] dark:bg-green-950/40",
+  };
+  return map[key] ?? "";
+}
 
 // --- State ---
 const accessDenied = ref(false);
-const activeTab = ref("pending");
+const activeStage = ref("inbox");
 const searchKeyword = ref("");
 const submitting = ref(false);
 const message = ref("");
@@ -62,7 +82,13 @@ const approveModal = ref<{ id: string; note: string } | null>(null);
 const editingNote = ref<{ id: string; note: string } | null>(null);
 const currentUser = ref<Awaited<ReturnType<typeof getCurrentUser>>>(null);
 
-interface TabState {
+// Pipeline kanban counts
+const pipelineCounts = ref<Record<string, number>>({});
+const pipelineCountsLoading = ref(false);
+const failedTestingCount = ref(0);
+const hasFailedTesting = computed(() => failedTestingCount.value > 0);
+
+interface StageState {
   items: FeedbackListItem[];
   page: number;
   total: number;
@@ -70,17 +96,18 @@ interface TabState {
   loaded: boolean;
 }
 
-const tabStates = ref<Record<string, TabState>>({});
+const stageStates = ref<Record<string, StageState>>({});
 
-function getTabState(key: string): TabState {
-  if (!tabStates.value[key]) {
-    tabStates.value[key] = { items: [], page: 1, total: 0, loading: false, loaded: false };
+function getStageState(key: string): StageState {
+  if (!stageStates.value[key]) {
+    stageStates.value[key] = { items: [], page: 1, total: 0, loading: false, loaded: false };
   }
-  return tabStates.value[key];
+  return stageStates.value[key];
 }
 
-const currentTab = computed(() => getTabState(activeTab.value));
-const totalPages = computed(() => Math.max(1, Math.ceil(currentTab.value.total / pageSize.value)));
+const currentStage = computed(() => getStageState(activeStage.value));
+const totalPages = computed(() => Math.max(1, Math.ceil(currentStage.value.total / pageSize.value)));
+const activeStageInfo = computed(() => PIPELINE_STAGES.find((s) => s.key === activeStage.value));
 
 const today = new Date().toLocaleDateString("zh-CN", {
   year: "numeric", month: "long", day: "numeric", weekday: "long",
@@ -142,15 +169,47 @@ const isActionable = (status: string): boolean =>
   ["pending", "evaluating"].includes(status);
 
 // --- Data Loading ---
-async function loadTab(key: string, page?: number) {
-  const state = getTabState(key);
+
+/** Fetch counts for all pipeline stages (lightweight: pageSize=1, only need total) */
+async function loadPipelineCounts() {
+  pipelineCountsLoading.value = true;
+  try {
+    const searchParam = searchKeyword.value.trim() ? { search: searchKeyword.value.trim() } : {};
+    const results = await Promise.all([
+      ...PIPELINE_STAGES.map((stage) =>
+        getAdminFeedbackEvalList({
+          status: stage.statuses.join(","),
+          page: 1,
+          pageSize: 1,
+          ...searchParam,
+        })
+      ),
+      // Separate query for failed_testing count (pulse indicator)
+      getAdminFeedbackEvalList({
+        status: "failed_testing",
+        page: 1,
+        pageSize: 1,
+        ...searchParam,
+      }),
+    ]);
+    PIPELINE_STAGES.forEach((stage, i) => {
+      pipelineCounts.value[stage.key] = results[i].pagination.total;
+    });
+    failedTestingCount.value = results[PIPELINE_STAGES.length].pagination.total;
+  } catch {
+    // silent fail for background count refresh
+  } finally {
+    pipelineCountsLoading.value = false;
+  }
+}
+
+async function loadStage(key: string, page?: number) {
+  const state = getStageState(key);
   if (page !== undefined) state.page = page;
   state.loading = true;
   try {
-    // "processed" tab: fetch all non-pending statuses via comma-separated list
-    const statusParam = key === "processed"
-      ? PROCESSED_STATUSES.join(",")
-      : key;
+    const stage = PIPELINE_STAGES.find((s) => s.key === key);
+    const statusParam = stage ? stage.statuses.join(",") : key;
     const params: { status: string; page: number; pageSize: number; search?: string } = {
       status: statusParam,
       page: state.page,
@@ -171,22 +230,24 @@ async function loadTab(key: string, page?: number) {
   }
 }
 
-function changeTab(key: string) {
-  activeTab.value = key;
-  if (!getTabState(key).loaded) {
-    loadTab(key);
+function changeStage(key: string) {
+  activeStage.value = key;
+  if (!getStageState(key).loaded) {
+    loadStage(key);
   }
 }
 
 function handleSearch() {
-  const state = getTabState(activeTab.value);
+  const state = getStageState(activeStage.value);
   state.page = 1;
   state.loaded = false;
-  loadTab(activeTab.value, 1);
+  loadStage(activeStage.value, 1);
+  loadPipelineCounts();
 }
 
 function handleRefresh() {
-  loadTab(activeTab.value);
+  loadStage(activeStage.value);
+  loadPipelineCounts();
 }
 
 // --- Status Actions ---
@@ -204,7 +265,8 @@ async function submitApprove() {
     });
     showMessage(approveModal.value.note ? "已批准（含补充指令）" : "已批准");
     approveModal.value = null;
-    await loadTab(activeTab.value);
+    await loadStage(activeStage.value);
+    loadPipelineCounts();
   } catch {
     showMessage("操作失败");
   } finally {
@@ -217,7 +279,8 @@ async function handleSnooze(id: string) {
   try {
     await updateFeedbackStatus(id, { status: "snoozed", adminNote: "已搁置，待后续评估" });
     showMessage("已搁置");
-    await loadTab(activeTab.value);
+    await loadStage(activeStage.value);
+    loadPipelineCounts();
   } catch {
     showMessage("操作失败");
   } finally {
@@ -239,7 +302,8 @@ async function submitReject() {
     });
     showMessage("已标记为暂缓");
     rejectModal.value = null;
-    await loadTab(activeTab.value);
+    await loadStage(activeStage.value);
+    loadPipelineCounts();
   } catch {
     showMessage("操作失败");
   } finally {
@@ -264,7 +328,7 @@ async function saveNote(id: string) {
   if (!editingNote.value) return;
   try {
     const updated = await updateFeedbackStatus(id, { adminNote: editingNote.value.note });
-    const state = getTabState(activeTab.value);
+    const state = getStageState(activeStage.value);
     const idx = state.items.findIndex((item) => item.id === id);
     if (idx >= 0) {
       state.items[idx] = { ...state.items[idx], adminNote: updated.adminNote };
@@ -277,6 +341,8 @@ async function saveNote(id: string) {
 }
 
 // --- Lifecycle ---
+let refreshTimer: number;
+
 onMounted(async () => {
   try {
     currentUser.value = await getCurrentUser();
@@ -287,7 +353,17 @@ onMounted(async () => {
     accessDenied.value = true;
     return;
   }
-  await loadTab(activeTab.value);
+  await Promise.all([
+    loadStage(activeStage.value),
+    loadPipelineCounts(),
+  ]);
+  refreshTimer = window.setInterval(() => {
+    loadPipelineCounts();
+  }, 30000);
+});
+
+onBeforeUnmount(() => {
+  clearInterval(refreshTimer);
 });
 </script>
 
@@ -314,7 +390,7 @@ onMounted(async () => {
               反馈审批
             </h1>
             <p class="mt-2 text-sm text-[#4f6b8a] dark:text-[#cbd5e1]">
-              {{ today }} · 当前 {{ STATUS_TABS.find((t) => t.key === activeTab)?.label }} {{ currentTab.total }} 条
+              {{ today }} · 当前 {{ activeStageInfo?.icon }} {{ activeStageInfo?.label }} {{ currentStage.total }} 条
             </p>
           </div>
           <div class="flex items-center gap-3">
@@ -345,50 +421,107 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Tab Bar -->
+      <!-- Pipeline Kanban (NEW) -->
+      <section class="glass-panel rounded-2xl border p-4">
+        <div class="grid grid-cols-5 gap-3">
+          <div
+            v-for="stage in PIPELINE_STAGES"
+            :key="stage.key"
+            class="relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-md"
+            :class="[
+              stageKanbanBg(stage.key),
+              activeStage === stage.key
+                ? 'ring-2 ring-[#0288d1] dark:ring-sky-600 shadow-sm'
+                : '',
+            ]"
+            @click="changeStage(stage.key)"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-lg">{{ stage.icon }}</span>
+              <span class="text-sm font-semibold text-[#0f4069] dark:text-[#e2e8f0]">{{ stage.label }}</span>
+            </div>
+            <!-- Pulse dot for failed_testing -->
+            <span
+              v-if="stage.key === 'fixing' && hasFailedTesting"
+              class="absolute top-3 right-3 flex h-3 w-3"
+            >
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+            </span>
+            <div class="text-2xl font-bold text-[#0f4069] dark:text-[#e2e8f0]">
+              {{ pipelineCounts[stage.key] ?? "..." }}
+            </div>
+            <div class="text-xs text-[#6e89a3] dark:text-slate-400 mt-0.5">
+              {{ stage.statuses.map(s => STATUS_LABELS[s]?.label ?? s).join(" · ") }}
+            </div>
+          </div>
+        </div>
+        <!-- Auto-refresh indicator -->
+        <div class="mt-3 flex items-center justify-end gap-2 text-xs text-[#8aa3bc] dark:text-slate-500">
+          <span v-if="pipelineCountsLoading" class="inline-block w-2 h-2 rounded-full bg-[#4fc3f7] animate-pulse"></span>
+          <span>每 30 秒自动刷新</span>
+        </div>
+      </section>
+
+      <!-- Stage Tab Bar -->
       <div class="glass-panel rounded-2xl border overflow-x-auto">
         <div class="flex min-w-max">
           <button
-            v-for="tab in STATUS_TABS"
-            :key="tab.key"
+            v-for="stage in PIPELINE_STAGES"
+            :key="stage.key"
             type="button"
             class="px-4 py-2.5 text-sm font-medium transition-colors border-b-2 shrink-0"
-            :class="activeTab === tab.key
+            :class="activeStage === stage.key
               ? 'text-[#0277bd] border-[#0288d1] bg-[#e1f5fe]/50 dark:text-[#7dd3fc] dark:border-sky-600 dark:bg-sky-900/30'
               : 'text-[#4f6b8a] border-transparent hover:text-[#0f4069] hover:bg-[#f3f8fc] dark:text-[#cbd5e1] dark:hover:text-[#e2e8f0] dark:hover:bg-slate-700/50'"
-            @click="changeTab(tab.key)"
+            @click="changeStage(stage.key)"
           >
-            {{ tab.label }}
+            {{ stage.icon }} {{ stage.label }}
+            <span
+              v-if="pipelineCounts[stage.key] !== undefined"
+              class="ml-1.5 text-xs opacity-60"
+            >{{ pipelineCounts[stage.key] }}</span>
           </button>
         </div>
       </div>
 
-      <!-- Tab Content -->
+      <!-- Stage Content -->
       <section class="glass-panel rounded-3xl border p-6 shadow-sm md:p-8">
         <!-- Loading -->
-        <div v-if="currentTab.loading" class="py-12 text-center text-sm text-[#6e89a3] dark:text-slate-400">
+        <div v-if="currentStage.loading" class="py-12 text-center text-sm text-[#6e89a3] dark:text-slate-400">
           加载中...
         </div>
 
         <!-- Empty -->
-        <div v-else-if="currentTab.items.length === 0" class="py-12 text-center text-sm text-[#6e89a3] dark:text-slate-400">
-          暂无此状态的反馈
+        <div v-else-if="currentStage.items.length === 0" class="py-12 text-center text-sm text-[#6e89a3] dark:text-slate-400">
+          暂无此阶段的反馈
         </div>
 
         <!-- Card List -->
         <div v-else class="space-y-3">
           <div
-            v-for="item in currentTab.items"
+            v-for="item in currentStage.items"
             :key="item.id"
-            class="rounded-2xl border p-4 transition-colors"
+            class="rounded-2xl border p-4 transition-colors border-l-4"
             :class="[evalBorderClass(item), evalBgClass(item)]"
+            :style="{ borderLeftColor: (getStageForStatus(item.status)?.borderColor ?? '#b3e5fc') }"
           >
             <!-- Card Header -->
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-sm font-medium text-[#355878] dark:text-slate-300">#{{ item.id.slice(0, 8) }}</span>
                   <span class="truncate text-sm text-[#0f4069] dark:text-[#e2e8f0]">{{ item.pageTitle || item.pageRoute }}</span>
+                  <!-- DB Status Badge (NEW) -->
+                  <span
+                    class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                    :style="{
+                      backgroundColor: (getStageForStatus(item.status)?.color ?? '#f5f5f5'),
+                      color: '#0f4069',
+                    }"
+                  >
+                    {{ STATUS_LABELS[item.status]?.icon ?? "" }} {{ STATUS_LABELS[item.status]?.label ?? item.status }}
+                  </span>
                 </div>
                 <p
                   class="mt-1 text-sm text-[#4f6b8a] dark:text-[#cbd5e1] break-words"
@@ -445,7 +578,7 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- LLM Suggestion (Fix 3) -->
+            <!-- LLM Suggestion -->
             <div
               v-if="item.evaluation?.suggestion"
               class="mt-3 rounded-xl border p-3"
@@ -458,7 +591,7 @@ onMounted(async () => {
               <p class="text-xs text-[#5d4037] dark:text-amber-200/80 leading-relaxed">{{ item.evaluation.suggestion }}</p>
             </div>
 
-            <!-- Admin Note (Fix 3) -->
+            <!-- Admin Note -->
             <div class="mt-3">
               <div v-if="editingNote?.id === item.id" class="space-y-2">
                 <textarea
@@ -517,32 +650,32 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Pagination (Fix 2) -->
+        <!-- Pagination -->
         <div
-          v-if="currentTab.total > pageSize"
+          v-if="currentStage.total > pageSize"
           class="flex items-center justify-center gap-3 pt-6"
         >
           <select
             :value="pageSize"
             class="rounded-lg border border-[#b3e5fc] px-2 py-1.5 text-sm text-[#4f6b8a] bg-white focus:outline-none focus:border-[#4fc3f7]"
-            @change="e => { pageSize = Number((e.target as HTMLSelectElement).value); loadTab(activeTab, 1); }"
+            @change="e => { pageSize = Number((e.target as HTMLSelectElement).value); loadStage(activeStage, 1); }"
           >
             <option v-for="ps in PAGE_SIZES" :key="ps" :value="ps">{{ ps }}条/页</option>
           </select>
           <button
-            :disabled="currentTab.page <= 1"
+            :disabled="currentStage.page <= 1"
             class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe] disabled:opacity-40 disabled:cursor-not-allowed"
-            @click="loadTab(activeTab, currentTab.page - 1)"
+            @click="loadStage(activeStage, currentStage.page - 1)"
           >
             上一页
           </button>
           <span class="text-sm text-[#8aa3bc]">
-            {{ currentTab.page }} / {{ totalPages }}（共 {{ currentTab.total }} 条）
+            {{ currentStage.page }} / {{ totalPages }}（共 {{ currentStage.total }} 条）
           </span>
           <button
-            :disabled="currentTab.page >= totalPages"
+            :disabled="currentStage.page >= totalPages"
             class="rounded-full border border-[#b3e5fc] px-4 py-2 text-sm text-[#4f6b8a] transition-colors hover:bg-[#e1f5fe] disabled:opacity-40 disabled:cursor-not-allowed"
-            @click="loadTab(activeTab, currentTab.page + 1)"
+            @click="loadStage(activeStage, currentStage.page + 1)"
           >
             下一页
           </button>
