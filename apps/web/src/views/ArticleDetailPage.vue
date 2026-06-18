@@ -518,12 +518,12 @@ onBeforeUnmount(() => {
                prose-headings:text-[#0f4069] dark:prose-headings:text-[#e2e8f0] prose-headings:font-bold prose-headings:tracking-tight
                prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:border-b prose-h2:border-[#b3e5fc]/30 dark:prose-h2:border-slate-600/30 prose-h2:pb-2
                prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-4
-               prose-p:mb-6 prose-p:text-[17px]
+               prose-p:mb-6 prose-p:text-[18px]
                prose-a:text-[#0288d1] dark:prose-a:text-[#38bdf8] hover:prose-a:text-[#01579b] dark:hover:prose-a:text-[#7dd3fc] prose-a:no-underline hover:prose-a:underline
                prose-strong:text-[#0f4069] dark:prose-strong:text-[#e2e8f0] prose-strong:font-semibold
                prose-ul:list-disc prose-ul:pl-6 prose-ul:mb-6 prose-ul:space-y-2
                prose-ol:list-decimal prose-ol:pl-6 prose-ol:mb-6 prose-ol:space-y-2
-               prose-li:text-[17px] prose-li:marker:text-[#81d4fa] dark:prose-li:marker:text-sky-600
+               prose-li:text-[18px] prose-li:marker:text-[#81d4fa] dark:prose-li:marker:text-sky-600
                prose-blockquote:border-l-4 prose-blockquote:border-[#81d4fa] dark:prose-blockquote:border-sky-700 prose-blockquote:pl-5 prose-blockquote:italic prose-blockquote:text-[#4f6b8a] dark:prose-blockquote:text-[#cbd5e1] prose-blockquote:bg-[#f1faff] dark:prose-blockquote:bg-slate-800/40 prose-blockquote:py-1 prose-blockquote:rounded-r-lg
                prose-code:text-[#0288d1] dark:prose-code:text-[#38bdf8] prose-code:bg-[#e1f5fe]/50 dark:prose-code:bg-slate-700/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none"
         v-html="parsedContent"
