@@ -203,6 +203,7 @@ interface UserProfileAnalysisJobRow {
 interface FeedbackEntryRow {
   id: string;
   user_id: string;
+  user_display_name: string | null;
   type: "bug" | "ux" | "content" | "other";
   content: string;
   contact: string | null;
@@ -320,6 +321,7 @@ const mapFeedbackEntry = (row: FeedbackEntryRow | FeedbackEntryWithEvalRow): Fee
   const base = {
     id: row.id,
     userId: row.user_id,
+    userDisplayName: row.user_display_name ?? undefined,
     type: row.type,
     content: row.content,
     contact: row.contact ?? undefined,
@@ -1995,12 +1997,13 @@ export const feedbackStore = {
       const itemsResult = await query<FeedbackEntryWithEvalRow>(
         `
         SELECT
-          fe.id, fe.user_id, fe.type, fe.content, fe.contact,
+          fe.id, fe.user_id, u.xm AS user_display_name, fe.type, fe.content, fe.contact,
           fe.page_route, fe.page_title, fe.source, fe.status,
           fe.admin_note, fe.created_at,
           ev.eval_type, ev.severity, ev.fix_scope, ev.alignment,
           ev.suggested_action, ev.suggestion, ev.detailed_analysis, ev.evaluated_at
         FROM feedback_entries fe
+        LEFT JOIN users u ON fe.user_id = u.xh
         LEFT JOIN LATERAL (
           SELECT *
           FROM feedback_evaluations
@@ -2034,20 +2037,22 @@ export const feedbackStore = {
     const itemsResult = await query<FeedbackEntryRow>(
       `
       SELECT
-        id,
-        user_id,
-        type,
-        content,
-        contact,
-        page_route,
-        page_title,
-        source,
-        status,
-        admin_note,
-        created_at
-      FROM feedback_entries
+        fe.id,
+        fe.user_id,
+        u.xm AS user_display_name,
+        fe.type,
+        fe.content,
+        fe.contact,
+        fe.page_route,
+        fe.page_title,
+        fe.source,
+        fe.status,
+        fe.admin_note,
+        fe.created_at
+      FROM feedback_entries fe
+      LEFT JOIN users u ON fe.user_id = u.xh
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY fe.created_at DESC
       LIMIT ${limitPlaceholder}
       OFFSET ${offsetPlaceholder}
       `,

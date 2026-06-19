@@ -230,6 +230,7 @@ export interface FeedbackEvaluation {
 export interface FeedbackEntry {
   id: string;
   userId: string;
+  userDisplayName?: string;
   type: FeedbackType;
   content: string;
   contact?: string;

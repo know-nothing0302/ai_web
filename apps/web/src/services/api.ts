@@ -92,6 +92,7 @@ export interface FeedbackPayload {
 export interface FeedbackListItem {
   id: string;
   userId: string;
+  userDisplayName?: string;
   type: "bug" | "ux" | "content" | "other";
   content: string;
   contact?: string;

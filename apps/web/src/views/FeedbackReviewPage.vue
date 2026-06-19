@@ -635,7 +635,7 @@ onBeforeUnmount(() => {
             <div v-if="expandedId === item.id" class="mt-3 border-t border-[#e1f5fe] pt-3 space-y-2 text-xs text-[#4f6b8a]">
               <p><span class="text-[#6e89a3]">原文：</span>{{ item.content }}</p>
               <p><span class="text-[#6e89a3]">页面：</span>{{ item.pageTitle }}（{{ item.pageRoute }}）</p>
-              <p><span class="text-[#6e89a3]">用户：</span>{{ item.userId }}</p>
+              <p><span class="text-[#6e89a3]">反馈者：</span>{{ item.userId }}<template v-if="item.userDisplayName"> · {{ item.userDisplayName }}</template></p>
               <p><span class="text-[#6e89a3]">提交时间：</span>{{ formatDateTime(item.createdAt) }}</p>
               <div v-if="item.evaluation" class="mt-2 rounded-xl bg-[#f8fbfe] p-3">
                 <p class="font-medium text-[#0f4069]">AI 评估报告</p>
