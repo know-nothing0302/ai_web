@@ -6,18 +6,21 @@ After=network.target
 Type=simple
 User=ubuntu
 Group=ubuntu
-WorkingDirectory=/opt/idapps/ai_web/apps/api
+WorkingDirectory=/opt/idapps/ai_web
 Environment=PATH=/usr/local/node-v22.17.1/bin:/usr/local/bin:/usr/bin:/bin
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOST=127.0.0.1
-ExecStart=/usr/local/node-v22.17.1/bin/node dist/server.js
+ExecStart=/opt/idapps/ai_web/ai_web_service.sh start-fg
 ExecStop=/opt/idapps/ai_web/ai_web_service.sh stop
 Restart=on-failure
 RestartSec=10
 
-# Type=simple + cgroup: systemd 在 stop 时会向整个 cgroup 发 SIGTERM，
-# 90s 后仍未退出则 SIGKILL，不依赖 PID 文件，不存在僵尸逃逸。
+# Type=simple: systemd 直接管理 ExecStart 进程（cgroup 级别）。
+# start-fg 执行完整的依赖安装/构建/静态资源检查，然后 exec node 替代自身，
+# node 成为 systemd 直接监控的主进程。
+# stop 时 systemd 向整个 cgroup 发送 SIGTERM → TimeoutStopSec 后 SIGKILL，
+# 不依赖 PID 文件，无法产生僵尸进程。
 TimeoutStopSec=30
 
 [Install]

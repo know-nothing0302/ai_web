@@ -400,6 +400,67 @@ stop_service() {
     return 1
 }
 
+# 前台启动（供 systemd Type=simple 使用）
+# 执行与 start_service 相同的前置检查，但用 exec node 替代 setsid -f，
+# 让 systemd 直接管理 node 进程生命周期（cgroup 级别强杀）。
+start_fg_service() {
+    acquire_lock
+    ensure_service_user || { release_lock; return 1; }
+
+    if is_running; then
+        log "${RED}$SERVICE_NAME 服务已经在运行中${NC}"
+        release_lock
+        return 1
+    fi
+
+    log "${BLUE}正在启动 $SERVICE_NAME 服务（前台模式，由 systemd 管理）...${NC}"
+
+    # 端口检查
+    if ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
+        log "${RED}端口 $PORT 已被占用，无法启动${NC}"
+        release_lock
+        return 1
+    fi
+
+    rotate_log_if_large
+    ensure_runtime_file "$LOG_FILE"
+
+    # 依赖
+    if [ ! -d "$API_DIR/node_modules" ] || [ "$API_DIR/package.json" -nt "$API_DIR/node_modules" ]; then
+        log "${YELLOW}正在安装依赖包（含构建期依赖）...${NC}"
+        run_as_service_user "cd '$API_DIR' && '$NPM_EXEC' install --include=dev" || { release_lock; return 1; }
+    fi
+
+    # 构建
+    if need_rebuild; then
+        log "${YELLOW}检测到源码更新或产物缺失，开始构建项目...${NC}"
+        run_as_service_user "cd '$API_DIR' && '$NPM_EXEC' run build" || { release_lock; return 1; }
+    else
+        log "${BLUE}构建产物 dist/server.js 已是最新，跳过构建步骤${NC}"
+    fi
+
+    ensure_dist_assets
+
+    if [ ! -f "$API_DIR/dist/server.js" ]; then
+        log "${RED}构建完成后仍未找到 dist/server.js${NC}"
+        release_lock
+        return 1
+    fi
+
+    log "${BLUE}启动服务进程（前台），运行用户: $SERVICE_RUN_USER，工作目录: $API_DIR${NC}"
+
+    # 释放脚本锁后 exec（锁不能由 node 进程继承，否则阻塞 stop）
+    release_lock
+
+    cd "$API_DIR" || exit 1
+    exec env -i \
+        HOME="/home/$SERVICE_RUN_USER" \
+        PATH="$PATH" \
+        PORT="$PORT" \
+        NODE_ENV="$NODE_ENV" \
+        "$NODE_EXEC" dist/server.js >> "$LOG_FILE" 2>&1
+}
+
 # 重启服务
 restart_service() {
     log "${BLUE}重启 $SERVICE_NAME 服务...${NC}"
@@ -443,6 +504,9 @@ case "$1" in
     start)
         start_service
         ;;
+    start-fg)
+        start_fg_service
+        ;;
     stop)
         stop_service
         ;;
@@ -453,6 +517,6 @@ case "$1" in
         status_service
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status}"
+        echo "Usage: $0 {start|stop|restart|status|start-fg}"
         exit 1
 esac
