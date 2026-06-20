@@ -306,61 +306,98 @@ start_service() {
     fi
 }
 
-# 停止服务
+# 强制清理所有服务进程：PID 文件 + pgrep 全量 + 端口占用（三重兜底）
+kill_all_service_procs() {
+    local signal="${1:-TERM}"
+    local killed=0
+
+    # 1) PID 文件
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null)
+        if [ -n "$pid" ] && ps -p "$pid" > /dev/null 2>&1; then
+            kill "-$signal" "$pid" 2>/dev/null && killed=1
+        fi
+    fi
+
+    # 2) pgrep 全量（不用 head -1，确保多进程全杀）
+    local pids
+    pids=$(pgrep -f "node dist/server.js" 2>/dev/null)
+    for pid in $pids; do
+        kill "-$signal" "$pid" 2>/dev/null && killed=1
+    done
+
+    # 3) 端口占用兜底（fuser 优先，ss 退化）
+    if command -v fuser > /dev/null 2>&1; then
+        fuser -k "-$signal" "${PORT}/tcp" 2>/dev/null && killed=1
+    else
+        local port_pid
+        port_pid=$(ss -tlnp 2>/dev/null | grep ":${PORT} " | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1)
+        if [ -n "$port_pid" ] && ps -p "$port_pid" > /dev/null 2>&1; then
+            kill "-$signal" "$port_pid" 2>/dev/null && killed=1
+        fi
+    fi
+
+    return $killed
+}
+
+# 等待所有服务进程退出（超时返回 1）
+wait_service_gone() {
+    local timeout="${1:-12}"
+    local waited=0
+    while [ $waited -lt $timeout ]; do
+        local remaining
+        remaining=$(pgrep -f "node dist/server.js" 2>/dev/null)
+        [ -z "$remaining" ] && return 0
+        sleep 1
+        waited=$((waited + 1))
+    done
+    return 1
+}
+
+# 停止服务（三重清理：SIGTERM → 等待 → SIGKILL 兜底）
 stop_service() {
     acquire_lock
-    if is_running; then
-        local pid=$(cat "$PID_FILE")
-        local process_user=$(find_service_user "$pid")
-        log "${BLUE}正在停止 $SERVICE_NAME 服务 (PID: $pid)...${NC}"
 
-        # 优雅停止
-        if ! kill -TERM "$pid" 2>/dev/null; then
-            log "${RED}当前用户 $CURRENT_USER 无法停止 PID: $pid（属主: ${process_user:-unknown}）。请使用 sudo 或切换到 $process_user 用户执行。${NC}"
-            rm -f "$PID_FILE" 2>/dev/null || true
-            return 1
-        fi
-        local timeout=10
-        local count=0
+    # 先做一次兜底清理（僵尸进程可能逃逸 is_running 检测）
+    kill_all_service_procs TERM 2>/dev/null || true
+    sleep 1
+    kill_all_service_procs KILL 2>/dev/null || true
+    rm -f "$PID_FILE" 2>/dev/null || true
 
-        while is_running && [ $count -lt $timeout ]; do
-            sleep 1
-            count=$((count + 1))
-        done
-        
-        if is_running; then
-            log "${YELLOW}强制停止服务...${NC}"
-            if ! kill -KILL "$pid" 2>/dev/null; then
-                log "${RED}当前用户 $CURRENT_USER 无法强制停止 PID: $pid（属主: ${process_user:-unknown}）。请使用 sudo 或切换到 $process_user 用户执行。${NC}"
-                rm -f "$PID_FILE" 2>/dev/null || true
-                return 1
-            fi
-            sleep 1
-        fi
-
-        if is_running; then
-            log "${RED}无法停止服务${NC}"
-            return 1
-        else
-            rm -f "$PID_FILE" 2>/dev/null || true
-            log "${GREEN}服务已成功停止${NC}"
-            release_lock
-            return 0
-        fi
-    else
-        # PID 文件和 pgrep 都找不到 → 端口兜底（防止进程逃逸）
-        local port_pid=$(ss -tlnp 2>/dev/null | grep ":${PORT} " | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1)
-        if [ -n "$port_pid" ] && kill -0 "$port_pid" 2>/dev/null; then
-            log "${YELLOW}PID 文件缺失但端口 ${PORT} 被进程 $port_pid 占用，强制清理${NC}"
-            kill -TERM "$port_pid" 2>/dev/null || true
-            sleep 2
-            kill -KILL "$port_pid" 2>/dev/null || true
-        fi
+    if ! is_running; then
         log "${YELLOW}$SERVICE_NAME 服务未运行${NC}"
-        rm -f "$PID_FILE" 2>/dev/null || true
         release_lock
         return 0
     fi
+
+    log "${BLUE}正在停止 $SERVICE_NAME 服务...${NC}"
+
+    # 1) SIGTERM 优雅停止所有相关进程
+    kill_all_service_procs TERM
+    if wait_service_gone 10; then
+        rm -f "$PID_FILE" 2>/dev/null || true
+        log "${GREEN}服务已成功停止${NC}"
+        release_lock
+        return 0
+    fi
+
+    # 2) SIGKILL 强制兜底
+    log "${YELLOW}优雅停止超时，强制停止所有残留进程...${NC}"
+    kill_all_service_procs KILL
+    sleep 2
+
+    if wait_service_gone 5; then
+        rm -f "$PID_FILE" 2>/dev/null || true
+        log "${GREEN}服务已强制停止${NC}"
+        release_lock
+        return 0
+    fi
+
+    log "${RED}无法停止服务——仍有残留进程，请手动检查${NC}"
+    pgrep -af "node dist/server.js" 2>/dev/null || true
+    ss -tlnp 2>/dev/null | grep ":${PORT} " || true
+    return 1
 }
 
 # 重启服务

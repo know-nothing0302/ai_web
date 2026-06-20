@@ -1,0 +1,24 @@
+[Unit]
+Description=IDApps - AI Web API (Port 3000)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/idapps/ai_web/apps/api
+Environment=PATH=/usr/local/node-v22.17.1/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+ExecStart=/usr/local/node-v22.17.1/bin/node dist/server.js
+ExecStop=/opt/idapps/ai_web/ai_web_service.sh stop
+Restart=on-failure
+RestartSec=10
+
+# Type=simple + cgroup: systemd 在 stop 时会向整个 cgroup 发 SIGTERM，
+# 90s 后仍未退出则 SIGKILL，不依赖 PID 文件，不存在僵尸逃逸。
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
