@@ -546,6 +546,7 @@ onBeforeUnmount(() => {
                     {{ alignmentLabel(item.evaluation.alignment) }}
                   </span>
                   <span class="rounded-full bg-[#e1f5fe] dark:bg-slate-700/40 px-2 py-0.5">{{ item.type }}</span>
+                  <span class="rounded-full bg-[#f3e5f5] dark:bg-purple-900/30 px-2 py-0.5">{{ item.userId }}{{ item.userDisplayName ? ` · ${item.userDisplayName}` : '' }}</span>
                 </div>
               </div>
 
