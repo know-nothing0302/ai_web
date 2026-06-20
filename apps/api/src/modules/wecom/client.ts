@@ -307,12 +307,15 @@ const resolveRuntimeConfig = async (appCode?: string): Promise<WecomRuntimeConfi
   const databaseConfig = await wecomConfigStore.getEnabledConfig(effectiveAppCode);
   let envConfig = getEnvConfig();
 
-  // Override with push-specific env vars when resolving "push" app
+  // Override with push-specific env vars when resolving "push" app.
+  // No fallback to default agent — if WECOM_PUSH_AGENT_ID is not set,
+  // push calls will fail with an invalid agentid instead of silently
+  // sending through the wrong agent (prevents zombie-process double-push).
   if (effectiveAppCode === "push") {
     envConfig = {
       ...envConfig,
       appCode: "push",
-      agentId: env.wecomPushAgentId || envConfig.agentId,
+      agentId: env.wecomPushAgentId,
       secret: env.wecomPushSecret || envConfig.secret,
     };
   }
