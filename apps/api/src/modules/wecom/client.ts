@@ -289,8 +289,17 @@ const mergeConfig = (
 
 const configCacheByAppCode = new Map<string, { expiresAt: number; config: WecomRuntimeConfig }>();
 
+// Per-appCode resolution locks — prevents concurrent resolveRuntimeConfig
+// calls for the same appCode from racing through cache-miss → DB fetch →
+// mergeConfig → cache write. Observed in production: daily + weekly cron
+// both fire at 20:00 Sunday, their concurrent resolveRuntimeConfig("push")
+// calls produced alternating agentId 1000123 / 1000173 in push_records.
+const resolutionLocks = new Map<string, Promise<WecomRuntimeConfig>>();
+
 const resolveRuntimeConfig = async (appCode?: string): Promise<WecomRuntimeConfig> => {
   const effectiveAppCode = appCode || env.wecomAppCode;
+
+  // Fast path: cache hit — no lock needed (cache is stable once written)
   if (effectiveAppCode === env.wecomAppCode) {
     // Default app — use existing cache
     if (cachedConfig && cachedConfig.expiresAt > Date.now()) {
@@ -304,38 +313,57 @@ const resolveRuntimeConfig = async (appCode?: string): Promise<WecomRuntimeConfi
     }
   }
 
-  const databaseConfig = await wecomConfigStore.getEnabledConfig(effectiveAppCode);
-  let envConfig = getEnvConfig();
-
-  // Override with push-specific env vars when resolving "push" app.
-  // No fallback to default agent — if WECOM_PUSH_AGENT_ID is not set,
-  // push calls will fail with an invalid agentid instead of silently
-  // sending through the wrong agent (prevents zombie-process double-push).
-  if (effectiveAppCode === "push") {
-    envConfig = {
-      ...envConfig,
-      appCode: "push",
-      agentId: env.wecomPushAgentId,
-      secret: env.wecomPushSecret || envConfig.secret,
-    };
+  // Cache miss — serialise resolution per appCode to prevent races
+  const existingLock = resolutionLocks.get(effectiveAppCode);
+  if (existingLock) {
+    logger.info("wecom.config.awaiting_lock", { appCode: effectiveAppCode });
+    return existingLock;
   }
 
-  const config = mergeConfig(databaseConfig, envConfig);
+  const doResolve = async (): Promise<WecomRuntimeConfig> => {
+    const databaseConfig = await wecomConfigStore.getEnabledConfig(effectiveAppCode);
+    let envConfig = getEnvConfig();
 
-  if (effectiveAppCode === env.wecomAppCode) {
-    cachedConfig = { expiresAt: Date.now() + CONFIG_CACHE_TTL_MS, config };
+    // Override with push-specific env vars when resolving "push" app.
+    // No fallback to default agent — if WECOM_PUSH_AGENT_ID is not set,
+    // push calls will fail with an invalid agentid instead of silently
+    // sending through the wrong agent (prevents zombie-process double-push).
+    if (effectiveAppCode === "push") {
+      envConfig = {
+        ...envConfig,
+        appCode: "push",
+        agentId: env.wecomPushAgentId,
+        secret: env.wecomPushSecret || envConfig.secret,
+      };
+    }
+
+    const config = mergeConfig(databaseConfig, envConfig);
+
+    if (effectiveAppCode === env.wecomAppCode) {
+      cachedConfig = { expiresAt: Date.now() + CONFIG_CACHE_TTL_MS, config };
+    }
+    configCacheByAppCode.set(effectiveAppCode, { expiresAt: Date.now() + CONFIG_CACHE_TTL_MS, config });
+
+    logger.info("wecom.config.loaded", {
+      appCode: config.appCode,
+      corpId: config.corpId,
+      agentId: config.agentId,
+      baseUrl: config.baseUrl,
+      callbackToken: maskSecret(config.callbackToken),
+      internalAuthToken: maskSecret(config.internalAuthToken),
+    });
+
+    return config;
+  };
+
+  const promise = doResolve();
+  resolutionLocks.set(effectiveAppCode, promise);
+
+  try {
+    return await promise;
+  } finally {
+    resolutionLocks.delete(effectiveAppCode);
   }
-  configCacheByAppCode.set(effectiveAppCode, { expiresAt: Date.now() + CONFIG_CACHE_TTL_MS, config });
-
-  logger.info("wecom.config.loaded", {
-    appCode: config.appCode,
-    corpId: config.corpId,
-    agentId: config.agentId,
-    baseUrl: config.baseUrl,
-    callbackToken: maskSecret(config.callbackToken),
-    internalAuthToken: maskSecret(config.internalAuthToken),
-  });
-  return config;
 };
 
 const getRuntimeConfig = (): Promise<WecomRuntimeConfig> => resolveRuntimeConfig();
