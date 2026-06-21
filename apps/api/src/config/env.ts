@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+// Use explicit path so dotenv always reads apps/api/.env regardless
+// of process.cwd(). In production with systemd Type=simple + start-fg,
+// cwd is set by the shell script, but this guard keeps the config stable
+// even if the startup sequence changes.
+dotenv.config({ path: [__dirname, "..", "..", ".env"].join("/") });
 
 const firstNonEmpty = (...values: Array<string | undefined>): string => {
   for (const value of values) {
