@@ -58,7 +58,7 @@ const PERSONA_INJECTION_PATTERNS: RegExp[] = [
   /忽略|忘记|无视|抛弃|放弃/,
   /系统指令|系统提示|系统.*prompt|system\s*prompt/i,
   /新角色|新身份|新的角色|新的身份/,
-  /(?:^|[。！\n]|\b现在)\s*你是.{0,8}(?:助手|机器人|AI|模型)/,
+  /(?:^|[。！，、；？\n]|\b现在)\s*你是.{0,8}(?:助手|机器人|AI|模型)/,
   /你.*现在.*是/,
   /DAN|jailbreak|越狱|developer\s*mode/i,
   /以上指令|之前.*指令|不要.*规则|覆盖.*规则/,
@@ -181,35 +181,6 @@ const getProfessionalContext = async (
   }
 };
 
-/**
- * 计算画像质量：基于画像版本生成后的近期反馈正负比。
- * 仅用于可观测性，不改变画像生成逻辑。
- */
-export const computeProfileQuality = async (
-  userId: string,
-  profileVersion: number
-): Promise<{ precision: number; sampleSize: number }> => {
-  // 取该画像版本生成后的最近 10 条反馈
-  const messages = await pageAgentMessageStore.listRecentByUser(userId, 50);
-  const relevant = messages
-    .filter((m) => m.role === "feedback" && m.feedbackScore != null)
-    .slice(-10);
-
-  if (relevant.length === 0) return { precision: 0, sampleSize: 0 };
-
-  const positiveCount = relevant.filter((m) => m.feedbackScore === 1).length;
-  const precision = positiveCount / relevant.length;
-
-  logger.info("profile.analysis.quality", {
-    userId,
-    profileVersion,
-    precision,
-    sampleSize: relevant.length,
-    lowQuality: precision < 0.5,
-  });
-
-  return { precision, sampleSize: relevant.length };
-};
 
 export const runUserProfileAnalysisJob = async (input: {
   triggerMode: UserProfileAnalysisTriggerMode;
@@ -255,49 +226,69 @@ export const runUserProfileAnalysisJob = async (input: {
             score: item.feedbackScore,
             tag: item.feedbackTag,
             content: sanitizeForModel(item.content),
+            createdAt: item.createdAt,
           }))
           .slice(-10);
+
+        // 提取共用变量（避免在冷却检查和 payload 中重复计算）
+        const channelCodes = subscriptions.flatMap((item) => item.channelCodes);
+        const pageTypeDistribution = messages.reduce<Record<string, number>>((result, item) => {
+          if (!item.pageType) return result;
+          result[item.pageType] = (result[item.pageType] ?? 0) + 1;
+          return result;
+        }, {});
 
         // 三级冷却检查
         if (existingProfile?.lastAnalyzedAt) {
           const lastAnalyzed = new Date(existingProfile.lastAnalyzedAt).getTime();
-          const now = Date.now();
-          const daysSinceLastAnalysis = (now - lastAnalyzed) / (1000 * 60 * 60 * 24);
+          const daysSinceLastAnalysis = (Date.now() - lastAnalyzed) / (1000 * 60 * 60 * 24);
 
-          const currentChannelCodes = subscriptions.flatMap((s) => s.channelCodes);
-          const currentPageTypeDistribution = messages.reduce<Record<string, number>>((result, item) => {
-            if (!item.pageType) return result;
-            result[item.pageType] = (result[item.pageType] ?? 0) + 1;
-            return result;
-          }, {});
-
-          // 级别 1: 强制触发 — 最近 24h 连续 3 次负反馈
-          const recentNegatives = recentFeedback.filter((f) => f.score === -1).length;
-          if (recentNegatives >= 3) {
-            logger.info("profile.analysis.trigger", { level: 1, reason: "negative_feedback_spike", userId });
-            // 不跳过，继续分析
+          // > 5 天：冷却过期，直接进入分析（无需检查 level 1/2）
+          if (daysSinceLastAnalysis > 5) {
+            // fall through to analysis
           }
-          // 级别 2: 行为漂移 — 订阅频道变化 ≥ 2 且距上次 > 3 天
-          else if (Math.abs(
-            currentChannelCodes.length - (existingProfile.lastBehaviorSnapshot?.channelCodes.length ?? 0)
-          ) >= 2 && daysSinceLastAnalysis > 3) {
-            logger.info("profile.analysis.trigger", { level: 2, reason: "behavior_drift", userId });
-            // 不跳过，继续分析
-          }
-          // 级别 3: 常规 — 5 天冷却（原 7 天）
-          else if (daysSinceLastAnalysis <= 5) {
-            successCount += 1;
-            processedCount += 1;
-            await userProfileAnalysisJobStore.updateCounters(job.id, {
-              processedCount,
-              successCount,
-              failedCount,
-            });
-            continue;
+          // ≤ 5 天：检查 level 1/2 覆盖条件，否则跳过
+          else {
+            // 级别 1: 强制触发 — 最近 24h 内 ≥ 3 次负反馈
+            const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+            const recent24hNegatives = recentFeedback.filter(
+              (f) => f.score === -1 && new Date(f.createdAt).getTime() > oneDayAgo
+            ).length;
+            if (recent24hNegatives >= 3) {
+              logger.info("profile.analysis.trigger", { level: 1, reason: "negative_feedback_spike", userId, recent24hNegatives });
+              // 不跳过，继续分析
+            }
+            // 级别 2: 行为漂移 — 频道集合变化 ≥ 2 且距上次 > 3 天
+            else if (daysSinceLastAnalysis > 3) {
+              const prevCodes = new Set(existingProfile.lastBehaviorSnapshot?.channelCodes ?? []);
+              const currCodes = new Set(channelCodes);
+              const added = [...currCodes].filter((c) => !prevCodes.has(c)).length;
+              const removed = [...prevCodes].filter((c) => !currCodes.has(c)).length;
+              const driftCount = added + removed;
+              if (driftCount >= 2) {
+                logger.info("profile.analysis.trigger", { level: 2, reason: "behavior_drift", userId, driftCount, added, removed });
+                // 不跳过，继续分析
+              } else {
+                // 级别 3: 常规 — 5 天冷却
+                successCount += 1;
+                processedCount += 1;
+                await userProfileAnalysisJobStore.updateCounters(job.id, {
+                  processedCount, successCount, failedCount,
+                });
+                continue;
+              }
+            }
+            // 级别 3: 常规 — 5 天冷却（距上次 ≤ 3 天，且 level 1/2 未触发）
+            else {
+              successCount += 1;
+              processedCount += 1;
+              await userProfileAnalysisJobStore.updateCounters(job.id, {
+                processedCount, successCount, failedCount,
+              });
+              continue;
+            }
           }
         }
-
-        const channelCodes = subscriptions.flatMap((item) => item.channelCodes);
         const baseType = detectUserType(userId);
         const userType = refineUserType(baseType, channelCodes, recentQuestions);
         const professionalContext = await getProfessionalContext(userId);
@@ -310,13 +301,7 @@ export const runUserProfileAnalysisJob = async (input: {
           questionStats: {
             total: messages.filter((item) => item.role === "user").length,
             followUpCount: Math.max(messages.filter((item) => item.role === "user").length - 1, 0),
-            pageTypeDistribution: messages.reduce<Record<string, number>>((result, item) => {
-              if (!item.pageType) {
-                return result;
-              }
-              result[item.pageType] = (result[item.pageType] ?? 0) + 1;
-              return result;
-            }, {}),
+            pageTypeDistribution,
           },
           recentQuestions,
           recentFeedback,
@@ -380,9 +365,9 @@ export const runUserProfileAnalysisJob = async (input: {
             userType,
           },
           lastBehaviorSnapshot: {
-            channelCodes: payload.subscriptions.channelCodes,
-            pageTypeDistribution: payload.questionStats.pageTypeDistribution,
-            questionCount: payload.questionStats.total,
+            channelCodes,
+            pageTypeDistribution,
+            questionCount: messages.filter((item) => item.role === "user").length,
           },
         });
 
