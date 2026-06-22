@@ -686,7 +686,6 @@ export const streamPageAnswer = async (
     });
 
     let chunkCount = 0;
-    let contentChunkCount = 0;
     let firstChunkLogged = false;
     llmResponse.data.on("data", (chunk: Buffer) => {
       chunkCount++;
@@ -728,7 +727,6 @@ export const streamPageAnswer = async (
           userId,
           conversationId: input.conversationId,
           totalChunks: chunkCount,
-          contentChunks: contentChunkCount,
           fullAnswerLength: fullAnswer.length,
           fullAnswerPreview: fullAnswer.slice(0, 200),
           streamBufferRemaining: streamBuffer.length,
