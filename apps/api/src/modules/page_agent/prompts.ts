@@ -104,6 +104,7 @@ export const buildPageAgentMessages = (input: {
   userProfile?: UserProfile;
   searchSources: PageAgentSource[];
   verbosity?: "concise" | "detailed";
+  earlySummary?: string;
 }): Array<{ role: "system" | "user" | "assistant"; content: string }> => {
   const isConcise = input.verbosity === "concise";
 
@@ -115,6 +116,13 @@ export const buildPageAgentMessages = (input: {
       }),
     },
   ];
+
+  if (input.earlySummary) {
+    messages.push({
+      role: "system",
+      content: `[对话摘要] ${input.earlySummary}`,
+    });
+  }
 
   if (input.userProfile?.personaPrompt.trim()) {
     let persona = input.userProfile.personaPrompt.trim();

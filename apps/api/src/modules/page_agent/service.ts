@@ -21,6 +21,9 @@ import {
   PageAgentSource,
 } from "./types";
 
+// 粗略 token 估算：中文约 1.5 字符/token，英文约 3.5 字符/token，取中间值
+const estimateTokens = (chars: number): number => Math.round(chars / 2.5);
+
 const normalizeAiContent = (content: unknown): string => {
   let normalized = String(content ?? "").trim();
 
@@ -42,9 +45,19 @@ const normalizeAiContent = (content: unknown): string => {
 
 const shouldSearchSite = (question: string): boolean => {
   const normalized = question.trim();
-  return ["还有", "相关文章", "帮我找", "有没有", "类似文章", "最近发布"].some(
+
+  // 1. 保留关键词匹配
+  const keywordHits = ["还有", "相关文章", "帮我找", "有没有", "类似文章", "最近发布"].some(
     (token) => normalized.includes(token)
   );
+  if (keywordHits) return true;
+
+  // 2. 中文疑问词 + 足够长度 → 触发检索
+  const hasQuestionMarker = /[？?]/.test(normalized)
+    || /(怎么|如何|为什么|什么是|有没有|哪些|推荐|介绍|讲讲|说说)/.test(normalized);
+  if (hasQuestionMarker && normalized.length > 20) return true;
+
+  return false;
 };
 
 const buildSearchKeyword = (input: PageAgentRequestBody): string => {
@@ -511,15 +524,32 @@ export const streamPageAnswer = async (
 
   // 2. 准备上下文
   const userProfile = await userProfileStore.getByUserId(userId);
-  const historyMessages = (
-    await pageAgentMessageStore.listRecentByConversation(input.conversationId, 8)
-  )
-    .filter((item) => item.role === "user" || item.role === "assistant")
-    .map((item) => ({
-      ...item,
-      sanitizedContent: truncateForModel(item.sanitizedContent ?? item.content,
-        input.verbosity === "concise" ? 600 : 1200),
-    }));
+  const MAX_RECENT = 6;
+  const allMessages = await pageAgentMessageStore.listRecentByConversation(input.conversationId, 50);
+  const userAssistMessages = allMessages
+    .filter((item) => item.role === "user" || item.role === "assistant");
+
+  let earlySummary: string | undefined;
+  let historyMessages: typeof userAssistMessages;
+
+  if (userAssistMessages.length > MAX_RECENT) {
+    historyMessages = userAssistMessages.slice(-MAX_RECENT);
+    const earlyQuestions = userAssistMessages
+      .slice(0, -MAX_RECENT)
+      .filter((m) => m.role === "user")
+      .map((m) => m.sanitizedContent ?? m.content);
+    if (earlyQuestions.length > 0) {
+      earlySummary = `此前用户主要询问了：${earlyQuestions.join('；')}`;
+    }
+  } else {
+    historyMessages = userAssistMessages;
+  }
+
+  historyMessages = historyMessages.map((item) => ({
+    ...item,
+    sanitizedContent: truncateForModel(item.sanitizedContent ?? item.content,
+      input.verbosity === "concise" ? 600 : 1200),
+  }));
   const sanitizedQuestion = sanitizeForModel(input.question);
   const isConcise = input.verbosity === "concise";
   const usedSiteSearch = shouldSearchSite(input.question);
@@ -604,6 +634,7 @@ export const streamPageAnswer = async (
     userProfile,
     searchSources,
     verbosity: input.verbosity,
+    earlySummary,
   });
 
   let fullAnswer = "";
@@ -748,6 +779,9 @@ export const streamPageAnswer = async (
             usedHistory: historyMessages.length > 0,
             usedUserProfile: Boolean(userProfile),
             model: env.deepseekModel,
+            estimatedTokens: estimateTokens(
+              messages.reduce((sum, m) => sum + m.content.length, 0) + finalAnswer.length
+            ),
           },
         })}\n\n`);
         response.end();
@@ -756,6 +790,13 @@ export const streamPageAnswer = async (
           conversationId: input.conversationId,
           answerLength: finalAnswer.length,
           durationMs: Date.now() - startedAt,
+          estimatedPromptTokens: estimateTokens(
+            messages.reduce((sum, m) => sum + m.content.length, 0)
+          ),
+          estimatedCompletionTokens: estimateTokens(finalAnswer.length),
+          estimatedTotalTokens: estimateTokens(
+            messages.reduce((sum, m) => sum + m.content.length, 0) + finalAnswer.length
+          ),
         });
       })().catch((err) => {
         logger.error("page.agent.stream.end_handler_failed", { err, conversationId: input.conversationId });
