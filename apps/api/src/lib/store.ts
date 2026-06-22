@@ -23,6 +23,7 @@ import {
   UserAnnotation,
   UserProfile,
   UserProfileAnalysisJob,
+  UserProfileBehaviorSnapshot,
   UserProfileAnalysisJobStatus,
   UserProfileAnalysisTriggerMode,
   WecomAppConfig,
@@ -458,7 +459,18 @@ const mapUserProfile = (row: UserProfileRow): UserProfile => ({
   lastAnalyzedAt: row.last_analyzed_at ?? undefined,
   lastSourceWindowStart: row.last_source_window_start ?? undefined,
   lastSourceWindowEnd: row.last_source_window_end ?? undefined,
-  lastBehaviorSnapshot: (row.last_behavior_snapshot as unknown as UserProfile["lastBehaviorSnapshot"]) ?? undefined,
+  lastBehaviorSnapshot: (() => {
+    const raw = row.last_behavior_snapshot;
+    if (raw == null) return undefined;
+    if (
+      typeof raw === "object" &&
+      Array.isArray((raw as Record<string, unknown>).channelCodes) &&
+      typeof (raw as Record<string, unknown>).questionCount === "number"
+    ) {
+      return raw as unknown as UserProfileBehaviorSnapshot;
+    }
+    return undefined;
+  })(),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
