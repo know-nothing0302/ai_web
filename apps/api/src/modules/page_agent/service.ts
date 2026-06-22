@@ -782,6 +782,7 @@ export const streamPageAnswer = async (
             estimatedTokens: estimateTokens(
               messages.reduce((sum, m) => sum + m.content.length, 0) + finalAnswer.length
             ),
+            personaVersion: userProfile?.profileVersion,
           },
         })}\n\n`);
         response.end();

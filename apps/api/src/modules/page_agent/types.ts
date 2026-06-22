@@ -34,5 +34,7 @@ export interface PageAgentResponse {
     usedHistory: boolean;
     usedUserProfile: boolean;
     model: string;
+    estimatedTokens?: number;
+    personaVersion?: number;
   };
 }

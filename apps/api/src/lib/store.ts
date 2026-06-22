@@ -182,6 +182,7 @@ interface UserProfileRow {
   last_analyzed_at: string | null;
   last_source_window_start: string | null;
   last_source_window_end: string | null;
+  last_behavior_snapshot: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -457,6 +458,7 @@ const mapUserProfile = (row: UserProfileRow): UserProfile => ({
   lastAnalyzedAt: row.last_analyzed_at ?? undefined,
   lastSourceWindowStart: row.last_source_window_start ?? undefined,
   lastSourceWindowEnd: row.last_source_window_end ?? undefined,
+  lastBehaviorSnapshot: (row.last_behavior_snapshot as unknown as UserProfile["lastBehaviorSnapshot"]) ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -1261,6 +1263,7 @@ export const userProfileStore = {
       interestTopics: string[];
       responsePreferences: Record<string, unknown>;
       evidenceStats: Record<string, unknown>;
+      lastBehaviorSnapshot?: Record<string, unknown>;
     }
   ): Promise<UserProfile> {
     const result = await query<UserProfileRow>(
@@ -1274,9 +1277,10 @@ export const userProfileStore = {
         response_preferences,
         evidence_stats,
         last_analyzed_at,
+        last_behavior_snapshot,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, NOW(), $8::jsonb, NOW())
       ON CONFLICT (user_id)
       DO UPDATE SET
         profile_version = EXCLUDED.profile_version,
@@ -1286,6 +1290,7 @@ export const userProfileStore = {
         response_preferences = EXCLUDED.response_preferences,
         evidence_stats = EXCLUDED.evidence_stats,
         last_analyzed_at = NOW(),
+        last_behavior_snapshot = EXCLUDED.last_behavior_snapshot,
         updated_at = NOW()
       RETURNING *
       `,
@@ -1297,6 +1302,7 @@ export const userProfileStore = {
         input.interestTopics,
         JSON.stringify(input.responsePreferences),
         JSON.stringify(input.evidenceStats),
+        input.lastBehaviorSnapshot ? JSON.stringify(input.lastBehaviorSnapshot) : null,
       ]
     );
     return mapUserProfile(result.rows[0]);

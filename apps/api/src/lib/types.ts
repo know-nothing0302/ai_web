@@ -170,6 +170,12 @@ export interface PageAgentMessage {
   createdAt: string;
 }
 
+export interface UserProfileBehaviorSnapshot {
+  channelCodes: string[];
+  pageTypeDistribution: Record<string, number>;
+  questionCount: number;
+}
+
 export interface UserProfile {
   id: string;
   userId: string;
@@ -182,6 +188,7 @@ export interface UserProfile {
   lastAnalyzedAt?: string;
   lastSourceWindowStart?: string;
   lastSourceWindowEnd?: string;
+  lastBehaviorSnapshot?: UserProfileBehaviorSnapshot;
   createdAt: string;
   updatedAt: string;
 }
