@@ -517,11 +517,13 @@ export const streamPageAnswer = async (
     .filter((item) => item.role === "user" || item.role === "assistant")
     .map((item) => ({
       ...item,
-      sanitizedContent: truncateForModel(item.sanitizedContent ?? item.content, 1200),
+      sanitizedContent: truncateForModel(item.sanitizedContent ?? item.content,
+        input.verbosity === "concise" ? 600 : 1200),
     }));
   const sanitizedQuestion = sanitizeForModel(input.question);
+  const isConcise = input.verbosity === "concise";
   const usedSiteSearch = shouldSearchSite(input.question);
-  const searchSources = usedSiteSearch ? await searchPublishedArticles(input, 3) : [];
+  const searchSources = usedSiteSearch ? await searchPublishedArticles(input, isConcise ? 1 : 3) : [];
   const currentPageSource: PageAgentSource = {
     type: "current_page",
     title: input.pageTitle || "当前页面",
@@ -533,6 +535,7 @@ export const streamPageAnswer = async (
     hasUserProfile: Boolean(userProfile),
     historyCount: historyMessages.length,
     searchSourceCount: searchSources.length,
+    verbosity: input.verbosity ?? "detailed",
   });
 
   // 3. 保存用户消息
@@ -600,6 +603,7 @@ export const streamPageAnswer = async (
     historyMessages,
     userProfile,
     searchSources,
+    verbosity: input.verbosity,
   });
 
   let fullAnswer = "";
