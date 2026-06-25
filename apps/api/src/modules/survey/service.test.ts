@@ -227,7 +227,7 @@ describe("computeStats", () => {
       },
     }));
 
-    const { computeStats } = await import("./service");
+    const { computeStats } = await import("./service.js");
     const survey: Survey = {
       id: "s1", creatorUserId: "u1", title: "Test", description: "",
       questions: [makeQuestion({ id: "q1", type: "single_choice", title: "Q1", options: ["A", "B", "C"], required: true })],
@@ -254,7 +254,7 @@ describe("computeStats", () => {
       },
     }));
 
-    const { computeStats } = await import("./service");
+    const { computeStats } = await import("./service.js");
     const survey: Survey = {
       id: "s1", creatorUserId: "u1", title: "Test", description: "",
       questions: [makeQuestion({ id: "q1", type: "rating", title: "Q1", required: true })],
@@ -283,7 +283,7 @@ describe("computeStats", () => {
       },
     }));
 
-    const { computeStats } = await import("./service");
+    const { computeStats } = await import("./service.js");
     const survey: Survey = {
       id: "s1", creatorUserId: "u1", title: "Test", description: "", questions,
       status: "published", recipientConfig: { department_ids: [], user_ids: [], department_names: [], user_names: [] },
@@ -312,7 +312,7 @@ describe("generateSurvey", () => {
       }) } }] },
     } as any);
 
-    const { generateSurvey } = await import("./service");
+    const { generateSurvey } = await import("./service.js");
     const result = await generateSurvey({ description: "测试" });
     expect(result.title).toBe("测试问卷");
     expect(result.questions).toHaveLength(2);
@@ -327,7 +327,7 @@ describe("generateSurvey", () => {
       } }] },
     } as any);
 
-    const { generateSurvey } = await import("./service");
+    const { generateSurvey } = await import("./service.js");
     const result = await generateSurvey({ description: "测试" });
     expect(result.title).toBe("T");
     expect(result.questions[0]!.id).toBe("q1");
@@ -338,7 +338,7 @@ describe("generateSurvey", () => {
       data: { choices: [{ message: { content: "这不是JSON" } }] },
     } as any);
 
-    const { generateSurvey } = await import("./service");
+    const { generateSurvey } = await import("./service.js");
     await expect(generateSurvey({ description: "测试" })).rejects.toThrow("无法解析");
   });
 
@@ -347,7 +347,7 @@ describe("generateSurvey", () => {
       data: { choices: [{ message: { content: '{"title":"T","description":"D","questions":[]}' } }] },
     } as any);
 
-    const { generateSurvey } = await import("./service");
+    const { generateSurvey } = await import("./service.js");
     await expect(generateSurvey({ description: "测试" })).rejects.toThrow("缺少必填字段");
   });
 });
