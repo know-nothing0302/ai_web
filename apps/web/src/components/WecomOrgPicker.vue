@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { getWecomDepartments, getWecomDepartmentUsers } from "../services/api";
+import { ref, computed, onMounted } from "vue";
+import { getWecomDepartments } from "../services/api";
+import OrgTreeNode from "./OrgTreeNode.vue";
+import type { TreeNode } from "./OrgTreeTypes";
 
 const props = defineProps<{
   modelValue: {
@@ -15,22 +17,13 @@ const emit = defineEmits<{
   "update:modelValue": [value: typeof props.modelValue];
 }>();
 
-interface TreeNode {
-  type: "department" | "user";
-  id: number | string;
-  name: string;
-  parentId?: number;
-  children?: TreeNode[];
-  loaded?: boolean;
-  loading?: boolean;
-}
-
 const rootNodes = ref<TreeNode[]>([]);
 const loading = ref(true);
 const error = ref("");
 
 const selectedDepts = ref<Map<number, string>>(new Map());
 const selectedUsers = ref<Map<string, string>>(new Map());
+const searchQuery = ref("");
 
 // Initialize from modelValue
 onMounted(async () => {
@@ -52,7 +45,7 @@ onMounted(async () => {
     const { departments } = await getWecomDepartments();
     const topLevel = departments.filter((d) => d.parentId === 0);
     rootNodes.value = topLevel.map((d) => ({
-      type: "department" as const,
+      type: "department",
       id: d.id,
       name: d.name,
       parentId: d.parentId,
@@ -66,73 +59,6 @@ onMounted(async () => {
     loading.value = false;
   }
 });
-
-const toggleDepartment = async (node: TreeNode) => {
-  const deptId = node.id as number;
-
-  if (selectedDepts.value.has(deptId)) {
-    selectedDepts.value.delete(deptId);
-    syncToParent();
-    return;
-  }
-
-  if (!node.loaded && !node.loading) {
-    node.loading = true;
-    try {
-      // Load sub-departments
-      const { departments } = await getWecomDepartments(deptId);
-      const childDepts = departments.filter((d) => d.parentId === deptId);
-
-      // Load users in this department
-      const { users } = await getWecomDepartmentUsers(deptId);
-
-      // Fetch all departments to build child tree
-      const childNodes: TreeNode[] = [];
-
-      // Add child departments
-      for (const d of childDepts) {
-        childNodes.push({
-          type: "department",
-          id: d.id,
-          name: d.name,
-          parentId: d.parentId,
-          children: [],
-          loaded: false,
-          loading: false,
-        });
-      }
-
-      // Add users
-      for (const u of users) {
-        childNodes.push({
-          type: "user",
-          id: u.userid,
-          name: u.name || u.userid,
-        });
-      }
-
-      node.children = childNodes;
-      node.loaded = true;
-    } catch {
-      // Ignore load errors for individual departments
-    } finally {
-      node.loading = false;
-    }
-  }
-
-  selectedDepts.value.set(deptId, node.name);
-  syncToParent();
-};
-
-const toggleUser = (node: TreeNode) => {
-  const userId = String(node.id);
-  if (selectedUsers.value.has(userId)) {
-    selectedUsers.value.delete(userId);
-  } else {
-    selectedUsers.value.set(userId, node.name);
-  }
-  syncToParent();
-};
 
 const syncToParent = () => {
   emit("update:modelValue", {
@@ -152,16 +78,35 @@ const removeUser = (id: string) => {
   selectedUsers.value.delete(id);
   syncToParent();
 };
+
+const hasSelection = computed(() => selectedDepts.value.size > 0 || selectedUsers.value.size > 0);
+
+const onSelectionUpdate = () => {
+  syncToParent();
+};
 </script>
 
 <template>
   <div class="org-picker">
+    <!-- Search input -->
+    <div class="relative mb-3">
+      <input
+        v-model="searchQuery"
+        type="text"
+        placeholder="搜索部门或成员..."
+        class="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/40 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:border-cyan-500/60 focus:outline-none"
+      />
+      <span v-if="searchQuery" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs">
+        {{ searchQuery.length > 0 ? '🔍' : '' }}
+      </span>
+    </div>
+
     <div v-if="loading" class="text-slate-400 text-sm py-4">加载通讯录...</div>
     <div v-else-if="error" class="text-red-400 text-sm py-4">{{ error }}</div>
     <div v-else class="space-y-4">
       <!-- Selected items summary -->
       <div
-        v-if="selectedDepts.size > 0 || selectedUsers.size > 0"
+        v-if="hasSelection"
         class="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50"
       >
         <div class="text-xs text-slate-400 mb-2">已选择：</div>
@@ -185,77 +130,20 @@ const removeUser = (id: string) => {
         </div>
       </div>
 
-      <!-- Tree -->
+      <!-- Tree: recursive rendering via OrgTreeNode -->
       <div class="max-h-80 overflow-y-auto space-y-0.5">
-        <template v-for="node in rootNodes" :key="node.id">
-          <!-- Department node -->
-          <div v-if="node.type === 'department'" class="select-none">
-            <button
-              @click="toggleDepartment(node)"
-              class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm hover:bg-slate-700/40 transition-colors"
-              :class="{
-                'bg-cyan-500/10 border border-cyan-500/25': selectedDepts.has(
-                  node.id as number
-                ),
-                'text-slate-300': !selectedDepts.has(node.id as number),
-                'text-cyan-200': selectedDepts.has(node.id as number),
-              }"
-            >
-              <span v-if="node.loading" class="animate-spin text-xs">⏳</span>
-              <span v-else class="text-xs">{{ selectedDepts.has(node.id as number) ? '📂' : '📁' }}</span>
-              <span class="flex-1">{{ node.name }}</span>
-              <span v-if="selectedDepts.has(node.id as number)" class="text-cyan-400">✓</span>
-            </button>
-
-            <!-- Children -->
-            <div
-              v-if="node.loaded && node.children && node.children.length"
-              class="ml-4 border-l border-slate-700/40 pl-2"
-            >
-              <template v-for="child in node.children" :key="child.id">
-                <!-- Child department -->
-                <button
-                  v-if="child.type === 'department'"
-                  @click="toggleDepartment(child)"
-                  class="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-left text-sm hover:bg-slate-700/40 transition-colors"
-                  :class="{
-                    'bg-cyan-500/10 border border-cyan-500/25': selectedDepts.has(
-                      child.id as number
-                    ),
-                    'text-slate-300': !selectedDepts.has(child.id as number),
-                    'text-cyan-200': selectedDepts.has(child.id as number),
-                  }"
-                >
-                  <span class="text-xs">{{ selectedDepts.has(child.id as number) ? '📂' : '📁' }}</span>
-                  <span class="flex-1">{{ child.name }}</span>
-                  <span v-if="selectedDepts.has(child.id as number)" class="text-cyan-400">✓</span>
-                </button>
-
-                <!-- Child user -->
-                <button
-                  v-else
-                  @click="toggleUser(child)"
-                  class="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-left text-sm hover:bg-slate-700/40 transition-colors"
-                  :class="{
-                    'bg-purple-500/10 border border-purple-500/25': selectedUsers.has(
-                      String(child.id)
-                    ),
-                    'text-slate-400': !selectedUsers.has(String(child.id)),
-                    'text-purple-200': selectedUsers.has(String(child.id)),
-                  }"
-                >
-                  <span class="text-xs">👤</span>
-                  <span class="flex-1">{{ child.name }}</span>
-                  <span
-                    v-if="selectedUsers.has(String(child.id))"
-                    class="text-purple-400"
-                    >✓</span
-                  >
-                </button>
-              </template>
-            </div>
-          </div>
-        </template>
+        <OrgTreeNode
+          v-for="node in rootNodes"
+          :key="node.id"
+          :node="node"
+          :search-query="searchQuery"
+          :selected-depts="selectedDepts"
+          :selected-users="selectedUsers"
+          @update:selection="onSelectionUpdate"
+        />
+        <div v-if="rootNodes.length === 0 && !loading" class="text-slate-500 text-sm py-4 text-center">
+          暂无部门数据
+        </div>
       </div>
     </div>
   </div>

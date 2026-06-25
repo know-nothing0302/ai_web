@@ -63,20 +63,20 @@ const doSubmit = async () => {
     <!-- Submitted -->
     <div v-else-if="submitted" class="text-center py-20">
       <div class="text-5xl mb-4">✅</div>
-      <h2 class="text-xl font-semibold text-slate-100 mb-2">提交成功</h2>
+      <h2 class="text-xl font-semibold text-slate-800 mb-2">提交成功</h2>
       <p class="text-slate-400">感谢你的参与！</p>
     </div>
 
     <!-- Form -->
     <div v-else class="max-w-2xl mx-auto px-4 py-8">
       <div class="mb-8">
-        <h1 class="text-2xl font-bold text-slate-100 mb-2">{{ title }}</h1>
+        <h1 class="text-2xl font-bold text-slate-800 mb-2">{{ title }}</h1>
         <p v-if="description" class="text-slate-400 text-sm">{{ description }}</p>
       </div>
 
       <SurveyForm
         :questions="questions"
-        :editable="true"
+        mode="fill"
         v-model="answers"
       />
 
@@ -90,7 +90,7 @@ const doSubmit = async () => {
       <button
         @click="doSubmit"
         :disabled="submitting"
-        class="mt-8 w-full px-5 py-3 rounded-xl bg-cyan-500/25 border border-cyan-400/40 text-cyan-200 font-semibold hover:bg-cyan-500/35 disabled:opacity-40 transition-all"
+        class="mt-8 w-full px-5 py-3 rounded-xl bg-cyan-500 text-white font-semibold hover:bg-cyan-600 disabled:opacity-40 transition-all"
       >
         <span v-if="submitting">提交中...</span>
         <span v-else>提交问卷</span>

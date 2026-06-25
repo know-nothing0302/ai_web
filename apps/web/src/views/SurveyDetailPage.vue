@@ -83,8 +83,6 @@ const shareUrl = computed(() => {
 
 <template>
   <div class="survey-page">
-    <div class="grid-overlay"></div>
-
     <div class="relative z-10 max-w-3xl mx-auto">
       <!-- Loading -->
       <div v-if="loading" class="text-center py-20">
@@ -100,8 +98,8 @@ const shareUrl = computed(() => {
         <!-- Header -->
         <div class="flex items-start justify-between mb-6">
           <div class="flex-1 mr-4">
-            <h1 class="text-2xl font-bold text-slate-100">{{ survey.title }}</h1>
-            <p v-if="survey.description" class="text-slate-400 text-sm mt-1">
+            <h1 class="text-2xl font-bold text-slate-800">{{ survey.title }}</h1>
+            <p v-if="survey.description" class="text-slate-500 text-sm mt-1">
               {{ survey.description }}
             </p>
           </div>
@@ -132,7 +130,7 @@ const shareUrl = computed(() => {
           <button
             v-if="survey.status === 'draft'"
             @click="showPublishPanel = true"
-            class="px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-sm font-medium hover:bg-cyan-500/30 transition-all"
+            class="px-4 py-2 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 transition-all"
           >
             🚀 发布问卷
           </button>
@@ -141,19 +139,19 @@ const shareUrl = computed(() => {
           <template v-if="survey.status === 'published'">
             <button
               @click="copyLink"
-              class="px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 text-sm hover:bg-slate-600/40 transition-all"
+              class="px-4 py-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-sm hover:bg-slate-200 transition-all"
             >
               📋 复制链接
             </button>
             <button
               @click="goToStats"
-              class="px-4 py-2 rounded-lg bg-purple-500/15 border border-purple-500/25 text-purple-300 text-sm font-medium hover:bg-purple-500/25 transition-all"
+              class="px-4 py-2 rounded-lg bg-purple-100 border border-purple-200 text-purple-600 text-sm font-medium hover:bg-purple-200 transition-all"
             >
               📊 查看统计
             </button>
             <button
               @click="doClose"
-              class="px-4 py-2 rounded-lg bg-red-500/15 border border-red-500/25 text-red-400 text-sm hover:bg-red-500/25 transition-all"
+              class="px-4 py-2 rounded-lg bg-red-100 border border-red-200 text-red-600 text-sm hover:bg-red-200 transition-all"
             >
               ⏹ 关闭回收
             </button>
@@ -163,7 +161,7 @@ const shareUrl = computed(() => {
           <button
             v-if="survey.status === 'closed'"
             @click="goToStats"
-            class="px-4 py-2 rounded-lg bg-purple-500/15 border border-purple-500/25 text-purple-300 text-sm font-medium hover:bg-purple-500/25 transition-all"
+            class="px-4 py-2 rounded-lg bg-purple-100 border border-purple-200 text-purple-600 text-sm font-medium hover:bg-purple-200 transition-all"
           >
             📊 查看统计
           </button>
@@ -174,20 +172,20 @@ const shareUrl = computed(() => {
           v-if="showPublishPanel"
           class="glass-panel rounded-2xl border border-cyan-500/30 p-6 mb-6"
         >
-          <h2 class="text-slate-200 font-semibold text-sm mb-4">选择发布对象</h2>
+          <h2 class="text-slate-700 font-semibold text-sm mb-4">选择发布对象</h2>
           <WecomOrgPicker v-model="recipientConfig" />
           <div class="flex gap-3 mt-6">
             <button
               @click="doPublish"
               :disabled="publishing"
-              class="px-5 py-2.5 rounded-xl bg-cyan-500/25 border border-cyan-400/40 text-cyan-200 font-semibold hover:bg-cyan-500/35 disabled:opacity-40 transition-all text-sm"
+              class="px-5 py-2.5 rounded-xl bg-cyan-500 text-white font-semibold hover:bg-cyan-600 disabled:opacity-40 transition-all text-sm"
             >
               <span v-if="publishing">发布中...</span>
               <span v-else>确认发布并推送</span>
             </button>
             <button
               @click="showPublishPanel = false"
-              class="px-5 py-2.5 rounded-xl bg-slate-700/30 border border-slate-600/40 text-slate-400 hover:text-slate-300 transition-all text-sm"
+              class="px-5 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-700 transition-all text-sm"
             >
               取消
             </button>
@@ -199,14 +197,14 @@ const shareUrl = computed(() => {
           v-if="survey.status === 'published' && survey.publishToken"
           class="glass-panel rounded-2xl border border-green-500/20 p-4 mb-6"
         >
-          <p class="text-xs text-slate-400 mb-2">分享链接（也可直接发给目标用户）：</p>
+          <p class="text-xs text-slate-500 mb-2">分享链接（也可直接发给目标用户）：</p>
           <div class="flex items-center gap-2">
-            <code class="flex-1 px-3 py-2 rounded-lg bg-slate-900/60 text-cyan-300 text-xs break-all">
+            <code class="flex-1 px-3 py-2 rounded-lg bg-slate-50 text-cyan-700 text-xs break-all">
               {{ shareUrl }}
             </code>
             <button
               @click="copyLink"
-              class="px-3 py-2 rounded-lg bg-slate-700/40 text-slate-300 text-xs hover:bg-slate-600/40"
+              class="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 text-xs hover:bg-slate-200"
             >
               复制
             </button>
@@ -214,11 +212,11 @@ const shareUrl = computed(() => {
         </div>
 
         <!-- Questions preview -->
-        <div class="glass-panel rounded-2xl border border-slate-700/50 p-6">
-          <h2 class="text-slate-200 font-semibold text-sm mb-4">
+        <div class="glass-panel rounded-2xl border border-slate-200 p-6">
+          <h2 class="text-slate-700 font-semibold text-sm mb-4">
             问卷内容（{{ survey.questions.length }} 题）
           </h2>
-          <SurveyForm :questions="survey.questions" :editable="false" />
+          <SurveyForm :questions="survey.questions" mode="preview" />
         </div>
       </template>
     </div>
@@ -232,20 +230,11 @@ const shareUrl = computed(() => {
   padding: 3rem 1.5rem;
   border-radius: 1.5rem;
   overflow: hidden;
-  background: linear-gradient(135deg, #0a1628 0%, #0f1f3d 50%, #0a1628 100%);
-}
-
-.grid-overlay {
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(rgba(3, 169, 244, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(3, 169, 244, 0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
+  background: #f8fafc;
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(16px);
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 </style>

@@ -10,6 +10,7 @@ import { wecomClient } from "../wecom/client";
 import {
   computeStats,
   analyzeStats,
+  editQuestions,
   generateSurvey,
   validateResponse,
 } from "./service";
@@ -68,6 +69,11 @@ const respondSchema = z.object({
   token: z.string().min(1),
 });
 
+const editQuestionsSchema = z.object({
+  questions: createSurveySchema.shape.questions,
+  instruction: z.string().trim().min(1).max(1000),
+});
+
 // --- Helpers ---
 
 const generatePublishToken = (): string =>
@@ -108,6 +114,33 @@ surveyRouter.post("/generate", requireAuth, async (request, response) => {
     });
     response.status(500).json({
       message: "生成失败",
+      detail: (error as Error).message,
+    });
+  }
+});
+
+// POST /api/survey/edit-questions — LLM 自然语言编辑题目
+surveyRouter.post("/edit-questions", requireAuth, async (request, response) => {
+  const parsed = editQuestionsSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
+    return;
+  }
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+  try {
+    const result = await editQuestions(parsed.data.questions, parsed.data.instruction);
+    response.json(result);
+  } catch (error) {
+    logger.error("survey.edit.questions.failed", {
+      userId,
+      error: (error as Error).message,
+    });
+    response.status(500).json({
+      message: "编辑失败",
       detail: (error as Error).message,
     });
   }

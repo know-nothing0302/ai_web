@@ -1106,3 +1106,14 @@ export const getWecomDepartmentUsers = async (
   );
   return result.data;
 };
+
+export const editQuestions = async (
+  questions: SurveyQuestion[],
+  instruction: string
+): Promise<{ questions: SurveyQuestion[] }> => {
+  const result = await request.post<{ questions: SurveyQuestion[] }>(
+    "/survey/edit-questions",
+    { questions, instruction }
+  );
+  return result.data;
+};
