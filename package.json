@@ -10,7 +10,8 @@
     "dev:web": "npm --prefix apps/web run dev",
     "build:api": "npm --prefix apps/api run build",
     "build:web": "npm --prefix apps/web run build",
-    "typecheck:api": "npm --prefix apps/api run typecheck"
+    "typecheck:api": "npm --prefix apps/api run typecheck",
+    "test:api": "npm --prefix apps/api run test"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

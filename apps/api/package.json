@@ -12,7 +12,9 @@
     "test:publish-flow": "tsx src/scripts/test_publish_flow.ts",
     "token:rotate-publish": "tsx src/scripts/rotate_publish_token.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:migrate": "tsx src/scripts/migrate.ts"
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -43,6 +45,7 @@
     "@types/oracledb": "^6.10.4",
     "@types/pg": "^8.20.0",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.9"
   }
 }
