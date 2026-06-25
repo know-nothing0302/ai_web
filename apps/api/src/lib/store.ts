@@ -2855,6 +2855,10 @@ export const surveyStore = {
     );
     return result.rows[0] ? mapSurvey(result.rows[0]) : undefined;
   },
+
+  async deleteById(id: string): Promise<void> {
+    await query(`DELETE FROM surveys WHERE id = $1`, [id]);
+  },
 };
 
 export const surveyResponseStore = {
@@ -2897,5 +2901,12 @@ export const surveyResponseStore = {
       [surveyId]
     );
     return Number(result.rows[0]?.count ?? 0);
+  },
+
+  async deleteBySurvey(surveyId: string): Promise<void> {
+    await query(
+      `DELETE FROM survey_responses WHERE survey_id = $1`,
+      [surveyId]
+    );
   },
 };

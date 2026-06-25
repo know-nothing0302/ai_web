@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { getWecomDepartments, getWecomDepartmentUsers } from "../services/api";
+import { ref, computed, watch } from "vue";
+import { getWecomDepartmentUsers } from "../services/api";
 import type { TreeNode } from "./OrgTreeTypes";
 
 const props = defineProps<{
@@ -15,9 +15,9 @@ const emit = defineEmits<{
 }>();
 
 const expanded = ref(false);
-const loaded = ref(false);
-const loadingChildren = ref(false);
-const children = ref<TreeNode[]>([]);
+const loadingUsers = ref(false);
+const userNodes = ref<TreeNode[]>([]);
+const usersLoaded = ref(false);
 
 const isDepartment = computed(() => props.node.type === "department");
 const nodeIdStr = computed(() => String(props.node.id));
@@ -28,14 +28,17 @@ const isSelected = computed(() => {
   return props.selectedUsers.has(nodeIdStr.value);
 });
 
+const hasSearch = computed(() => props.searchQuery.trim().length > 0);
+
 // Visibility: matches search OR has descendant that matches
 const isVisible = computed(() => {
-  if (!props.searchQuery) return true;
+  if (!hasSearch.value) return true;
   const q = props.searchQuery.toLowerCase();
   if (props.node.name.toLowerCase().includes(q)) return true;
-  // Check children recursively
-  if (isDepartment.value && children.value.length > 0) {
-    return children.value.some(c => checkChildVisible(c, q));
+  // Check children recursively (pre-loaded departments + loaded users)
+  const allChildren = [...(props.node.children ?? []), ...userNodes.value];
+  if (isDepartment.value && allChildren.length > 0) {
+    return allChildren.some(c => checkChildVisible(c, q));
   }
   return false;
 });
@@ -47,6 +50,13 @@ const checkChildVisible = (node: TreeNode, q: string): boolean => {
   }
   return false;
 };
+
+// Auto-expand when search is active
+watch(hasSearch, (searching) => {
+  if (searching && isDepartment.value) {
+    expanded.value = true;
+  }
+});
 
 let clickTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -92,51 +102,36 @@ const toggleExpand = async () => {
     expanded.value = false;
     return;
   }
-  // Load children if not yet loaded
-  if (!loaded.value && !loadingChildren.value) {
-    await loadChildren();
+  // Load users if not yet loaded
+  if (!usersLoaded.value && !loadingUsers.value) {
+    await loadUsers();
   }
   expanded.value = true;
 };
 
-const loadChildren = async () => {
-  loadingChildren.value = true;
+const loadUsers = async () => {
+  loadingUsers.value = true;
   try {
     const deptId = nodeIdNum.value;
-    const { departments } = await getWecomDepartments(deptId);
-    const childDepts = departments.filter((d) => d.parentId === deptId);
     const { users } = await getWecomDepartmentUsers(deptId);
 
-    const childNodes: TreeNode[] = [];
-
-    for (const d of childDepts) {
-      childNodes.push({
-        type: "department",
-        id: d.id,
-        name: d.name,
-        parentId: d.parentId,
-        children: [],
-        loaded: false,
-        loading: false,
-      });
-    }
-
-    for (const u of users) {
-      childNodes.push({
-        type: "user",
-        id: u.userid,
-        name: u.name || u.userid,
-      });
-    }
-
-    children.value = childNodes;
-    loaded.value = true;
+    userNodes.value = users.map((u) => ({
+      type: "user" as const,
+      id: u.userid,
+      name: u.name || u.userid,
+    }));
+    usersLoaded.value = true;
   } catch {
     // Ignore load errors
   } finally {
-    loadingChildren.value = false;
+    loadingUsers.value = false;
   }
 };
+
+// Combined children: pre-loaded departments + lazy-loaded users
+const allChildren = computed(() => {
+  return [...(props.node.children ?? []), ...userNodes.value];
+});
 </script>
 
 <template>
@@ -148,7 +143,7 @@ const loadChildren = async () => {
         :style="{ paddingLeft: (node.parentId ? 8 : 0) + 'px' }"
       >
         <span class="text-slate-600 text-[10px] w-4 shrink-0 text-center">
-          <span v-if="loadingChildren" class="inline-block animate-spin">⟳</span>
+          <span v-if="loadingUsers" class="inline-block animate-spin">⟳</span>
           <span v-else-if="expanded">▼</span>
           <span v-else>▶</span>
         </span>
@@ -167,10 +162,10 @@ const loadChildren = async () => {
           <span v-if="isSelected" class="text-cyan-400 shrink-0">✓</span>
         </button>
       </div>
-      <!-- Children -->
-      <div v-if="expanded && children.length > 0" class="ml-3 border-l border-slate-700/40 pl-2">
+      <!-- Children (shown when expanded OR when searching) -->
+      <div v-if="(expanded || hasSearch) && allChildren.length > 0" class="ml-3 border-l border-slate-700/40 pl-2">
         <OrgTreeNode
-          v-for="child in children"
+          v-for="child in allChildren"
           :key="child.id"
           :node="child"
           :search-query="searchQuery"

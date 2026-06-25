@@ -5,6 +5,9 @@ import {
   getSurvey,
   publishSurvey,
   closeSurvey,
+  reopenSurvey,
+  copySurvey,
+  deleteSurvey,
 } from "../services/api";
 import SurveyForm from "../components/SurveyForm.vue";
 import WecomOrgPicker from "../components/WecomOrgPicker.vue";
@@ -61,9 +64,41 @@ const doClose = async () => {
   }
 };
 
+const doReopen = async () => {
+  if (!survey.value) return;
+  try {
+    const result = await reopenSurvey(survey.value.id);
+    survey.value = result;
+  } catch (e: any) {
+    error.value = e?.response?.data?.message || "重开失败";
+  }
+};
+
+const doCopy = async () => {
+  if (!survey.value) return;
+  try {
+    const copy = await copySurvey(survey.value.id);
+    router.push(`/ai-lab/survey/${copy.id}`);
+  } catch (e: any) {
+    error.value = e?.response?.data?.message || "复制失败";
+  }
+};
+
+const doDelete = async () => {
+  if (!survey.value) return;
+  if (!confirm("确定删除这份问卷吗？删除后无法恢复。")) return;
+  try {
+    await deleteSurvey(survey.value.id);
+    router.push("/ai-lab/survey");
+  } catch (e: any) {
+    error.value = e?.response?.data?.message || "删除失败";
+  }
+};
+
 const copyLink = () => {
   if (!survey.value?.publishToken) return;
-  const url = `${window.location.origin}/s/${survey.value.publishToken}`;
+  const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
+  const url = `${window.location.origin}${base}/s/${survey.value.publishToken}`;
   navigator.clipboard.writeText(url).then(() => {
     // Brief feedback
   });
@@ -75,9 +110,16 @@ const goToStats = () => {
   }
 };
 
+const goToEdit = () => {
+  if (survey.value) {
+    router.push(`/ai-lab/survey/create?edit=${survey.value.id}`);
+  }
+};
+
 const shareUrl = computed(() => {
   if (!survey.value?.publishToken) return "";
-  return `${location.origin}/s/${survey.value.publishToken}`;
+  const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
+  return `${location.origin}${base}/s/${survey.value.publishToken}`;
 });
 </script>
 
@@ -126,16 +168,29 @@ const shareUrl = computed(() => {
 
         <!-- Action bar -->
         <div class="flex flex-wrap gap-2 mb-6">
-          <!-- Draft: publish button -->
-          <button
-            v-if="survey.status === 'draft'"
-            @click="showPublishPanel = true"
-            class="px-4 py-2 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 transition-all"
-          >
-            🚀 发布问卷
-          </button>
+          <!-- Draft: edit + publish + delete -->
+          <template v-if="survey.status === 'draft'">
+            <button
+              @click="goToEdit"
+              class="px-4 py-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-sm hover:bg-slate-200 transition-all"
+            >
+              ✏️ 编辑
+            </button>
+            <button
+              @click="showPublishPanel = true"
+              class="px-4 py-2 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 transition-all"
+            >
+              🚀 发布问卷
+            </button>
+            <button
+              @click="doDelete"
+              class="px-4 py-2 rounded-lg bg-red-100 border border-red-200 text-red-600 text-sm hover:bg-red-200 transition-all"
+            >
+              🗑 删除
+            </button>
+          </template>
 
-          <!-- Published: copy link + stats + close -->
+          <!-- Published: copy link + stats + close + copy + delete -->
           <template v-if="survey.status === 'published'">
             <button
               @click="copyLink"
@@ -155,16 +210,47 @@ const shareUrl = computed(() => {
             >
               ⏹ 关闭回收
             </button>
+            <button
+              @click="doCopy"
+              class="px-4 py-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-sm hover:bg-slate-200 transition-all"
+            >
+              📋 复制问卷
+            </button>
+            <button
+              @click="doDelete"
+              class="px-4 py-2 rounded-lg bg-red-100 border border-red-200 text-red-600 text-sm hover:bg-red-200 transition-all"
+            >
+              🗑 删除
+            </button>
           </template>
 
-          <!-- Closed: stats -->
-          <button
-            v-if="survey.status === 'closed'"
-            @click="goToStats"
-            class="px-4 py-2 rounded-lg bg-purple-100 border border-purple-200 text-purple-600 text-sm font-medium hover:bg-purple-200 transition-all"
-          >
-            📊 查看统计
-          </button>
+          <!-- Closed: reopen + stats + copy + delete -->
+          <template v-if="survey.status === 'closed'">
+            <button
+              @click="doReopen"
+              class="px-4 py-2 rounded-lg bg-green-100 border border-green-200 text-green-600 text-sm font-medium hover:bg-green-200 transition-all"
+            >
+              🔄 重新开启
+            </button>
+            <button
+              @click="goToStats"
+              class="px-4 py-2 rounded-lg bg-purple-100 border border-purple-200 text-purple-600 text-sm font-medium hover:bg-purple-200 transition-all"
+            >
+              📊 查看统计
+            </button>
+            <button
+              @click="doCopy"
+              class="px-4 py-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-sm hover:bg-slate-200 transition-all"
+            >
+              📋 复制问卷
+            </button>
+            <button
+              @click="doDelete"
+              class="px-4 py-2 rounded-lg bg-red-100 border border-red-200 text-red-600 text-sm hover:bg-red-200 transition-all"
+            >
+              🗑 删除
+            </button>
+          </template>
         </div>
 
         <!-- Publish panel -->

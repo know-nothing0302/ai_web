@@ -457,6 +457,81 @@ surveyRouter.post("/:id/close", requireAuth, async (request, response) => {
   response.json(updated);
 });
 
+// POST /api/survey/:id/reopen — 重新开启已关闭的问卷
+surveyRouter.post("/:id/reopen", requireAuth, async (request, response) => {
+  const surveyId = String(request.params.id);
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+
+  const survey = await surveyStore.getById(surveyId);
+  if (!survey || survey.creatorUserId !== userId) {
+    response.status(404).json({ message: "问卷不存在" });
+    return;
+  }
+
+  if (survey.status !== "closed") {
+    response.status(400).json({ message: "只能重新开启已关闭的问卷" });
+    return;
+  }
+
+  const updated = await surveyStore.update(surveyId, { status: "published" });
+  logger.info("survey.reopened", { surveyId, userId });
+  response.json(updated);
+});
+
+// POST /api/survey/:id/copy — 复制问卷
+surveyRouter.post("/:id/copy", requireAuth, async (request, response) => {
+  const surveyId = String(request.params.id);
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+
+  const survey = await surveyStore.getById(surveyId);
+  if (!survey || survey.creatorUserId !== userId) {
+    response.status(404).json({ message: "问卷不存在" });
+    return;
+  }
+
+  const copy = await surveyStore.create({
+    creatorUserId: userId,
+    title: `${survey.title} (副本)`,
+    description: survey.description,
+    questions: survey.questions,
+    status: "draft",
+  });
+
+  logger.info("survey.copied", { originalId: surveyId, copyId: copy.id, userId });
+  response.status(201).json(copy);
+});
+
+// DELETE /api/survey/:id — 删除问卷
+surveyRouter.delete("/:id", requireAuth, async (request, response) => {
+  const surveyId = String(request.params.id);
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    response.status(401).json({ message: "未登录" });
+    return;
+  }
+
+  const survey = await surveyStore.getById(surveyId);
+  if (!survey || survey.creatorUserId !== userId) {
+    response.status(404).json({ message: "问卷不存在" });
+    return;
+  }
+
+  // Delete responses first, then survey (cascade would handle this but being explicit)
+  await surveyResponseStore.deleteBySurvey(surveyId);
+  await surveyStore.deleteById(surveyId);
+
+  logger.info("survey.deleted", { surveyId, userId });
+  response.json({ message: "已删除" });
+});
+
 // POST /api/survey/:id/respond — 提交答卷（公开）
 surveyRouter.post("/:id/respond", async (request, response) => {
   const idOrToken = String(request.params.id);

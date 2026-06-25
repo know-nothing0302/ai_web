@@ -1034,6 +1034,20 @@ export const closeSurvey = async (id: string): Promise<Survey> => {
   return result.data;
 };
 
+export const reopenSurvey = async (id: string): Promise<Survey> => {
+  const result = await request.post<Survey>(`/survey/${id}/reopen`);
+  return result.data;
+};
+
+export const copySurvey = async (id: string): Promise<Survey> => {
+  const result = await request.post<Survey>(`/survey/${id}/copy`);
+  return result.data;
+};
+
+export const deleteSurvey = async (id: string): Promise<void> => {
+  await request.delete(`/survey/${id}`);
+};
+
 export const respondSurvey = async (
   surveyId: string,
   token: string,

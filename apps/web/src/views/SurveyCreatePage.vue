@@ -1,20 +1,87 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter } from "vue-router";
-import { generateSurvey, createSurvey, editQuestions } from "../services/api";
+import { ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { generateSurvey, createSurvey, updateSurvey, getSurvey, editQuestions } from "../services/api";
 import SurveyForm from "../components/SurveyForm.vue";
 import type { SurveyQuestion } from "../services/api";
 
 const router = useRouter();
+const route = useRoute();
 
 const description = ref("");
 const generating = ref(false);
 const saving = ref(false);
 const error = ref("");
+const saveStatus = ref(""); // "saved" | "saving" | ""
 
 const generatedTitle = ref("");
 const generatedDesc = ref("");
 const questions = ref<SurveyQuestion[]>([]);
+
+// For auto-save: store the survey ID once created
+const surveyId = ref("");
+
+// Auto-save timer
+let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
+
+const startAutoSave = () => {
+  if (autoSaveTimer) return;
+  autoSaveTimer = setInterval(doAutoSave, 30_000);
+};
+
+const stopAutoSave = () => {
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+};
+
+const doAutoSave = async () => {
+  if (!surveyId.value || !generatedTitle.value.trim()) return;
+  saveStatus.value = "saving";
+  try {
+    await updateSurvey(surveyId.value, {
+      title: generatedTitle.value.trim(),
+      description: generatedDesc.value.trim(),
+      questions: questions.value,
+    });
+    saveStatus.value = "saved";
+    setTimeout(() => { if (saveStatus.value === "saved") saveStatus.value = ""; }, 2000);
+  } catch (e: any) {
+    saveStatus.value = "";
+    error.value = e?.response?.data?.detail || e?.message || "自动保存失败";
+  }
+};
+
+// Watch for changes to show "unsaved" indicator (simplified: just clear saved status)
+watch([generatedTitle, generatedDesc, questions], () => {
+  if (surveyId.value && saveStatus.value === "saved") {
+    saveStatus.value = "";
+  }
+}, { deep: true });
+
+// Load existing survey for editing
+onMounted(async () => {
+  const editId = route.query.edit as string;
+  if (editId) {
+    try {
+      const s = await getSurvey(editId);
+      if (s.status === "draft" && s.isCreator) {
+        surveyId.value = s.id;
+        generatedTitle.value = s.title;
+        generatedDesc.value = s.description;
+        questions.value = s.questions;
+        startAutoSave();
+      }
+    } catch {
+      error.value = "问卷不存在";
+    }
+  }
+});
+
+onBeforeUnmount(() => {
+  stopAutoSave();
+});
 
 const doGenerate = async () => {
   if (!description.value.trim()) return;
@@ -98,12 +165,26 @@ const doSave = async () => {
   saving.value = true;
   error.value = "";
   try {
-    const survey = await createSurvey({
-      title: generatedTitle.value.trim(),
-      description: generatedDesc.value.trim(),
-      questions: questions.value,
-    });
-    router.push(`/ai-lab/survey/${survey.id}`);
+    if (surveyId.value) {
+      // Update existing draft
+      await updateSurvey(surveyId.value, {
+        title: generatedTitle.value.trim(),
+        description: generatedDesc.value.trim(),
+        questions: questions.value,
+      });
+      stopAutoSave();
+      router.push(`/ai-lab/survey/${surveyId.value}`);
+    } else {
+      // First save: create draft, then start auto-save
+      const survey = await createSurvey({
+        title: generatedTitle.value.trim(),
+        description: generatedDesc.value.trim(),
+        questions: questions.value,
+      });
+      surveyId.value = survey.id;
+      startAutoSave();
+      router.push(`/ai-lab/survey/${survey.id}`);
+    }
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message || "保存失败";
   } finally {
@@ -143,10 +224,12 @@ const setQuestionType = (q: SurveyQuestion, type: SurveyQuestion["type"]) => {
 <template>
   <div class="survey-page">
     <div class="relative z-10 max-w-3xl mx-auto">
-      <h1 class="text-3xl font-bold text-slate-800 mb-8">创建问卷</h1>
+      <h1 class="text-3xl font-bold text-slate-800 mb-8">
+        {{ surveyId ? "编辑问卷" : "创建问卷" }}
+      </h1>
 
-      <!-- Step 1: Describe -->
-      <div v-if="questions.length === 0" class="glass-panel rounded-2xl border border-slate-200 p-6">
+      <!-- Step 1: Describe (only for new surveys) -->
+      <div v-if="questions.length === 0 && !surveyId" class="glass-panel rounded-2xl border border-slate-200 p-6">
         <label class="block text-slate-700 font-medium mb-3 text-sm"
           >描述你的问卷需求</label
         >
@@ -329,6 +412,12 @@ const setQuestionType = (q: SurveyQuestion, type: SurveyQuestion["type"]) => {
           {{ error }}
         </div>
 
+        <!-- Auto-save indicator -->
+        <div v-if="saveStatus" class="text-xs text-slate-500 text-center">
+          <template v-if="saveStatus === 'saving'">⏳ 自动保存中...</template>
+          <template v-else>✅ 已自动保存</template>
+        </div>
+
         <div class="flex gap-3">
           <button
             @click="doSave"
@@ -336,9 +425,10 @@ const setQuestionType = (q: SurveyQuestion, type: SurveyQuestion["type"]) => {
             class="flex-1 px-5 py-3 rounded-xl bg-cyan-500 text-white font-semibold hover:bg-cyan-600 disabled:opacity-40 transition-all"
           >
             <span v-if="saving">保存中...</span>
-            <span v-else>💾 保存草稿</span>
+            <span v-else>{{ surveyId ? '💾 保存并返回' : '💾 保存草稿' }}</span>
           </button>
           <button
+            v-if="!surveyId"
             @click="questions = []"
             class="px-5 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-700 transition-all text-sm"
           >

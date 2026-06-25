@@ -25,6 +25,27 @@ const selectedDepts = ref<Map<number, string>>(new Map());
 const selectedUsers = ref<Map<string, string>>(new Map());
 const searchQuery = ref("");
 
+// Full flat department list for search
+const allDepartments = ref<Map<number, { id: number; name: string; parentId: number }>>(new Map());
+
+// Build a full tree from flat department list (pre-populate children for search)
+const buildTree = (
+  deptList: { id: number; name: string; parentId: number }[],
+  parentId: number
+): TreeNode[] => {
+  return deptList
+    .filter((d) => d.parentId === parentId)
+    .map((d) => ({
+      type: "department" as const,
+      id: d.id,
+      name: d.name,
+      parentId: d.parentId,
+      children: buildTree(deptList, d.id),
+      loaded: true, // pre-loaded so search works
+      loading: false,
+    }));
+};
+
 // Initialize from modelValue
 onMounted(async () => {
   if (props.modelValue) {
@@ -43,16 +64,12 @@ onMounted(async () => {
   }
   try {
     const { departments } = await getWecomDepartments();
-    const topLevel = departments.filter((d) => d.parentId === 0);
-    rootNodes.value = topLevel.map((d) => ({
-      type: "department",
-      id: d.id,
-      name: d.name,
-      parentId: d.parentId,
-      children: [],
-      loaded: false,
-      loading: false,
-    }));
+    // Store full list for search
+    for (const d of departments) {
+      allDepartments.value.set(d.id, d);
+    }
+    // Build full tree (all children pre-populated) so search traverses unexpanded nodes
+    rootNodes.value = buildTree(departments, 0);
   } catch (e) {
     error.value = "获取部门列表失败";
   } finally {
