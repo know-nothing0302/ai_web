@@ -1084,11 +1084,14 @@ export const analyzeSurveyStats = async (
   return result.data;
 };
 
-export const getWecomDepartments = async (): Promise<{
+export const getWecomDepartments = async (
+  parentId?: number
+): Promise<{
   departments: WecomDepartment[];
 }> => {
   const result = await request.get<{ departments: WecomDepartment[] }>(
-    "/survey/wecom/departments"
+    "/survey/wecom/departments",
+    { params: typeof parentId === "number" ? { parent_id: parentId } : undefined }
   );
   return result.data;
 };

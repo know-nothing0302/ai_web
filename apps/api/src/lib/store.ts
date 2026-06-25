@@ -2772,6 +2772,30 @@ export const surveyStore = {
     return result.rows.map(mapSurvey);
   },
 
+  async listByCreatorWithResponseCounts(
+    userId: string,
+    limit = 20,
+    offset = 0
+  ): Promise<(Survey & { responseCount: number })[]> {
+    const result = await query<SurveyRow & { response_count: string }>(
+      `SELECT s.*, COALESCE(r.cnt, 0)::int AS response_count
+       FROM surveys s
+       LEFT JOIN (
+         SELECT survey_id, COUNT(*) AS cnt
+         FROM survey_responses
+         GROUP BY survey_id
+       ) r ON s.id = r.survey_id
+       WHERE s.creator_user_id = $1
+       ORDER BY s.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+    return result.rows.map((row) => ({
+      ...mapSurvey(row),
+      responseCount: Number(row.response_count),
+    }));
+  },
+
   async countByCreator(userId: string): Promise<number> {
     const result = await query<{ count: string }>(
       `SELECT COUNT(*) as count FROM surveys WHERE creator_user_id = $1`,

@@ -22,14 +22,17 @@ watch(
 );
 
 // Compute visibility for each question based on current answers
-const isVisible = (q: SurveyQuestion): boolean => {
+const isVisible = (q: SurveyQuestion, visited: Set<string> = new Set()): boolean => {
   if (!q.showIf) return true;
+  if (visited.has(q.id)) return false;
+  visited.add(q.id);
+
   const { questionId, op, value } = q.showIf;
   const answer = answers.value[questionId];
 
   // Check dependency visibility recursively
   const dep = props.questions.find((dq) => dq.id === questionId);
-  if (dep && !isVisible(dep)) return false;
+  if (dep && !isVisible(dep, visited)) return false;
 
   if (answer === undefined || answer === null) return false;
 
@@ -68,14 +71,18 @@ const setAnswer = (questionId: string, value: unknown) => {
 // Use a specific answer set for visibility check
 const isVisibleWithAnswers = (
   q: SurveyQuestion,
-  ans: Record<string, unknown>
+  ans: Record<string, unknown>,
+  visited: Set<string> = new Set()
 ): boolean => {
   if (!q.showIf) return true;
+  if (visited.has(q.id)) return false;
+  visited.add(q.id);
+
   const { questionId, op, value } = q.showIf;
   const answer = ans[questionId];
 
   const dep = props.questions.find((dq) => dq.id === questionId);
-  if (dep && !isVisibleWithAnswers(dep, ans)) return false;
+  if (dep && !isVisibleWithAnswers(dep, ans, visited)) return false;
 
   if (answer === undefined || answer === null) return false;
 

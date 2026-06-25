@@ -80,8 +80,8 @@ const toggleDepartment = async (node: TreeNode) => {
     node.loading = true;
     try {
       // Load sub-departments
-      const { departments } = await getWecomDepartments();
-      const childDepts = departments.filter((d) => d.id !== deptId);
+      const { departments } = await getWecomDepartments(deptId);
+      const childDepts = departments.filter((d) => d.parentId === deptId);
 
       // Load users in this department
       const { users } = await getWecomDepartmentUsers(deptId);

@@ -150,16 +150,21 @@ export async function generateSurvey(
 export function isQuestionVisible(
   question: SurveyQuestion,
   answers: Record<string, unknown>,
-  allQuestions: SurveyQuestion[]
+  allQuestions: SurveyQuestion[],
+  visited: Set<string> = new Set()
 ): boolean {
   if (!question.showIf) return true;
+
+  // Cycle detection: if we've already visited this question in the chain, break
+  if (visited.has(question.id)) return false;
+  visited.add(question.id);
 
   const { questionId, op, value } = question.showIf;
   const answer = answers[questionId];
 
   // If the dependency question is itself hidden, this one is too
   const depQuestion = allQuestions.find((q) => q.id === questionId);
-  if (depQuestion && !isQuestionVisible(depQuestion, answers, allQuestions)) {
+  if (depQuestion && !isQuestionVisible(depQuestion, answers, allQuestions, visited)) {
     return false;
   }
 

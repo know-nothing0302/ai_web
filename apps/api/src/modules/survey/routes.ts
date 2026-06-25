@@ -149,24 +149,25 @@ surveyRouter.get("/", requireAuth, async (request, response) => {
   }
   const limit = Math.max(1, Math.min(Number(request.query.limit) || 20, 50));
   const offset = Math.max(0, Number(request.query.offset) || 0);
-  const items = await surveyStore.listByCreator(userId, limit, offset);
+  const items = await surveyStore.listByCreatorWithResponseCounts(
+    userId,
+    limit,
+    offset
+  );
   const total = await surveyStore.countByCreator(userId);
 
-  // Attach response counts
-  const itemsWithCounts = await Promise.all(
-    items.map(async (s) => ({
-      ...s,
-      responseCount: await surveyResponseStore.countBySurvey(s.id),
-    }))
-  );
-
-  response.json({ items: itemsWithCounts, total });
+  response.json({ items, total });
 });
 
 // GET /api/survey/wecom/departments — 企微部门树
-surveyRouter.get("/wecom/departments", requireAuth, async (_request, response) => {
+surveyRouter.get("/wecom/departments", requireAuth, async (request, response) => {
   try {
-    const departments = await wecomClient.listDepartments();
+    const parentId = request.query.parent_id
+      ? Number(request.query.parent_id)
+      : undefined;
+    const departments = await wecomClient.listDepartments(
+      Number.isFinite(parentId) ? parentId : undefined
+    );
     response.json({ departments });
   } catch (error) {
     logger.error("survey.wecom.departments.failed", {
@@ -319,7 +320,22 @@ surveyRouter.post("/:id/publish", requireAuth, async (request, response) => {
     user_names: parsed.data.user_names,
   };
 
-  // Push via WeChat Work if recipients specified
+  // Persist survey state first
+  const updated = await surveyStore.update(surveyId, {
+    status: "published",
+    publishToken: token,
+    recipientConfig,
+  });
+
+  logger.info("survey.published", {
+    surveyId,
+    userId,
+    hasRecipients:
+      recipientConfig.department_ids.length > 0 ||
+      recipientConfig.user_ids.length > 0,
+  });
+
+  // Push via WeChat Work if recipients specified (after state persisted)
   let pushResult: { invalidUserIds: string[] } | undefined;
   const hasRecipients =
     recipientConfig.department_ids.length > 0 ||
@@ -370,21 +386,9 @@ surveyRouter.post("/:id/publish", requireAuth, async (request, response) => {
         surveyId,
         error: (error as Error).message,
       });
-      // Continue with publish even if push fails
+      // Push failure doesn't affect publish status
     }
   }
-
-  const updated = await surveyStore.update(surveyId, {
-    status: "published",
-    publishToken: token,
-    recipientConfig,
-  });
-
-  logger.info("survey.published", {
-    surveyId,
-    userId,
-    hasRecipients,
-  });
 
   response.json({
     ...updated,

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "postgres-ai-web-ro": {
+      "type": "http",
+      "url": "http://127.0.0.1:5433/mcp/ai-web-ro"
+    },
+    "postgres-ai-web-rw": {
+      "type": "http",
+      "url": "http://127.0.0.1:5433/mcp/ai-web-rw"
+    },
+    "postgres-hindsight-ro": {
+      "type": "http",
+      "url": "http://127.0.0.1:5433/mcp/hindsight-ro"
+    }
+  }
+}
