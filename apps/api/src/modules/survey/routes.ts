@@ -6,6 +6,7 @@ import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { surveyStore, surveyResponseStore } from "../../lib/store";
 import { requireAuth } from "../../middleware/auth";
+import { pageAgentQaRateLimiter } from "../../middleware/rate_limit";
 import { wecomClient } from "../wecom/client";
 import {
   computeStats,
@@ -93,7 +94,7 @@ const validateTokenAccess = async (
 export const surveyRouter = Router();
 
 // POST /api/survey/generate — LLM 生成问卷
-surveyRouter.post("/generate", requireAuth, async (request, response) => {
+surveyRouter.post("/generate", requireAuth, pageAgentQaRateLimiter, async (request, response) => {
   const parsed = generateSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });
@@ -120,7 +121,7 @@ surveyRouter.post("/generate", requireAuth, async (request, response) => {
 });
 
 // POST /api/survey/edit-questions — LLM 自然语言编辑题目
-surveyRouter.post("/edit-questions", requireAuth, async (request, response) => {
+surveyRouter.post("/edit-questions", requireAuth, pageAgentQaRateLimiter, async (request, response) => {
   const parsed = editQuestionsSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });

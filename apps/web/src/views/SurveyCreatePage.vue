@@ -56,12 +56,18 @@ const addQuestionAt = (index: number) => {
 };
 
 const removeQuestion = (index: number) => {
+  const deletedId = questions.value[index]?.id;
   questions.value.splice(index, 1);
   // Re-index
   questions.value = questions.value.map((q, i) => ({ ...q, id: `q${i + 1}` }));
-  // Update showIf references
+  // Update showIf references: remove orphaned refs, shift refs pointing to questions after deleted
   for (const q of questions.value) {
     if (q.showIf) {
+      // If the reference points to the deleted question, remove the condition
+      if (q.showIf.questionId === deletedId) {
+        q.showIf = undefined;
+        continue;
+      }
       const oldIdx = parseInt(q.showIf.questionId.replace("q", ""));
       if (oldIdx > index + 1) {
         q.showIf.questionId = `q${oldIdx - 1}`;

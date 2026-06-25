@@ -1,4 +1,5 @@
 import axios from "axios";
+import { z } from "zod";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import {
@@ -209,6 +210,36 @@ export async function editQuestions(
     logger.warn("survey.edit.questions.validation_failed", { parsed });
     throw new Error("LLM 返回的题目数组为空或格式错误");
   }
+
+  // Validate each question against Zod schema
+  const questionSchema = z.object({
+    id: z.string().min(1).max(10),
+    type: z.enum(["single_choice", "multiple_choice", "text", "rating"]),
+    title: z.string().min(1).max(200),
+    options: z.array(z.string().min(1).max(200)).optional(),
+    required: z.boolean().optional().default(true),
+    showIf: z
+      .object({
+        questionId: z.string().min(1).max(10),
+        op: z.enum(["eq", "neq", "includes"]),
+        value: z.string(),
+      })
+      .optional(),
+  });
+
+  const validated: SurveyQuestion[] = [];
+  for (let i = 0; i < parsed.length; i++) {
+    const result = questionSchema.safeParse(parsed[i]);
+    if (!result.success) {
+      logger.warn("survey.edit.questions.invalid_question", {
+        index: i,
+        errors: result.error.flatten(),
+      });
+      throw new Error(`LLM 返回的第 ${i + 1} 题格式错误`);
+    }
+    validated.push(result.data);
+  }
+  parsed = validated;
 
   return { questions: parsed };
 }
