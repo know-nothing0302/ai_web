@@ -57,21 +57,21 @@ const doSubmit = async () => {
     <!-- Error -->
     <div v-else-if="error && !submitted" class="text-center py-20">
       <div class="text-5xl mb-4">😕</div>
-      <p class="text-slate-400">{{ error }}</p>
+      <p class="text-slate-500">{{ error }}</p>
     </div>
 
     <!-- Submitted -->
     <div v-else-if="submitted" class="text-center py-20">
       <div class="text-5xl mb-4">✅</div>
       <h2 class="text-xl font-semibold text-slate-800 mb-2">提交成功</h2>
-      <p class="text-slate-400">感谢你的参与！</p>
+      <p class="text-slate-500">感谢你的参与！</p>
     </div>
 
     <!-- Form -->
     <div v-else class="max-w-2xl mx-auto px-4 py-8">
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-slate-800 mb-2">{{ title }}</h1>
-        <p v-if="description" class="text-slate-400 text-sm">{{ description }}</p>
+        <p v-if="description" class="text-slate-500 text-sm">{{ description }}</p>
       </div>
 
       <SurveyForm
@@ -103,5 +103,6 @@ const doSubmit = async () => {
 .respond-page {
   min-height: calc(100vh - 8rem);
   padding: 2rem 0;
+  background: #f8fafc;
 }
 </style>

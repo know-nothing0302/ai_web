@@ -40,7 +40,7 @@ const statusLabel = (s: string) => {
 const statusClass = (s: string) => {
   switch (s) {
     case "draft":
-      return "bg-slate-500/15 text-slate-400 border-slate-500/25";
+      return "bg-slate-500/15 text-slate-500 border-slate-500/25";
     case "published":
       return "bg-green-500/15 text-green-400 border-green-500/25";
     case "closed":
@@ -85,7 +85,7 @@ const goToDetail = (id: string) => router.push(`/ai-lab/survey/${id}`);
         class="text-center py-20"
       >
         <div class="text-5xl mb-4">📋</div>
-        <p class="text-slate-400 mb-4">还没有问卷</p>
+        <p class="text-slate-500 mb-4">还没有问卷</p>
         <button
           @click="goToCreate"
           class="px-5 py-2.5 rounded-xl bg-cyan-500 text-white font-medium hover:bg-cyan-600 transition-all text-sm"

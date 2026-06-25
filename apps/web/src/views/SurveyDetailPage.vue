@@ -106,7 +106,7 @@ const shareUrl = computed(() => {
           <span
             class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border shrink-0"
             :class="{
-              'bg-slate-500/15 text-slate-400 border-slate-500/25': survey.status === 'draft',
+              'bg-slate-500/15 text-slate-500 border-slate-500/25': survey.status === 'draft',
               'bg-green-500/15 text-green-400 border-green-500/25': survey.status === 'published',
               'bg-red-500/15 text-red-400 border-red-500/25': survey.status === 'closed',
             }"

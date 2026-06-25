@@ -119,22 +119,22 @@ const pct = (count: number, total: number) => {
                 :key="opt"
                 class="flex items-center gap-3"
               >
-                <span class="text-xs text-slate-400 w-24 truncate text-right">{{ opt }}</span>
+                <span class="text-xs text-slate-500 w-24 truncate text-right">{{ opt }}</span>
                 <div class="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     class="h-full rounded-full bg-cyan-500/50 transition-all"
                     :style="{ width: pct(count, q.answeredCount) + '%' }"
                   ></div>
                 </div>
-                <span class="text-xs text-slate-400 w-12 text-right"
-                  >{{ count }} <span class="text-slate-400">({{ pct(count, q.answeredCount) }}%)</span></span
+                <span class="text-xs text-slate-500 w-12 text-right"
+                  >{{ count }} <span class="text-slate-500">({{ pct(count, q.answeredCount) }}%)</span></span
                 >
               </div>
             </div>
 
             <!-- Rating -->
             <div v-if="q.ratingDistribution" class="space-y-1.5">
-              <p v-if="q.average !== undefined" class="text-xs text-slate-400 mb-2">
+              <p v-if="q.average !== undefined" class="text-xs text-slate-500 mb-2">
                 平均分：<span class="text-yellow-400 font-semibold">{{ q.average }}</span> / 5
               </p>
               <div
@@ -149,7 +149,7 @@ const pct = (count: number, total: number) => {
                     :style="{ width: pct(count, q.answeredCount) + '%' }"
                   ></div>
                 </div>
-                <span class="text-xs text-slate-400 w-10 text-right">{{ count }}</span>
+                <span class="text-xs text-slate-500 w-10 text-right">{{ count }}</span>
               </div>
             </div>
 
@@ -158,7 +158,7 @@ const pct = (count: number, total: number) => {
               <div
                 v-for="(t, ti) in q.textResponses"
                 :key="ti"
-                class="text-xs text-slate-400 py-1.5 px-3 rounded bg-slate-50"
+                class="text-xs text-slate-500 py-1.5 px-3 rounded bg-slate-50"
               >
                 {{ t }}
               </div>
