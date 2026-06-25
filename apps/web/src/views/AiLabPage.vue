@@ -23,8 +23,8 @@ onMounted(async () => {
 const cards = [
   { icon: "🤖", title: "智能问答" },
   { icon: "📄", title: "文档助手" },
-  { icon: "🎨", title: "创意生成" },
-  { icon: "🔬", title: "数据分析" },
+  { icon: "📰", title: "今日速看", to: "/push-digests/today" },
+  { icon: "📋", title: "智能问卷", to: "/ai-lab/survey" },
   { icon: "🎂", title: "生日推送", to: "/admin/birthday" },
 ];
 </script>

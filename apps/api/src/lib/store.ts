@@ -18,6 +18,9 @@ import {
   PushRecord,
   PushRecordStatus,
   Subscription,
+  Survey,
+  SurveyResponse,
+  SurveyStatus,
   TagSyncStatus,
   TodayPushedArticle,
   UserAnnotation,
@@ -2669,4 +2672,206 @@ export const recordAnalyticsEventSafely = async (input: {
       error,
     });
   }
+};
+
+// Survey stores
+
+interface SurveyRow {
+  id: string;
+  creator_user_id: string;
+  title: string;
+  description: string;
+  questions: Record<string, unknown>[];
+  status: SurveyStatus;
+  publish_token: string | null;
+  recipient_config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+const mapSurvey = (row: SurveyRow): Survey => ({
+  id: row.id,
+  creatorUserId: row.creator_user_id,
+  title: row.title,
+  description: row.description,
+  questions: row.questions as unknown as Survey["questions"],
+  status: row.status,
+  publishToken: row.publish_token ?? undefined,
+  recipientConfig: row.recipient_config as unknown as Survey["recipientConfig"],
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+interface SurveyResponseRow {
+  id: string;
+  survey_id: string;
+  respondent_user_id: string | null;
+  answers: Record<string, unknown>;
+  created_at: string;
+}
+
+const mapSurveyResponse = (row: SurveyResponseRow): SurveyResponse => ({
+  id: row.id,
+  surveyId: row.survey_id,
+  respondentUserId: row.respondent_user_id ?? undefined,
+  answers: row.answers,
+  createdAt: row.created_at,
+});
+
+export const surveyStore = {
+  async create(input: {
+    creatorUserId: string;
+    title: string;
+    description: string;
+    questions: Survey["questions"];
+    status?: SurveyStatus;
+  }): Promise<Survey> {
+    const result = await query<SurveyRow>(
+      `INSERT INTO surveys (creator_user_id, title, description, questions, status)
+       VALUES ($1, $2, $3, $4::jsonb, $5)
+       RETURNING *`,
+      [
+        input.creatorUserId,
+        input.title,
+        input.description,
+        JSON.stringify(input.questions),
+        input.status ?? "draft",
+      ]
+    );
+    return mapSurvey(result.rows[0]!);
+  },
+
+  async getById(id: string): Promise<Survey | undefined> {
+    const result = await query<SurveyRow>(
+      `SELECT * FROM surveys WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+    return result.rows[0] ? mapSurvey(result.rows[0]) : undefined;
+  },
+
+  async getByPublishToken(token: string): Promise<Survey | undefined> {
+    const result = await query<SurveyRow>(
+      `SELECT * FROM surveys WHERE publish_token = $1 LIMIT 1`,
+      [token]
+    );
+    return result.rows[0] ? mapSurvey(result.rows[0]) : undefined;
+  },
+
+  async listByCreator(
+    userId: string,
+    limit = 20,
+    offset = 0
+  ): Promise<Survey[]> {
+    const result = await query<SurveyRow>(
+      `SELECT * FROM surveys
+       WHERE creator_user_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+    return result.rows.map(mapSurvey);
+  },
+
+  async countByCreator(userId: string): Promise<number> {
+    const result = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM surveys WHERE creator_user_id = $1`,
+      [userId]
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  },
+
+  async update(
+    id: string,
+    input: {
+      title?: string;
+      description?: string;
+      questions?: Survey["questions"];
+      status?: SurveyStatus;
+      publishToken?: string;
+      recipientConfig?: Survey["recipientConfig"];
+    }
+  ): Promise<Survey | undefined> {
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    if (input.title !== undefined) {
+      sets.push(`title = $${idx++}`);
+      values.push(input.title);
+    }
+    if (input.description !== undefined) {
+      sets.push(`description = $${idx++}`);
+      values.push(input.description);
+    }
+    if (input.questions !== undefined) {
+      sets.push(`questions = $${idx++}::jsonb`);
+      values.push(JSON.stringify(input.questions));
+    }
+    if (input.status !== undefined) {
+      sets.push(`status = $${idx++}`);
+      values.push(input.status);
+    }
+    if (input.publishToken !== undefined) {
+      sets.push(`publish_token = $${idx++}`);
+      values.push(input.publishToken);
+    }
+    if (input.recipientConfig !== undefined) {
+      sets.push(`recipient_config = $${idx++}::jsonb`);
+      values.push(JSON.stringify(input.recipientConfig));
+    }
+
+    if (sets.length === 0) return surveyStore.getById(id);
+
+    sets.push(`updated_at = NOW()`);
+    values.push(id);
+
+    const result = await query<SurveyRow>(
+      `UPDATE surveys SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+    return result.rows[0] ? mapSurvey(result.rows[0]) : undefined;
+  },
+};
+
+export const surveyResponseStore = {
+  async create(input: {
+    surveyId: string;
+    respondentUserId?: string;
+    answers: Record<string, unknown>;
+  }): Promise<SurveyResponse> {
+    const result = await query<SurveyResponseRow>(
+      `INSERT INTO survey_responses (survey_id, respondent_user_id, answers)
+       VALUES ($1, $2, $3::jsonb)
+       RETURNING *`,
+      [
+        input.surveyId,
+        input.respondentUserId ?? null,
+        JSON.stringify(input.answers),
+      ]
+    );
+    return mapSurveyResponse(result.rows[0]!);
+  },
+
+  async listBySurvey(
+    surveyId: string,
+    limit = 200,
+    offset = 0
+  ): Promise<SurveyResponse[]> {
+    const result = await query<SurveyResponseRow>(
+      `SELECT * FROM survey_responses
+       WHERE survey_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [surveyId, limit, offset]
+    );
+    return result.rows.map(mapSurveyResponse);
+  },
+
+  async countBySurvey(surveyId: string): Promise<number> {
+    const result = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM survey_responses WHERE survey_id = $1`,
+      [surveyId]
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  },
 };

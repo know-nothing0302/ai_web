@@ -892,3 +892,214 @@ export const getPushSchedule = async (): Promise<{
   const result = await request.get<{ timezone: string; batches: PushScheduleBatch[] }>("/push/schedule");
   return result.data;
 };
+
+// --- Survey ---
+
+export interface SurveyQuestion {
+  id: string;
+  type: "single_choice" | "multiple_choice" | "text" | "rating";
+  title: string;
+  options?: string[];
+  required: boolean;
+  showIf?: {
+    questionId: string;
+    op: "eq" | "neq" | "includes";
+    value: string;
+  };
+}
+
+export interface SurveyRecipientConfig {
+  department_ids: number[];
+  user_ids: string[];
+  department_names: string[];
+  user_names: string[];
+}
+
+export interface Survey {
+  id: string;
+  creatorUserId: string;
+  title: string;
+  description: string;
+  questions: SurveyQuestion[];
+  status: "draft" | "published" | "closed";
+  publishToken?: string;
+  recipientConfig: SurveyRecipientConfig;
+  createdAt: string;
+  updatedAt: string;
+  responseCount?: number;
+  isCreator?: boolean;
+  shareUrl?: string;
+}
+
+export interface SurveyListResponse {
+  items: Survey[];
+  total: number;
+}
+
+export interface SurveyStats {
+  totalResponses: number;
+  questions: Array<{
+    questionId: string;
+    questionTitle: string;
+    type: string;
+    visibleCount: number;
+    answeredCount: number;
+    distribution?: Record<string, number>;
+    average?: number;
+    ratingDistribution?: Record<number, number>;
+    textResponses?: string[];
+  }>;
+}
+
+export interface WecomDepartment {
+  id: number;
+  name: string;
+  parentId: number;
+  order: number;
+}
+
+export interface WecomDepartmentUser {
+  userid: string;
+  name: string;
+  department: number[];
+}
+
+export const generateSurvey = async (
+  description: string
+): Promise<{ title: string; description: string; questions: SurveyQuestion[] }> => {
+  const result = await request.post<{
+    title: string;
+    description: string;
+    questions: SurveyQuestion[];
+  }>("/survey/generate", { description });
+  return result.data;
+};
+
+export const createSurvey = async (input: {
+  title: string;
+  description: string;
+  questions: SurveyQuestion[];
+}): Promise<Survey> => {
+  const result = await request.post<Survey>("/survey", input);
+  return result.data;
+};
+
+export const listSurveys = async (
+  limit = 20,
+  offset = 0
+): Promise<SurveyListResponse> => {
+  const result = await request.get<SurveyListResponse>("/survey", {
+    params: { limit, offset },
+  });
+  return result.data;
+};
+
+export const getSurvey = async (
+  id: string,
+  token?: string
+): Promise<Survey> => {
+  const result = await request.get<Survey>(`/survey/${id}`, {
+    params: token ? { token } : undefined,
+  });
+  return result.data;
+};
+
+export const updateSurvey = async (
+  id: string,
+  input: {
+    title?: string;
+    description?: string;
+    questions?: SurveyQuestion[];
+  }
+): Promise<Survey> => {
+  const result = await request.patch<Survey>(`/survey/${id}`, input);
+  return result.data;
+};
+
+export const publishSurvey = async (
+  id: string,
+  input: {
+    department_ids: number[];
+    user_ids: string[];
+    department_names: string[];
+    user_names: string[];
+  }
+): Promise<Survey> => {
+  const result = await request.post<Survey>(`/survey/${id}/publish`, input);
+  return result.data;
+};
+
+export const closeSurvey = async (id: string): Promise<Survey> => {
+  const result = await request.post<Survey>(`/survey/${id}/close`);
+  return result.data;
+};
+
+export const respondSurvey = async (
+  surveyId: string,
+  token: string,
+  answers: Record<string, unknown>
+): Promise<{ id: string; message: string }> => {
+  const result = await request.post<{ id: string; message: string }>(
+    `/survey/${surveyId}/respond`,
+    { answers, token }
+  );
+  return result.data;
+};
+
+export const getSurveyResponses = async (
+  surveyId: string,
+  limit = 100,
+  offset = 0
+): Promise<{
+  items: Array<{
+    id: string;
+    surveyId: string;
+    respondentUserId?: string;
+    answers: Record<string, unknown>;
+    createdAt: string;
+  }>;
+  total: number;
+}> => {
+  const result = await request.get(`/survey/${surveyId}/responses`, {
+    params: { limit, offset },
+  });
+  return result.data;
+};
+
+export const getSurveyStats = async (
+  surveyId: string
+): Promise<SurveyStats> => {
+  const result = await request.get<SurveyStats>(
+    `/survey/${surveyId}/stats`
+  );
+  return result.data;
+};
+
+export const analyzeSurveyStats = async (
+  surveyId: string
+): Promise<{ summary: string }> => {
+  const result = await request.post<{ summary: string }>(
+    `/survey/${surveyId}/stats/analyze`
+  );
+  return result.data;
+};
+
+export const getWecomDepartments = async (): Promise<{
+  departments: WecomDepartment[];
+}> => {
+  const result = await request.get<{ departments: WecomDepartment[] }>(
+    "/survey/wecom/departments"
+  );
+  return result.data;
+};
+
+export const getWecomDepartmentUsers = async (
+  departmentId: number,
+  fetchChild = false
+): Promise<{ users: WecomDepartmentUser[] }> => {
+  const result = await request.get<{ users: WecomDepartmentUser[] }>(
+    `/survey/wecom/departments/${departmentId}/users`,
+    { params: { fetch_child: fetchChild ? "1" : "0" } }
+  );
+  return result.data;
+};

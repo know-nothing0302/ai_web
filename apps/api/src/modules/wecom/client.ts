@@ -664,6 +664,43 @@ interface WecomMediaUploadResponse extends WecomApiBaseResponse {
   created_at?: string;
 }
 
+interface WecomDepartmentListResponse extends WecomApiBaseResponse {
+  department?: Array<{
+    id: number;
+    name: string;
+    parentid: number;
+    order: number;
+  }>;
+}
+
+interface WecomUserListResponse extends WecomApiBaseResponse {
+  userlist?: Array<{
+    userid: string;
+    name: string;
+    department: number[];
+    position?: string;
+    mobile?: string;
+    gender?: number;
+    email?: string;
+    avatar?: string;
+    status?: number;
+    isleader?: number;
+  }>;
+}
+
+export interface WecomDepartment {
+  id: number;
+  name: string;
+  parentId: number;
+  order: number;
+}
+
+export interface WecomDepartmentUser {
+  userid: string;
+  name: string;
+  department: number[];
+}
+
 export const wecomClient = {
   async sendTextNoticeCard(
     input: WecomTextNoticeContentInput & WecomMessageTargetToUser
@@ -902,5 +939,44 @@ export const wecomClient = {
       attempt,
       invalidUserIds: parsePipeList(data.invaliduser),
     };
+  },
+
+  async listDepartments(parentId?: number): Promise<WecomDepartment[]> {
+    const config = await getRuntimeConfig();
+    const params: Record<string, unknown> = {};
+    if (typeof parentId === "number") {
+      params.id = parentId;
+    }
+    const { data } = await requestWecom<WecomDepartmentListResponse>(
+      config,
+      { method: "get", params },
+      "/department/list"
+    );
+    return (data.department ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      parentId: item.parentid,
+      order: item.order,
+    }));
+  },
+
+  async listDepartmentUsers(
+    departmentId: number,
+    fetchChild: 0 | 1 = 0
+  ): Promise<WecomDepartmentUser[]> {
+    const config = await getRuntimeConfig();
+    const { data } = await requestWecom<WecomUserListResponse>(
+      config,
+      {
+        method: "get",
+        params: { department_id: departmentId, fetch_child: fetchChild },
+      },
+      "/user/list"
+    );
+    return (data.userlist ?? []).map((item) => ({
+      userid: item.userid,
+      name: item.name,
+      department: item.department,
+    }));
   },
 };

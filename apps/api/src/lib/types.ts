@@ -354,3 +354,55 @@ export interface UserAnnotation {
   createdAt: string;
   updatedAt: string;
 }
+
+// Survey types
+export type SurveyStatus = "draft" | "published" | "closed";
+
+export type SurveyQuestionType =
+  | "single_choice"
+  | "multiple_choice"
+  | "text"
+  | "rating";
+
+export interface SurveyQuestionShowIf {
+  questionId: string;
+  op: "eq" | "neq" | "includes";
+  value: string;
+}
+
+export interface SurveyQuestion {
+  id: string;
+  type: SurveyQuestionType;
+  title: string;
+  options?: string[];
+  required: boolean;
+  showIf?: SurveyQuestionShowIf;
+}
+
+export interface SurveyRecipientConfig {
+  department_ids: number[];
+  user_ids: string[];
+  department_names: string[];
+  user_names: string[];
+}
+
+export interface Survey {
+  id: string;
+  creatorUserId: string;
+  title: string;
+  description: string;
+  questions: SurveyQuestion[];
+  status: SurveyStatus;
+  publishToken?: string;
+  recipientConfig: SurveyRecipientConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SurveyResponse {
+  id: string;
+  surveyId: string;
+  respondentUserId?: string;
+  answers: Record<string, unknown>;
+  createdAt: string;
+}

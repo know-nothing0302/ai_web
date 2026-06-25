@@ -417,6 +417,32 @@ CREATE TABLE IF NOT EXISTS user_annotations (
 );
 CREATE INDEX IF NOT EXISTS idx_user_annotations_user_article ON user_annotations(user_id, article_id);
 
+CREATE TABLE IF NOT EXISTS surveys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_user_id VARCHAR(64) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  questions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft'
+    CHECK (status IN ('draft', 'published', 'closed')),
+  publish_token VARCHAR(64),
+  recipient_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS survey_responses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  survey_id UUID NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+  respondent_user_id VARCHAR(64),
+  answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_surveys_creator ON surveys(creator_user_id);
+CREATE INDEX IF NOT EXISTS idx_surveys_publish_token ON surveys(publish_token);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses(survey_id);
+
 -- Migration 2026-06-02: 订阅频率互斥 — 每个用户只保留一条订阅，改 UNIQUE 约束
 DO $$
 BEGIN

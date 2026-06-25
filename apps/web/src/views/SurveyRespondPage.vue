@@ -1,0 +1,107 @@
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
+import { getSurvey, respondSurvey } from "../services/api";
+import SurveyForm from "../components/SurveyForm.vue";
+import type { SurveyQuestion } from "../services/api";
+
+const route = useRoute();
+const token = String(route.params.token);
+
+const questions = ref<SurveyQuestion[]>([]);
+const title = ref("");
+const description = ref("");
+const loading = ref(true);
+const error = ref("");
+const submitted = ref(false);
+const submitting = ref(false);
+
+const answers = ref<Record<string, unknown>>({});
+
+onMounted(async () => {
+  try {
+    // token 作为 ID 去获取（getSurvey 带 token 查询参数）
+    const result = await getSurvey(token, token);
+    title.value = result.title;
+    description.value = result.description;
+    questions.value = result.questions;
+  } catch {
+    error.value = "问卷不存在或已关闭";
+  } finally {
+    loading.value = false;
+  }
+});
+
+const doSubmit = async () => {
+  submitting.value = true;
+  error.value = "";
+  try {
+    // Use token as both survey id and auth token
+    await respondSurvey(token, token, answers.value);
+    submitted.value = true;
+  } catch (e: any) {
+    error.value = e?.response?.data?.message || e?.response?.data?.errors?.join(", ") || "提交失败";
+  } finally {
+    submitting.value = false;
+  }
+};
+</script>
+
+<template>
+  <div class="respond-page">
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center justify-center py-32">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto"></div>
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="error && !submitted" class="text-center py-20">
+      <div class="text-5xl mb-4">😕</div>
+      <p class="text-slate-400">{{ error }}</p>
+    </div>
+
+    <!-- Submitted -->
+    <div v-else-if="submitted" class="text-center py-20">
+      <div class="text-5xl mb-4">✅</div>
+      <h2 class="text-xl font-semibold text-slate-100 mb-2">提交成功</h2>
+      <p class="text-slate-400">感谢你的参与！</p>
+    </div>
+
+    <!-- Form -->
+    <div v-else class="max-w-2xl mx-auto px-4 py-8">
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-100 mb-2">{{ title }}</h1>
+        <p v-if="description" class="text-slate-400 text-sm">{{ description }}</p>
+      </div>
+
+      <SurveyForm
+        :questions="questions"
+        :editable="true"
+        v-model="answers"
+      />
+
+      <div
+        v-if="error"
+        class="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 text-sm"
+      >
+        {{ error }}
+      </div>
+
+      <button
+        @click="doSubmit"
+        :disabled="submitting"
+        class="mt-8 w-full px-5 py-3 rounded-xl bg-cyan-500/25 border border-cyan-400/40 text-cyan-200 font-semibold hover:bg-cyan-500/35 disabled:opacity-40 transition-all"
+      >
+        <span v-if="submitting">提交中...</span>
+        <span v-else>提交问卷</span>
+      </button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.respond-page {
+  min-height: calc(100vh - 8rem);
+  padding: 2rem 0;
+}
+</style>
