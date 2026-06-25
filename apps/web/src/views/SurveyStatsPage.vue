@@ -56,8 +56,6 @@ const pct = (count: number, total: number) => {
 
 <template>
   <div class="survey-page">
-    <div class="grid-overlay"></div>
-
     <div class="relative z-10 max-w-4xl mx-auto">
       <!-- Loading -->
       <div v-if="loading" class="text-center py-20">
@@ -67,26 +65,26 @@ const pct = (count: number, total: number) => {
       <div v-else-if="error" class="text-center py-20 text-red-400">{{ error }}</div>
 
       <template v-else-if="survey && stats">
-        <h1 class="text-2xl font-bold text-slate-100 mb-2">{{ survey.title }}</h1>
-        <p class="text-slate-400 text-sm mb-8">
+        <h1 class="text-2xl font-bold text-slate-800 mb-2">{{ survey.title }}</h1>
+        <p class="text-slate-500 text-sm mb-8">
           共回收 {{ stats.totalResponses }} 份答卷
         </p>
 
         <!-- AI Analysis -->
         <div class="glass-panel rounded-2xl border border-purple-500/20 p-5 mb-6">
           <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm font-semibold text-purple-300">🤖 AI 解读</h2>
+            <h2 class="text-sm font-semibold text-purple-600">🤖 AI 解读</h2>
             <button
               v-if="!analysis"
               @click="doAnalyze"
               :disabled="analyzing"
-              class="px-4 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs hover:bg-purple-500/25 disabled:opacity-40 transition-all"
+              class="px-4 py-1.5 rounded-lg bg-purple-100 border border-purple-200 text-purple-600 text-xs hover:bg-purple-200 disabled:opacity-40 transition-all"
             >
               <span v-if="analyzing">解读中...</span>
               <span v-else>生成解读</span>
             </button>
           </div>
-          <p v-if="analysis" class="text-slate-300 text-sm leading-relaxed">
+          <p v-if="analysis" class="text-slate-700 text-sm leading-relaxed">
             {{ analysis }}
           </p>
           <p v-else class="text-slate-500 text-xs">
@@ -99,10 +97,10 @@ const pct = (count: number, total: number) => {
           <div
             v-for="q in stats.questions"
             :key="q.questionId"
-            class="glass-panel rounded-xl border border-slate-700/50 p-5"
+            class="glass-panel rounded-xl border border-slate-200 p-5"
           >
             <div class="flex items-center justify-between mb-3">
-              <h3 class="text-slate-200 font-medium text-sm">{{ q.questionTitle }}</h3>
+              <h3 class="text-slate-700 font-medium text-sm">{{ q.questionTitle }}</h3>
               <span class="text-xs text-slate-500">
                 {{ q.answeredCount }} / {{ q.visibleCount }} 人回答
                 <span v-if="q.visibleCount < stats.totalResponses" class="text-amber-500/70 ml-1">
@@ -122,14 +120,14 @@ const pct = (count: number, total: number) => {
                 class="flex items-center gap-3"
               >
                 <span class="text-xs text-slate-400 w-24 truncate text-right">{{ opt }}</span>
-                <div class="flex-1 h-5 bg-slate-800/60 rounded-full overflow-hidden">
+                <div class="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     class="h-full rounded-full bg-cyan-500/50 transition-all"
                     :style="{ width: pct(count, q.answeredCount) + '%' }"
                   ></div>
                 </div>
                 <span class="text-xs text-slate-400 w-12 text-right"
-                  >{{ count }} <span class="text-slate-600">({{ pct(count, q.answeredCount) }}%)</span></span
+                  >{{ count }} <span class="text-slate-400">({{ pct(count, q.answeredCount) }}%)</span></span
                 >
               </div>
             </div>
@@ -145,7 +143,7 @@ const pct = (count: number, total: number) => {
                 class="flex items-center gap-3"
               >
                 <span class="text-xs text-yellow-500 w-10 text-right">{{ star }} ★</span>
-                <div class="flex-1 h-5 bg-slate-800/60 rounded-full overflow-hidden">
+                <div class="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     class="h-full rounded-full bg-yellow-500/50 transition-all"
                     :style="{ width: pct(count, q.answeredCount) + '%' }"
@@ -160,7 +158,7 @@ const pct = (count: number, total: number) => {
               <div
                 v-for="(t, ti) in q.textResponses"
                 :key="ti"
-                class="text-xs text-slate-400 py-1.5 px-3 rounded bg-slate-800/40"
+                class="text-xs text-slate-400 py-1.5 px-3 rounded bg-slate-50"
               >
                 {{ t }}
               </div>
@@ -185,20 +183,11 @@ const pct = (count: number, total: number) => {
   padding: 3rem 1.5rem;
   border-radius: 1.5rem;
   overflow: hidden;
-  background: linear-gradient(135deg, #0a1628 0%, #0f1f3d 50%, #0a1628 100%);
-}
-
-.grid-overlay {
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(rgba(3, 169, 244, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(3, 169, 244, 0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
+  background: #f8fafc;
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(16px);
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 </style>

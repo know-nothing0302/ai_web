@@ -56,18 +56,16 @@ const goToDetail = (id: string) => router.push(`/ai-lab/survey/${id}`);
 
 <template>
   <div class="survey-page">
-    <div class="grid-overlay"></div>
-
     <div class="relative z-10 max-w-5xl mx-auto">
       <!-- Header -->
       <div class="flex items-center justify-between mb-8">
         <div>
-          <h1 class="text-3xl font-bold text-slate-100">智能问卷</h1>
-          <p class="text-slate-400 mt-1">AI 生成 · 企微推送 · 数据统计</p>
+          <h1 class="text-3xl font-bold text-slate-800">智能问卷</h1>
+          <p class="text-slate-500 mt-1">AI 生成 · 企微推送 · 数据统计</p>
         </div>
         <button
           @click="goToCreate"
-          class="px-5 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 font-medium hover:bg-cyan-500/30 transition-all text-sm"
+          class="px-5 py-2.5 rounded-xl bg-cyan-500 text-white font-medium hover:bg-cyan-600 transition-all text-sm"
         >
           + 新建问卷
         </button>
@@ -90,7 +88,7 @@ const goToDetail = (id: string) => router.push(`/ai-lab/survey/${id}`);
         <p class="text-slate-400 mb-4">还没有问卷</p>
         <button
           @click="goToCreate"
-          class="px-5 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 font-medium hover:bg-cyan-500/30 transition-all text-sm"
+          class="px-5 py-2.5 rounded-xl bg-cyan-500 text-white font-medium hover:bg-cyan-600 transition-all text-sm"
         >
           创建第一份问卷
         </button>
@@ -105,10 +103,10 @@ const goToDetail = (id: string) => router.push(`/ai-lab/survey/${id}`);
           v-for="s in surveys"
           :key="s.id"
           @click="goToDetail(s.id)"
-          class="glass-panel rounded-xl border border-slate-700/50 p-5 cursor-pointer hover:border-cyan-500/30 transition-all hover:translate-y-[-3px]"
+          class="bg-white rounded-xl border border-slate-200 p-5 cursor-pointer hover:border-cyan-400 transition-all hover:translate-y-[-3px]"
         >
           <div class="flex items-start justify-between mb-3">
-            <h3 class="font-semibold text-slate-200 text-sm flex-1 mr-3 line-clamp-2">
+            <h3 class="font-semibold text-slate-700 text-sm flex-1 mr-3 line-clamp-2">
               {{ s.title }}
             </h3>
             <span
@@ -144,21 +142,12 @@ const goToDetail = (id: string) => router.push(`/ai-lab/survey/${id}`);
   padding: 3rem 1.5rem;
   border-radius: 1.5rem;
   overflow: hidden;
-  background: linear-gradient(135deg, #0a1628 0%, #0f1f3d 50%, #0a1628 100%);
-}
-
-.grid-overlay {
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(rgba(3, 169, 244, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(3, 169, 244, 0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
+  background: #f8fafc;
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(16px);
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .line-clamp-2 {
