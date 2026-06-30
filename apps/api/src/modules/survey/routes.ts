@@ -508,7 +508,7 @@ surveyRouter.post("/:id/reopen", requireAuth, async (request, response) => {
      parsed.data.user_ids.length > 0 ||
      parsed.data.tag_ids.length > 0);
 
-  const recipientConfig = parsed.success
+  const recipientConfig = hasNewRecipients
     ? {
         department_ids: parsed.data.department_ids,
         user_ids: parsed.data.user_ids,
