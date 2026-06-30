@@ -4,7 +4,6 @@ import { useRoute } from "vue-router";
 import { getSurvey, respondSurvey } from "../services/api";
 import SurveyForm from "../components/SurveyForm.vue";
 import type { SurveyQuestion } from "../services/api";
-import axios from "axios";
 
 const route = useRoute();
 const token = String(route.params.token);
@@ -19,41 +18,17 @@ const submitting = ref(false);
 
 const answers = ref<Record<string, unknown>>({});
 
-// CAS auth state
-const currentUserId = ref("");
-const authChecking = ref(true);
-
-const checkAuth = async () => {
-  try {
-    const { data } = await axios.get("/api/auth/me");
-    if (data.user?.id) {
-      currentUserId.value = data.user.id;
-    }
-  } catch {
-    // Not logged in — that's fine
-  } finally {
-    authChecking.value = false;
-  }
-};
-
-const loginUrl = `/api/auth/cas/login?redirect=${encodeURIComponent("/s/" + token)}`;
-
 onMounted(async () => {
-  await Promise.all([
-    checkAuth(),
-    (async () => {
-      try {
-        const result = await getSurvey(token, token);
-        title.value = result.title;
-        description.value = result.description;
-        questions.value = result.questions;
-      } catch {
-        error.value = "问卷不存在或已关闭";
-      } finally {
-        loading.value = false;
-      }
-    })(),
-  ]);
+  try {
+    const result = await getSurvey(token, token);
+    title.value = result.title;
+    description.value = result.description;
+    questions.value = result.questions;
+  } catch {
+    error.value = "问卷不存在或已关闭";
+  } finally {
+    loading.value = false;
+  }
 });
 
 const doSubmit = async () => {
@@ -95,17 +70,6 @@ const doSubmit = async () => {
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-slate-800 mb-2">{{ title }}</h1>
         <p v-if="description" class="text-slate-500 text-sm">{{ description }}</p>
-      </div>
-
-      <!-- Auth status -->
-      <div v-if="!authChecking" class="mb-6 p-3 rounded-lg border text-sm" :class="currentUserId ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
-        <template v-if="currentUserId">
-          ✅ 当前登录工号：<span class="font-mono font-medium">{{ currentUserId }}</span>（将自动记录）
-        </template>
-        <template v-else>
-          未登录，提交将不记录工号。
-          <a :href="loginUrl" class="text-cyan-600 underline hover:text-cyan-500 ml-1">登录以记录工号</a>
-        </template>
       </div>
 
       <SurveyForm

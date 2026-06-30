@@ -55,7 +55,7 @@ router.beforeEach(async (to) => {
     try {
       sessionStorage.setItem(CAS_RETURN_KEY, target);
     } catch { /* sessionStorage 不可用 */ }
-    window.location.href = `${apiBase}/auth/cas/login`;
+    window.location.href = `${apiBase}/auth/cas/login?redirect=${encodeURIComponent(target)}`;
     return false;
   }
 
