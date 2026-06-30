@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { getWecomDepartments } from "../services/api";
+import { getWecomDepartments, getWecomTags } from "../services/api";
 import OrgTreeNode from "./OrgTreeNode.vue";
 import type { TreeNode } from "./OrgTreeTypes";
+import type { WecomTag } from "../services/api";
 
 const props = defineProps<{
   modelValue: {
@@ -10,6 +11,8 @@ const props = defineProps<{
     user_ids: string[];
     department_names: string[];
     user_names: string[];
+    tag_ids: number[];
+    tag_names: string[];
   };
 }>();
 
@@ -23,7 +26,13 @@ const error = ref("");
 
 const selectedDepts = ref<Map<number, string>>(new Map());
 const selectedUsers = ref<Map<string, string>>(new Map());
+const selectedTags = ref<Map<number, string>>(new Map());
 const searchQuery = ref("");
+
+// Tag state
+const wecomTags = ref<WecomTag[]>([]);
+const tagsLoading = ref(false);
+const tagsError = ref("");
 
 // Full flat department list for search
 const allDepartments = ref<Map<number, { id: number; name: string; parentId: number }>>(new Map());
@@ -61,6 +70,12 @@ onMounted(async () => {
         props.modelValue.user_names[i] ?? ""
       );
     }
+    for (let i = 0; i < props.modelValue.tag_ids.length; i++) {
+      selectedTags.value.set(
+        props.modelValue.tag_ids[i]!,
+        props.modelValue.tag_names[i] ?? ""
+      );
+    }
   }
   try {
     const { departments } = await getWecomDepartments();
@@ -75,6 +90,17 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+
+  // Load tags
+  tagsLoading.value = true;
+  try {
+    const { tags } = await getWecomTags();
+    wecomTags.value = tags;
+  } catch {
+    tagsError.value = "获取标签列表失败";
+  } finally {
+    tagsLoading.value = false;
+  }
 });
 
 const syncToParent = () => {
@@ -83,6 +109,8 @@ const syncToParent = () => {
     user_ids: [...selectedUsers.value.keys()],
     department_names: [...selectedDepts.value.values()],
     user_names: [...selectedUsers.value.values()],
+    tag_ids: [...selectedTags.value.keys()],
+    tag_names: [...selectedTags.value.values()],
   });
 };
 
@@ -96,7 +124,25 @@ const removeUser = (id: string) => {
   syncToParent();
 };
 
-const hasSelection = computed(() => selectedDepts.value.size > 0 || selectedUsers.value.size > 0);
+const toggleTag = (tagId: number, tagName: string) => {
+  if (selectedTags.value.has(tagId)) {
+    selectedTags.value.delete(tagId);
+  } else {
+    selectedTags.value.set(tagId, tagName);
+  }
+  syncToParent();
+};
+
+const removeTag = (id: number) => {
+  selectedTags.value.delete(id);
+  syncToParent();
+};
+
+const hasSelection = computed(() =>
+  selectedDepts.value.size > 0 ||
+  selectedUsers.value.size > 0 ||
+  selectedTags.value.size > 0
+);
 
 const onSelectionUpdate = () => {
   syncToParent();
@@ -144,6 +190,14 @@ const onSelectionUpdate = () => {
             👤 {{ name }}
             <button @click="removeUser(id)" class="ml-0.5 hover:text-purple-100">&times;</button>
           </span>
+          <span
+            v-for="[id, name] in selectedTags"
+            :key="'tag-' + id"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-500/15 text-amber-300 border border-amber-500/25"
+          >
+            🏷 {{ name }}
+            <button @click="removeTag(id)" class="ml-0.5 hover:text-amber-100">&times;</button>
+          </span>
         </div>
       </div>
 
@@ -160,6 +214,32 @@ const onSelectionUpdate = () => {
         />
         <div v-if="rootNodes.length === 0 && !loading" class="text-slate-500 text-sm py-4 text-center">
           暂无部门数据
+        </div>
+      </div>
+
+      <!-- Tags section -->
+      <div class="mt-4 pt-4 border-t border-slate-700/40">
+        <div class="text-xs text-slate-400 mb-2">🏷 企业微信标签</div>
+        <div v-if="tagsLoading" class="text-slate-400 text-xs py-2">加载标签...</div>
+        <div v-else-if="tagsError" class="text-red-400 text-xs py-2">{{ tagsError }}</div>
+        <div v-else-if="wecomTags.length === 0" class="text-slate-500 text-xs py-2">暂无标签</div>
+        <div v-else class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+          <label
+            v-for="tag in wecomTags"
+            :key="tag.tagId"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer text-xs transition-all"
+            :class="selectedTags.has(tag.tagId)
+              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
+              : 'bg-slate-800/30 border border-slate-700/30 text-slate-400 hover:border-slate-600/40'"
+          >
+            <input
+              type="checkbox"
+              :checked="selectedTags.has(tag.tagId)"
+              @change="toggleTag(tag.tagId, tag.tagName)"
+              class="accent-amber-500"
+            />
+            {{ tag.tagName }}
+          </label>
         </div>
       </div>
     </div>

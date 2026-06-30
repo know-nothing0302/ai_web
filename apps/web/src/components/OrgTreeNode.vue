@@ -35,6 +35,7 @@ const isVisible = computed(() => {
   if (!hasSearch.value) return true;
   const q = props.searchQuery.toLowerCase();
   if (props.node.name.toLowerCase().includes(q)) return true;
+  if (String(props.node.id).toLowerCase().includes(q)) return true;
   // Check children recursively (pre-loaded departments + loaded users)
   const allChildren = [...(props.node.children ?? []), ...userNodes.value];
   if (isDepartment.value && allChildren.length > 0) {
@@ -45,6 +46,7 @@ const isVisible = computed(() => {
 
 const checkChildVisible = (node: TreeNode, q: string): boolean => {
   if (node.name.toLowerCase().includes(q)) return true;
+  if (String(node.id).toLowerCase().includes(q)) return true;
   if (node.children && node.children.length > 0) {
     return node.children.some(c => checkChildVisible(c, q));
   }

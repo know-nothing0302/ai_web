@@ -6,6 +6,7 @@ import {
   getSurveyStats,
   analyzeSurveyStats,
 } from "../services/api";
+import SurveyNavSidebar from "../components/SurveyNavSidebar.vue";
 import type { Survey, SurveyStats } from "../services/api";
 
 const route = useRoute();
@@ -56,6 +57,7 @@ const pct = (count: number, total: number) => {
 
 <template>
   <div class="survey-page">
+    <SurveyNavSidebar v-if="survey" :survey-id="survey.id" />
     <div class="relative z-10 max-w-4xl mx-auto">
       <!-- Loading -->
       <div v-if="loading" class="text-center py-20">

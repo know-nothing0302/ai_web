@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { generateSurvey, createSurvey, updateSurvey, getSurvey, editQuestions } from "../services/api";
 import SurveyForm from "../components/SurveyForm.vue";
+import SurveyNavSidebar from "../components/SurveyNavSidebar.vue";
 import type { SurveyQuestion } from "../services/api";
 
 const router = useRouter();
@@ -194,6 +195,7 @@ const doSave = async () => {
 
 const editingInstruction = ref("");
 const editingProcessing = ref(false);
+const nlExpanded = ref(false);
 
 const doEditQuestions = async () => {
   if (!editingInstruction.value.trim()) return;
@@ -223,6 +225,7 @@ const setQuestionType = (q: SurveyQuestion, type: SurveyQuestion["type"]) => {
 
 <template>
   <div class="survey-page">
+    <SurveyNavSidebar v-if="surveyId" :survey-id="surveyId" />
     <div class="relative z-10 max-w-3xl mx-auto">
       <h1 class="text-3xl font-bold text-slate-800 mb-8">
         {{ surveyId ? "编辑问卷" : "创建问卷" }}
@@ -380,26 +383,33 @@ const setQuestionType = (q: SurveyQuestion, type: SurveyQuestion["type"]) => {
           </div>
         </div>
 
-        <!-- Natural language editing -->
-        <div class="glass-panel rounded-2xl border border-slate-200 p-6">
-          <label class="block text-slate-700 font-medium mb-3 text-sm">自然语言修改</label>
-          <textarea
-            v-model="editingInstruction"
-            rows="2"
-            placeholder="例如：删除第一题，将第二题标题改为「你对本次活动的整体评价」"
-            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:border-cyan-500/60 focus:outline-none resize-y mb-3"
-          ></textarea>
+        <!-- Natural language editing — floating bar -->
+        <div class="nl-edit-float" :class="{ 'nl-edit-float--expanded': nlExpanded }">
           <button
-            @click="doEditQuestions"
-            :disabled="!editingInstruction.trim() || editingProcessing"
-            class="px-4 py-2 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 disabled:opacity-40 transition-colors"
+            @click="nlExpanded = !nlExpanded"
+            class="nl-edit-float__toggle"
           >
-            <span v-if="editingProcessing" class="inline-flex items-center gap-2">
-              <span class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></span>
-              处理中...
-            </span>
-            <span v-else>执行</span>
+            <span class="text-xs font-medium">💬 自然语言修改</span>
+            <span class="text-slate-400 text-xs">{{ nlExpanded ? '▼' : '▲' }}</span>
           </button>
+          <div v-if="nlExpanded" class="nl-edit-float__body">
+            <textarea
+              v-model="editingInstruction"
+              rows="2"
+              placeholder="例如：删除第一题，将第二题标题改为「你对本次活动的整体评价」"
+              class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:border-cyan-500/60 focus:outline-none resize-none"
+            ></textarea>
+            <button
+              @click="doEditQuestions"
+              :disabled="!editingInstruction.trim() || editingProcessing"
+              class="shrink-0 px-4 py-2 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 disabled:opacity-40 transition-colors"
+            >
+              <span v-if="editingProcessing" class="inline-flex items-center gap-2">
+                <span class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></span>
+              </span>
+              <span v-else>执行</span>
+            </button>
+          </div>
         </div>
 
         <!-- Preview -->
@@ -445,6 +455,7 @@ const setQuestionType = (q: SurveyQuestion, type: SurveyQuestion["type"]) => {
   position: relative;
   min-height: calc(100vh - 10rem);
   padding: 3rem 1.5rem;
+  padding-bottom: 6rem; /* space for floating bar */
   border-radius: 1.5rem;
   overflow: hidden;
   background: #f8fafc;
@@ -453,5 +464,55 @@ const setQuestionType = (q: SurveyQuestion, type: SurveyQuestion["type"]) => {
 .glass-panel {
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Floating NL edit bar */
+.nl-edit-float {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 2rem);
+  max-width: 48rem; /* max-w-3xl */
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.nl-edit-float--expanded {
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
+}
+
+.nl-edit-float__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #475569;
+  border-radius: 1rem;
+}
+
+.nl-edit-float__toggle:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.nl-edit-float__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 16px 12px 16px;
+}
+
+.nl-edit-float__body textarea {
+  flex: 1;
+  min-width: 0;
 }
 </style>

@@ -384,6 +384,8 @@ export interface SurveyRecipientConfig {
   user_ids: string[];
   department_names: string[];
   user_names: string[];
+  tag_ids: number[];
+  tag_names: string[];
 }
 
 export interface Survey {

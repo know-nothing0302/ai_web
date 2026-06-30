@@ -231,7 +231,7 @@ describe("computeStats", () => {
     const survey: Survey = {
       id: "s1", creatorUserId: "u1", title: "Test", description: "",
       questions: [makeQuestion({ id: "q1", type: "single_choice", title: "Q1", options: ["A", "B", "C"], required: true })],
-      status: "published", recipientConfig: { department_ids: [], user_ids: [], department_names: [], user_names: [] },
+      status: "published", recipientConfig: { department_ids: [], user_ids: [], department_names: [], user_names: [], tag_ids: [], tag_names: [] },
       createdAt: "", updatedAt: "",
     };
 
@@ -258,7 +258,7 @@ describe("computeStats", () => {
     const survey: Survey = {
       id: "s1", creatorUserId: "u1", title: "Test", description: "",
       questions: [makeQuestion({ id: "q1", type: "rating", title: "Q1", required: true })],
-      status: "published", recipientConfig: { department_ids: [], user_ids: [], department_names: [], user_names: [] },
+      status: "published", recipientConfig: { department_ids: [], user_ids: [], department_names: [], user_names: [], tag_ids: [], tag_names: [] },
       createdAt: "", updatedAt: "",
     };
 
@@ -286,7 +286,7 @@ describe("computeStats", () => {
     const { computeStats } = await import("./service.js");
     const survey: Survey = {
       id: "s1", creatorUserId: "u1", title: "Test", description: "", questions,
-      status: "published", recipientConfig: { department_ids: [], user_ids: [], department_names: [], user_names: [] },
+      status: "published", recipientConfig: { department_ids: [], user_ids: [], department_names: [], user_names: [], tag_ids: [], tag_names: [] },
       createdAt: "", updatedAt: "",
     };
 

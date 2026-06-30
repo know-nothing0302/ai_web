@@ -913,6 +913,8 @@ export interface SurveyRecipientConfig {
   user_ids: string[];
   department_names: string[];
   user_names: string[];
+  tag_ids: number[];
+  tag_names: string[];
 }
 
 export interface Survey {
@@ -1023,6 +1025,8 @@ export const publishSurvey = async (
     user_ids: string[];
     department_names: string[];
     user_names: string[];
+    tag_ids?: number[];
+    tag_names?: string[];
   }
 ): Promise<Survey> => {
   const result = await request.post<Survey>(`/survey/${id}/publish`, input);
@@ -1034,8 +1038,18 @@ export const closeSurvey = async (id: string): Promise<Survey> => {
   return result.data;
 };
 
-export const reopenSurvey = async (id: string): Promise<Survey> => {
-  const result = await request.post<Survey>(`/survey/${id}/reopen`);
+export const reopenSurvey = async (
+  id: string,
+  recipientConfig?: {
+    department_ids: number[];
+    user_ids: string[];
+    department_names: string[];
+    user_names: string[];
+    tag_ids?: number[];
+    tag_names?: string[];
+  }
+): Promise<Survey> => {
+  const result = await request.post<Survey>(`/survey/${id}/reopen`, recipientConfig ?? {});
   return result.data;
 };
 
@@ -1107,6 +1121,16 @@ export const getWecomDepartments = async (
     "/survey/wecom/departments",
     { params: typeof parentId === "number" ? { parent_id: parentId } : undefined }
   );
+  return result.data;
+};
+
+export interface WecomTag {
+  tagId: number;
+  tagName: string;
+}
+
+export const getWecomTags = async (): Promise<{ tags: WecomTag[] }> => {
+  const result = await request.get<{ tags: WecomTag[] }>("/survey/wecom/tags");
   return result.data;
 };
 

@@ -63,6 +63,8 @@ const publishSchema = z.object({
   user_ids: z.array(z.string()).default([]),
   department_names: z.array(z.string()).default([]),
   user_names: z.array(z.string()).default([]),
+  tag_ids: z.array(z.number()).default([]),
+  tag_names: z.array(z.string()).default([]),
 });
 
 const respondSchema = z.object({
@@ -214,6 +216,22 @@ surveyRouter.get("/wecom/departments", requireAuth, async (request, response) =>
   }
 });
 
+// GET /api/survey/wecom/tags — 企微标签列表
+surveyRouter.get("/wecom/tags", requireAuth, async (_request, response) => {
+  try {
+    const tags = await wecomClient.listTags();
+    response.json({ tags });
+  } catch (error) {
+    logger.error("survey.wecom.tags.failed", {
+      error: (error as Error).message,
+    });
+    response.status(500).json({
+      message: "获取标签列表失败",
+      detail: (error as Error).message,
+    });
+  }
+});
+
 // GET /api/survey/wecom/departments/:id/users — 部门成员
 surveyRouter.get(
   "/wecom/departments/:id/users",
@@ -352,6 +370,8 @@ surveyRouter.post("/:id/publish", requireAuth, async (request, response) => {
     user_ids: parsed.data.user_ids,
     department_names: parsed.data.department_names,
     user_names: parsed.data.user_names,
+    tag_ids: parsed.data.tag_ids,
+    tag_names: parsed.data.tag_names,
   };
 
   // Persist survey state first
@@ -366,20 +386,23 @@ surveyRouter.post("/:id/publish", requireAuth, async (request, response) => {
     userId,
     hasRecipients:
       recipientConfig.department_ids.length > 0 ||
-      recipientConfig.user_ids.length > 0,
+      recipientConfig.user_ids.length > 0 ||
+      recipientConfig.tag_ids.length > 0,
   });
 
   // Push via WeChat Work if recipients specified (after state persisted)
   let pushResult: { invalidUserIds: string[] } | undefined;
   const hasRecipients =
     recipientConfig.department_ids.length > 0 ||
-    recipientConfig.user_ids.length > 0;
+    recipientConfig.user_ids.length > 0 ||
+    recipientConfig.tag_ids.length > 0;
 
   if (hasRecipients) {
     try {
       pushResult = await wecomClient.sendTemplateCard({
         toparty: recipientConfig.department_ids.join("|") || undefined,
         touser: recipientConfig.user_ids.join("|") || undefined,
+        totag: recipientConfig.tag_ids.join("|") || undefined,
         templateCard: {
           card_type: "text_notice",
           source: {
@@ -477,8 +500,74 @@ surveyRouter.post("/:id/reopen", requireAuth, async (request, response) => {
     return;
   }
 
-  const updated = await surveyStore.update(surveyId, { status: "published" });
-  logger.info("survey.reopened", { surveyId, userId });
+  // Accept optional new recipientConfig for re-push
+  const parsed = publishSchema.safeParse(request.body ?? {});
+  const hasNewRecipients =
+    parsed.success &&
+    (parsed.data.department_ids.length > 0 ||
+     parsed.data.user_ids.length > 0 ||
+     parsed.data.tag_ids.length > 0);
+
+  const recipientConfig = parsed.success
+    ? {
+        department_ids: parsed.data.department_ids,
+        user_ids: parsed.data.user_ids,
+        department_names: parsed.data.department_names,
+        user_names: parsed.data.user_names,
+        tag_ids: parsed.data.tag_ids,
+        tag_names: parsed.data.tag_names,
+      }
+    : survey.recipientConfig;
+
+  const updated = await surveyStore.update(surveyId, {
+    status: "published",
+    recipientConfig,
+  });
+
+  logger.info("survey.reopened", { surveyId, userId, hasNewRecipients });
+
+  // Push if new recipients provided
+  if (hasNewRecipients) {
+    const webBase = env.webBaseUrl.replace(/\/+$/, "");
+    const shareUrl = `${webBase}/s/${survey.publishToken ?? ""}`;
+    try {
+      const pushResult = await wecomClient.sendTemplateCard({
+        toparty: recipientConfig.department_ids.join("|") || undefined,
+        touser: recipientConfig.user_ids.join("|") || undefined,
+        totag: recipientConfig.tag_ids.join("|") || undefined,
+        templateCard: {
+          card_type: "text_notice",
+          source: {
+            desc: "AI 问卷",
+            desc_color: 3,
+          },
+          main_title: {
+            title: survey.title,
+            desc: `共 ${survey.questions.length} 题`,
+          },
+          sub_title_text: survey.description || "点击填写问卷",
+          horizontal_content_list: [
+            { keyname: "创建者", value: userId },
+            { keyname: "填写问卷", value: "点击查看", type: 1, url: shareUrl },
+          ],
+          card_action: { type: 1, url: shareUrl },
+        },
+      });
+      logger.info("survey.reopen.push_sent", {
+        surveyId,
+        departmentCount: recipientConfig.department_ids.length,
+        userCount: recipientConfig.user_ids.length,
+        tagCount: recipientConfig.tag_ids.length,
+        invalidUserIds: pushResult.invalidUserIds,
+      });
+    } catch (error) {
+      logger.warn("survey.reopen.push_failed", {
+        surveyId,
+        error: (error as Error).message,
+      });
+    }
+  }
+
   response.json(updated);
 });
 
