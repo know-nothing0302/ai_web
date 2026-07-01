@@ -231,7 +231,7 @@ request.interceptors.response.use(
       if (!url.includes("/auth/cas/") && !url.includes("/auth/me")) {
         import("../stores/auth").then(({ useAuthStore }) => {
           useAuthStore().clearUser();
-          window.location.href = `${apiBase}/auth/cas/login?redirect=${encodeURIComponent(window.location.href)}`;
+          window.location.href = `${apiBase}/auth/cas/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
         });
       }
     }

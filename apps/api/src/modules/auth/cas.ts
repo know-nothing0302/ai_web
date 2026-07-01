@@ -112,12 +112,15 @@ const normalizeWebBaseUrl = (raw: string): string => {
 
 const normalizeRedirectPath = (raw?: string): string => {
   const value = (raw ?? "").trim();
-  if (!value || !value.startsWith("/")) {
-    return "/";
+  if (!value) return "/";
+  // 如果是完整 URL，提取 pathname
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    try {
+      const u = new URL(value);
+      return u.pathname + u.search + u.hash || "/";
+    } catch { /* fall through */ }
   }
-  if (value.startsWith("//")) {
-    return "/";
-  }
+  if (!value.startsWith("/") || value.startsWith("//")) return "/";
   return value;
 };
 
