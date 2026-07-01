@@ -33,6 +33,7 @@ const { isDark, toggle: toggleDark } = useDarkMode();
 const { fontScale, SCALES, setScale } = useFontScale();
 const route = useRoute();
 const isAgentHovered = ref(false);
+const isAiLabPage = computed(() => route.path.startsWith('/ai-lab'));
 const adminDropdownOpen = ref(false);
 const adminDropdownTimer = ref<ReturnType<typeof setTimeout> | null>(null);
 
@@ -374,6 +375,12 @@ watch(
     try {
       localStorage.removeItem("ai-web-last-conversation");
     } catch { /* localStorage 不可用 */ }
+    // 进入问卷编辑页时关闭 Page Agent，避免与自然语言修改栏重叠
+    if (route.path.startsWith('/ai-lab')) {
+      pageAgentOpen.value = false;
+      pageAgentMinimized.value = false;
+      pageAgentHasUnreadReply.value = false;
+    }
   }
 );
 
@@ -617,7 +624,7 @@ watch(
     />
 
     <PageAgentLauncher
-      v-if="!pageAgentOpen"
+      v-if="!pageAgentOpen && !isAiLabPage"
       :is-hovered="isAgentHovered"
       :intro-active="pageAgentIntroActive"
       @click="triggerAgent"
