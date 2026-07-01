@@ -7,6 +7,7 @@
 SERVICE_NAME="ai_web_api"
 PROJECT_DIR="/opt/idapps/ai_web"
 API_DIR="$PROJECT_DIR/apps/api"
+WEB_DIR="$PROJECT_DIR/apps/web"
 LOG_FILE="$PROJECT_DIR/api.log"
 LOG_ARCHIVE_DIR="$PROJECT_DIR/logs"
 PID_FILE="$PROJECT_DIR/ai_web.pid"
@@ -59,7 +60,7 @@ release_lock() {
 
 run_as_service_user() {
     local command="$1"
-    
+
     if [ "$CURRENT_USER" = "$SERVICE_RUN_USER" ]; then
         env -i HOME="/home/$SERVICE_RUN_USER" PATH="$PATH" PORT="$PORT" NODE_ENV="$NODE_ENV" bash -c "$command"
         return $?
@@ -196,6 +197,15 @@ need_rebuild() {
     [ "$latest_src" -gt "$dist_time" ]
 }
 
+# 检查前端（Vue.js）是否需要重新构建
+need_rebuild_web() {
+    [ ! -f "$WEB_DIR/dist/index.html" ] && return 0
+    local latest_src=$(find "$WEB_DIR/src" -type f \( -name "*.vue" -o -name "*.ts" -o -name "*.js" -o -name "*.css" \) -exec stat -c %Y {} + 2>/dev/null | sort -nr | head -1)
+    local dist_time=$(stat -c %Y "$WEB_DIR/dist/index.html" 2>/dev/null || echo 0)
+    [ -z "$latest_src" ] && return 1
+    [ "$latest_src" -gt "$dist_time" ]
+}
+
 # 启动服务
 start_service() {
     acquire_lock
@@ -222,26 +232,48 @@ start_service() {
     rotate_log_if_large
     ensure_runtime_file "$LOG_FILE"
 
-    # 检查依赖
+    # 检查 API 依赖
     if [ ! -d "$API_DIR/node_modules" ] || [ "$API_DIR/package.json" -nt "$API_DIR/node_modules" ]; then
-        log "${YELLOW}正在安装依赖包（含构建期依赖）...${NC}"
+        log "${YELLOW}正在安装 API 依赖包（含构建期依赖）...${NC}"
         run_as_service_user "cd '$API_DIR' && '$NPM_EXEC' install --include=dev"
         if [ $? -ne 0 ]; then
-            log "${RED}依赖安装失败${NC}"
+            log "${RED}API 依赖安装失败${NC}"
             return 1
         fi
     fi
 
-    # 检查是否需要构建
+    # 检查是否需要构建 API
     if need_rebuild; then
-        log "${YELLOW}检测到源码更新或产物缺失，开始构建项目...${NC}"
+        log "${YELLOW}检测到 API 源码更新或产物缺失，开始构建项目...${NC}"
         run_as_service_user "cd '$API_DIR' && '$NPM_EXEC' run build"
         if [ $? -ne 0 ]; then
-            log "${RED}构建失败${NC}"
+            log "${RED}API 构建失败${NC}"
             return 1
         fi
     else
-        log "${BLUE}构建产物 dist/server.js 已是最新，跳过构建步骤${NC}"
+        log "${BLUE}API 构建产物 dist/server.js 已是最新，跳过构建步骤${NC}"
+    fi
+
+    # 检查 Web 前端依赖（npm workspace 依赖从根目录安装）
+    if [ ! -d "$WEB_DIR/node_modules" ] || [ "$WEB_DIR/package.json" -nt "$WEB_DIR/node_modules" ]; then
+        log "${YELLOW}正在安装前端依赖包...${NC}"
+        run_as_service_user "cd '$PROJECT_DIR' && '$NPM_EXEC' install"
+        if [ $? -ne 0 ]; then
+            log "${RED}前端依赖安装失败${NC}"
+            return 1
+        fi
+    fi
+
+    # 检查是否需要构建 Web 前端
+    if need_rebuild_web; then
+        log "${YELLOW}检测到前端源码更新或产物缺失，开始构建前端...${NC}"
+        run_as_service_user "cd '$WEB_DIR' && '$NPM_EXEC' run build"
+        if [ $? -ne 0 ]; then
+            log "${RED}前端构建失败${NC}"
+            return 1
+        fi
+    else
+        log "${BLUE}前端构建产物 dist/index.html 已是最新，跳过构建步骤${NC}"
     fi
 
     # 确保非 TS 构建产物存在（PSD、Python 脚本等，rsync --delete 可能已清除）
@@ -425,18 +457,32 @@ start_fg_service() {
     rotate_log_if_large
     ensure_runtime_file "$LOG_FILE"
 
-    # 依赖
+    # API 依赖
     if [ ! -d "$API_DIR/node_modules" ] || [ "$API_DIR/package.json" -nt "$API_DIR/node_modules" ]; then
-        log "${YELLOW}正在安装依赖包（含构建期依赖）...${NC}"
+        log "${YELLOW}正在安装 API 依赖包（含构建期依赖）...${NC}"
         run_as_service_user "cd '$API_DIR' && '$NPM_EXEC' install --include=dev" || { release_lock; return 1; }
     fi
 
-    # 构建
+    # API 构建
     if need_rebuild; then
-        log "${YELLOW}检测到源码更新或产物缺失，开始构建项目...${NC}"
+        log "${YELLOW}检测到 API 源码更新或产物缺失，开始构建项目...${NC}"
         run_as_service_user "cd '$API_DIR' && '$NPM_EXEC' run build" || { release_lock; return 1; }
     else
-        log "${BLUE}构建产物 dist/server.js 已是最新，跳过构建步骤${NC}"
+        log "${BLUE}API 构建产物 dist/server.js 已是最新，跳过构建步骤${NC}"
+    fi
+
+    # Web 前端依赖（npm workspace 依赖从根目录安装）
+    if [ ! -d "$WEB_DIR/node_modules" ] || [ "$WEB_DIR/package.json" -nt "$WEB_DIR/node_modules" ]; then
+        log "${YELLOW}正在安装前端依赖包...${NC}"
+        run_as_service_user "cd '$PROJECT_DIR' && '$NPM_EXEC' install" || { release_lock; return 1; }
+    fi
+
+    # Web 前端构建
+    if need_rebuild_web; then
+        log "${YELLOW}检测到前端源码更新或产物缺失，开始构建前端...${NC}"
+        run_as_service_user "cd '$WEB_DIR' && '$NPM_EXEC' run build" || { release_lock; return 1; }
+    else
+        log "${BLUE}前端构建产物 dist/index.html 已是最新，跳过构建步骤${NC}"
     fi
 
     ensure_dist_assets
@@ -492,7 +538,7 @@ status_service() {
         if [ -f "$LOG_FILE" ]; then
             echo "日志文件大小: $(du -h "$LOG_FILE" | cut -f1)"
         fi
-        
+
         return 0
     else
         log "${RED}$SERVICE_NAME 服务未运行${NC}"
