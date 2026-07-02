@@ -38,7 +38,7 @@ const articleEventSchema = pageEventSchema.extend({
 
 export const statsRouter = Router();
 
-statsRouter.post("/events/page-view", requireAuth, async (request, response) => {
+statsRouter.post("/events/page-view", async (request, response) => {
   const parsed = pageEventSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ message: "参数错误", errors: parsed.error.flatten() });

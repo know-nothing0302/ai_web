@@ -74,6 +74,7 @@ router.beforeEach(async (to) => {
 });
 
 router.afterEach((to) => {
+  if (to.meta.public) return;
   const routeKey = to.fullPath;
   if (routeKey === lastTrackedRoute) {
     return;
